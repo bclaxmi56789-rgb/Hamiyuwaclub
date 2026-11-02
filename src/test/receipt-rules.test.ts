@@ -804,6 +804,18 @@ describe("buildEmployeeLedger", () => {
     expect(rows.reduce((s, r) => s + r.dr, 0)).toBe(2500);
     expect(rows.reduce((s, r) => s + r.cr, 0)).toBe(50000); // opening 5000 + booked 45000
   });
+
+  it("ignores other employees' payroll rows even when passed full history", () => {
+    const rows = buildEmployeeLedger({
+      employee: emp,
+      payrolls: [
+        payrollRow({ employee_id: "emp-2", payment_status: "booked" }),
+        payrollRow({ employee_id: "emp-3", payment_status: "paid", voucher_ref: "P-0007" }),
+      ],
+      transactions: [],
+    });
+    expect(rows.map((r) => r.source)).toEqual(["opening"]);
+  });
 });
 
 describe("employeeOutstandingDr", () => {
@@ -846,6 +858,20 @@ describe("employeeOutstandingDr", () => {
       [txn({ ref_no: "P-0009", txn_date: "2082/06/10", amount: 10000 })],
     );
     expect(dr).toBe(0);
+  });
+
+  it("counts only this employee's rows when given the full payroll history", () => {
+    const dr = employeeOutstandingDr(
+      emp,
+      [
+        // Other employees' booked salaries must not offset this employee's advance
+        payrollRow({ employee_id: "emp-2", payment_status: "booked" }),
+        payrollRow({ employee_id: "emp-3", payment_status: "booked" }),
+        payrollRow({ payment_status: "pending" }),
+      ],
+      [txn({ ref_no: "P-0009", txn_date: "2082/06/10", amount: 47480 })],
+    );
+    expect(dr).toBe(47480);
   });
 });
 
@@ -1018,5 +1044,25 @@ describe("Theli Stock Master and Range Calculations", () => {
     expect(calc.remainingRange).toBeNull();
     expect(calc.newBalance).toBe(0);
     expect(calc.isFullyExhausted).toBe(true);
+  });
+
+  it("calculates cancelled rasids (रद्द रसिद) and net valid count", () => {
+    const item: TheliStockItem = {
+      id: "th-1",
+      municipality: "वीरेन्द्रनगर",
+      ward: "4",
+      fiscal_year: "2081/82",
+      range_from: "GT-001",
+      range_to: "GT-050",
+      total_vouchers: 50,
+      status: "issued",
+    };
+
+    // Up to GT-030 (30 vouchers booked), but 3 vouchers were cancelled
+    const calc = calculateTheliBooking(item, "GT-030", 13500, 13500, 0, 3);
+    expect(calc.bookedCount).toBe(30);
+    expect(calc.cancelledCount).toBe(3);
+    expect(calc.netValidCount).toBe(27); // 30 - 3 = 27
+    expect(calc.remainingCount).toBe(20);
   });
 });

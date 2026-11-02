@@ -847,6 +847,9 @@ export function buildEmployeeLedger(params: {
   const { employee, payrolls, transactions } = params;
   const opening = Math.max(0, Number(employee?.opening_balance) || 0);
   const balType: "dr" | "cr" = employee?.balance_type === "dr" ? "dr" : "cr";
+  // Only this employee's payroll rows belong in their ledger — callers may
+  // pass the full history (e.g. advance pre-fill during payroll generation)
+  const ownPayrolls = employee?.id ? payrolls.filter((r) => r.employee_id === employee.id) : [];
 
   type Draft = Omit<EmployeeLedgerRow, "running" | "runType"> & {
     sortKey: string;
@@ -854,7 +857,7 @@ export function buildEmployeeLedger(params: {
   };
   const drafts: Draft[] = [];
 
-  for (const r of payrolls) {
+  for (const r of ownPayrolls) {
     const posted =
       r.payment_status === "booked" || r.payment_status === "paid" || r.is_booked === true;
     if (!posted) continue;
@@ -1425,6 +1428,7 @@ export type TheliStockItem = {
   // Reporting / booking
   last_voucher_booked?: string;
   booked_vouchers_count?: number;
+  cancelled_count?: number; // रद्द रसिद संख्या
   remaining_vouchers_count?: number;
   remaining_range_from?: string;
   remaining_range_to?: string;
@@ -1532,7 +1536,8 @@ export function sortTheliAvailableRanges(items: TheliStockItem[]): TheliStockIte
 }
 
 /**
- * Calculates booking metrics when an employee reports the last voucher booked.
+ * Calculates booking metrics when an employee reports the last voucher booked,
+ * including cancelled rasid (रद्द रसिद) and net valid count.
  */
 export function calculateTheliBooking(
   item: TheliStockItem,
@@ -1540,8 +1545,11 @@ export function calculateTheliBooking(
   amountBookedInput?: number,
   amountObtainedInput?: number,
   carriedBalance = 0,
+  cancelledCountInput = 0,
 ): {
   bookedCount: number;
+  cancelledCount: number;
+  netValidCount: number;
   remainingCount: number;
   remainingRange: { from: string; to: string; count: number } | null;
   amountBooked: number;
@@ -1552,10 +1560,13 @@ export function calculateTheliBooking(
   const startNum = theliSerialNumber(item.range_from);
   const endNum = theliSerialNumber(item.range_to);
   const lastNum = theliSerialNumber(lastVoucherBooked);
+  const cancelledCount = Math.max(0, cancelledCountInput || 0);
 
   if (isNaN(startNum) || isNaN(endNum)) {
     return {
       bookedCount: 0,
+      cancelledCount: 0,
+      netValidCount: 0,
       remainingCount: item.total_vouchers,
       remainingRange: null,
       amountBooked: 0,
@@ -1569,6 +1580,8 @@ export function calculateTheliBooking(
     // No vouchers booked yet
     return {
       bookedCount: 0,
+      cancelledCount: 0,
+      netValidCount: 0,
       remainingCount: endNum - startNum + 1,
       remainingRange: { from: item.range_from, to: item.range_to, count: endNum - startNum + 1 },
       amountBooked: 0,
@@ -1580,6 +1593,7 @@ export function calculateTheliBooking(
 
   const clampedLast = Math.min(lastNum, endNum);
   const bookedCount = clampedLast - startNum + 1;
+  const netValidCount = Math.max(0, bookedCount - cancelledCount);
   const remainingCount = Math.max(0, endNum - clampedLast);
 
   const remainingRange =
@@ -1597,6 +1611,8 @@ export function calculateTheliBooking(
 
   return {
     bookedCount,
+    cancelledCount,
+    netValidCount,
     remainingCount,
     remainingRange,
     amountBooked,

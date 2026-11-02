@@ -425,7 +425,30 @@ function MembersPage() {
 
     const rows: PayrollRecord[] = activeEmps.map((emp) => {
       const savedRow = existing.find((r) => r.employee_id === emp.id);
-      if (savedRow) return savedRow;
+      const outstandingDr = employeeOutstandingDr(emp, payrollHistory, empTransactions);
+
+      if (savedRow) {
+        // Pre-fill advance katti on editable drafts that don't have one yet
+        const locked =
+          savedRow.payment_status === "paid" ||
+          savedRow.payment_status === "booked" ||
+          savedRow.is_booked === true;
+        const currentAdj = Number(savedRow.advance_adjusted) || 0;
+        if (!locked && currentAdj === 0 && outstandingDr > 0) {
+          const gross = Number(savedRow.gross_salary) || 0;
+          const tax = Number(savedRow.tax) || 0;
+          const ded = Number(savedRow.other_deductions) || 0;
+          const adj = Math.min(outstandingDr, Math.max(0, gross - tax - ded));
+          if (adj > 0) {
+            return {
+              ...savedRow,
+              advance_adjusted: adj,
+              net_salary: Math.max(0, gross - tax - adj - ded),
+            };
+          }
+        }
+        return savedRow;
+      }
 
       // Auto-calculate fresh default row
       const daysWorked = 26;
@@ -446,10 +469,7 @@ function MembersPage() {
       const base = calculatePayrollRow({ ...calcParams, advance_adjusted: 0 });
       // Pre-fill advance katti from the employee's outstanding Dr ledger balance
       // (capped at what salary can absorb); the user can adjust it before booking
-      const advanceAdj = Math.min(
-        employeeOutstandingDr(emp, payrollHistory, empTransactions),
-        base.gross_salary,
-      );
+      const advanceAdj = Math.min(outstandingDr, base.gross_salary);
       const breakdown =
         advanceAdj > 0
           ? calculatePayrollRow({ ...calcParams, advance_adjusted: advanceAdj })

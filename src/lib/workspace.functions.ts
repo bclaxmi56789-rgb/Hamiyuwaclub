@@ -2698,6 +2698,42 @@ export const issueTheliStockItem = createServerFn({ method: "POST" })
     return { success: true, item_id: data.item_id, ...updatePayload };
   });
 
+// Issue MULTIPLE theli ranges to one employee in a single action
+export const issueMultipleTheliStockItems = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      item_ids: z.array(z.string().trim().min(1)).min(1, "कम्तिमा एक थेली दायरा छान्नुहोस्"),
+      employee_id: z.string().trim().min(1, "कर्मचारी छान्नुहोस्"),
+      employee_name: z.string().trim().min(1),
+      supervisor_name: z.string().trim().optional().default(""),
+      issued_date: z.string().trim().min(1, "जारी मिति आवश्यक छ"),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const updatePayload = {
+      status: "issued" as const,
+      is_remaining_open: false,
+      issued_to_id: data.employee_id,
+      issued_to_name: data.employee_name,
+      supervisor_name: data.supervisor_name ?? "",
+      issued_date: data.issued_date,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      await context.supabase
+        .from("theli_stock_items")
+        .update(updatePayload)
+        .in("id", data.item_ids)
+        .eq("owner_id", context.userId);
+    } catch {
+      // Table may not be migrated yet — each item falls back gracefully
+    }
+
+    return { success: true, item_ids: data.item_ids, ...updatePayload };
+  });
+
 export const reportTheliStockClosing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -2707,6 +2743,7 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
       amount_booked: z.number().min(0).default(0),
       amount_obtained: z.number().min(0).default(0),
       carried_balance: z.number().default(0),
+      cancelled_count: z.number().min(0).default(0),
       action_on_remaining: z.enum(["return", "keep_issued"]).default("return"),
       log_date: z.string().trim().min(1),
       remarks: z.string().trim().optional().default(""),
@@ -2745,6 +2782,7 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
       data.amount_booked,
       data.amount_obtained,
       data.carried_balance,
+      data.cancelled_count,
     );
 
     const now = new Date().toISOString();
@@ -2756,6 +2794,7 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
         is_remaining_open: false,
         last_voucher_booked: data.last_voucher_booked,
         booked_vouchers_count: calc.bookedCount,
+        cancelled_count: calc.cancelledCount ?? 0,
         remaining_vouchers_count: 0,
         remaining_range_from: "",
         remaining_range_to: "",
@@ -2782,6 +2821,7 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
           is_remaining_open: false,
           last_voucher_booked: data.last_voucher_booked,
           booked_vouchers_count: calc.bookedCount,
+          cancelled_count: calc.cancelledCount ?? 0,
           remaining_vouchers_count: 0,
           amount_booked: calc.amountBooked,
           amount_obtained: calc.amountObtained,
@@ -2831,6 +2871,7 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
           is_remaining_open: false,
           last_voucher_booked: data.last_voucher_booked,
           booked_vouchers_count: calc.bookedCount,
+          cancelled_count: calc.cancelledCount ?? 0,
           remaining_vouchers_count: calc.remainingCount,
           remaining_range_from: calc.remainingRange.from,
           remaining_range_to: calc.remainingRange.to,
@@ -2866,6 +2907,8 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
         amount: calc.amountBooked,
         cleared_amount: calc.amountObtained,
         remarks: data.remarks || `थेली रिपोर्ट: ${data.last_voucher_booked} सम्म काटियो`,
+        cancelled_count: calc.cancelledCount ?? 0,
+        net_valid_count: calc.netValidCount ?? calc.bookedCount,
         updated_at: now,
       };
       await context.supabase.from("theli_logs").insert(logPayload);

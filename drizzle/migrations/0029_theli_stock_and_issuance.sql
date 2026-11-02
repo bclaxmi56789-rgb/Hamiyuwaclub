@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.theli_stock_items (
   issued_date text DEFAULT '',
   last_voucher_booked text DEFAULT '',
   booked_vouchers_count integer DEFAULT 0,
+  cancelled_count integer DEFAULT 0,
   remaining_vouchers_count integer DEFAULT 0,
   remaining_range_from text DEFAULT '',
   remaining_range_to text DEFAULT '',
@@ -75,3 +76,4 @@ REVOKE ALL ON public.theli_stock_items FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.theli_stock_items TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
+
