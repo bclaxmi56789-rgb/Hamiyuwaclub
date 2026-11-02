@@ -2939,3 +2939,61 @@ export const deleteTheliStockBatch = createServerFn({ method: "POST" })
     } catch {}
     return true;
   });
+
+// ═══════════════════════════════════════════════════════════
+// EMPLOYEE PAGE PERMISSIONS (Access Control)
+// ═══════════════════════════════════════════════════════════
+
+export const getEmployeePermissions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    try {
+      const res = await context.supabase
+        .from("employee_permissions")
+        .select("*")
+        .eq("owner_id", context.userId);
+      if (res.error) throw new Error(res.error.message);
+      return res.data ?? [];
+    } catch {
+      return [];
+    }
+  });
+
+export const saveEmployeePermissionBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      employee_id: z.string().trim().min(1, "कर्मचारी छान्नुहोस्"),
+      employee_name: z.string().trim().optional().default(""),
+      permissions: z.array(
+        z.object({
+          page_path: z.string().trim().min(1),
+          access_level: z.enum(["no_access", "read_only", "full_access"]),
+        }),
+      ),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const rows = data.permissions.map((p) => ({
+      id: `perm-${data.employee_id}-${p.page_path.replace(/[^a-zA-Z0-9]/g, "_")}`,
+      owner_id: context.userId,
+      employee_id: data.employee_id,
+      employee_name: data.employee_name || "",
+      page_path: p.page_path,
+      access_level: p.access_level,
+      updated_at: new Date().toISOString(),
+    }));
+
+    try {
+      const res = await context.supabase
+        .from("employee_permissions")
+        .upsert(rows, { onConflict: "owner_id,employee_id,page_path" })
+        .select("*");
+      if (res.error) throw new Error(res.error.message);
+      return { success: true, saved: res.data };
+    } catch (e: any) {
+      // Return payload for local fallback in case table is not migrated yet
+      return { success: true, saved: rows, error: e?.message };
+    }
+  });
+

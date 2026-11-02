@@ -42,7 +42,19 @@ import { Button } from "@/components/ui/button";
 import { ThemeSelector } from "@/components/theme-selector";
 import { fiscalYear, todayBS } from "@/lib/receipt-rules";
 import { useAppConfig, saveStoredConfig } from "@/lib/app-config";
-import { getAppConfiguration } from "@/lib/workspace.functions";
+import {
+  getAppConfiguration,
+  getEmployeesData,
+  getEmployeePermissions,
+} from "@/lib/workspace.functions";
+import {
+  canViewPage,
+  canEditPage,
+  getPageAccessLevel,
+  type EmployeePermission,
+  type AccessLevel,
+} from "@/lib/permissions";
+import type { Employee } from "@/lib/receipt-rules";
 import logo from "@/assets/club-logo.asset.json";
 import { SignInPanel } from "@/components/email-sign-in";
 import { ScrollNavigationButtons } from "@/components/scroll-nav-buttons";
@@ -57,6 +69,15 @@ type AppState = {
   year: number;
   setYear: (year: number) => void;
   signOut: () => Promise<void>;
+  // RBAC Access Control
+  activeEmployeeId: string | null;
+  setActiveEmployeeId: (id: string | null) => void;
+  employees: Employee[];
+  permissions: EmployeePermission[];
+  hasPageAccess: (path: string) => boolean;
+  isPageReadOnly: (path: string) => boolean;
+  canEditOnPage: (path: string) => boolean;
+  refreshPermissions: () => Promise<void>;
 };
 const AppContext = createContext<AppState | null>(null);
 export function useAppState() {
@@ -146,6 +167,9 @@ const useNavGroups = () => {
 export function AppShell({ children }: { children: ReactNode }) {
   const appConfig = useAppConfig();
   const getAppConfigFn = useServerFn(getAppConfiguration);
+  const getEmployeesFn = useServerFn(getEmployeesData);
+  const getPermissionsFn = useServerFn(getEmployeePermissions);
+
   const [ward, setWard] = useState("");
   const [year, setYear] = useState(0);
   const [signedIn, setSignedIn] = useState(false);
@@ -155,6 +179,68 @@ export function AppShell({ children }: { children: ReactNode }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [authError, setAuthError] = useState("");
   const [ready, setReady] = useState(false);
+
+  // ─── RBAC: Active Employee & Permissions State ───
+  const [activeEmployeeId, setActiveEmployeeIdState] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("hami_active_employee_id") || null;
+    } catch {
+      return null;
+    }
+  });
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [permissions, setPermissions] = useState<EmployeePermission[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("hami_employee_permissions") || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const setActiveEmployeeId = (id: string | null) => {
+    setActiveEmployeeIdState(id);
+    try {
+      if (id) {
+        localStorage.setItem("hami_active_employee_id", id);
+      } else {
+        localStorage.removeItem("hami_active_employee_id");
+      }
+    } catch {}
+  };
+
+  const refreshPermissions = async () => {
+    if (!signedIn || !userId) return;
+    try {
+      const [empList, permList] = await Promise.all([
+        getEmployeesFn().catch(() => [] as Employee[]),
+        getPermissionsFn().catch(() => [] as EmployeePermission[]),
+      ]);
+      setEmployees(empList || []);
+      setPermissions(permList || []);
+      try {
+        localStorage.setItem("hami_employee_permissions", JSON.stringify(permList || []));
+      } catch {}
+    } catch {}
+  };
+
+  // Helper checks based on active employee & permissions
+  const hasPageAccess = (path: string): boolean => {
+    if (!activeEmployeeId) return true; // Owner/Admin has full access to all pages
+    if (path === "/settings") return false; // Non-admin employee cannot edit settings
+    return canViewPage(permissions, activeEmployeeId, path);
+  };
+
+  const isPageReadOnly = (path: string): boolean => {
+    if (!activeEmployeeId) return false; // Owner/Admin has edit rights
+    const level = getPageAccessLevel(permissions, activeEmployeeId, path);
+    return level === "read_only";
+  };
+
+  const canEditOnPage = (path: string): boolean => {
+    if (!activeEmployeeId) return true;
+    return canEditPage(permissions, activeEmployeeId, path);
+  };
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const router = useRouter();
@@ -221,6 +307,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       .catch(() => {
         // Session keeps defaults
       });
+
+    void refreshPermissions();
   }, [ready, signedIn, userId, getAppConfigFn]);
   async function signOut() {
     setAuthError("");
@@ -255,7 +343,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (isLanding) {
     return (
       <AppContext.Provider
-        value={{ ward, setWard, year, setYear, signedIn, userId, ready, signOut }}
+        value={{
+          ward,
+          setWard,
+          year,
+          setYear,
+          signedIn,
+          userId,
+          ready,
+          signOut,
+          activeEmployeeId,
+          setActiveEmployeeId,
+          employees,
+          permissions,
+          hasPageAccess,
+          isPageReadOnly,
+          canEditOnPage,
+          refreshPermissions,
+        }}
       >
         <div className="min-h-screen bg-background text-foreground">
           {children}
@@ -281,7 +386,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!signedIn) {
     return (
       <AppContext.Provider
-        value={{ ward, setWard, year, setYear, signedIn, userId, ready, signOut }}
+        value={{
+          ward,
+          setWard,
+          year,
+          setYear,
+          signedIn,
+          userId,
+          ready,
+          signOut,
+          activeEmployeeId,
+          setActiveEmployeeId,
+          employees,
+          permissions,
+          hasPageAccess,
+          isPageReadOnly,
+          canEditOnPage,
+          refreshPermissions,
+        }}
       >
         <div className="min-h-screen bg-background text-foreground">
           <SignInPanel />
@@ -292,7 +414,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AppContext.Provider value={{ ward, setWard, year, setYear, signedIn, userId, ready, signOut }}>
+    <AppContext.Provider
+      value={{
+        ward,
+        setWard,
+        year,
+        setYear,
+        signedIn,
+        userId,
+        ready,
+        signOut,
+        activeEmployeeId,
+        setActiveEmployeeId,
+        employees,
+        permissions,
+        hasPageAccess,
+        isPageReadOnly,
+        canEditOnPage,
+        refreshPermissions,
+      }}
+    >
       <div
         className={`min-h-screen lg:grid lg:h-screen lg:overflow-hidden ${collapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[240px_minmax(0,1fr)]"}`}
       >
@@ -385,24 +526,36 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </button>
                   ) : null}
                   {navOpen &&
-                    group.items.map((item) => (
-                      <Button
-                        key={item.to + item.label}
-                        asChild
-                        variant="ghost"
-                        className="shrink-0 justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      >
-                        <Link
-                          title={item.label}
-                          to={item.to}
-                          activeOptions={{ exact: true }}
-                          onClick={() => setDrawerOpen(false)}
+                    group.items.map((item) => {
+                      const allowed = hasPageAccess(item.to);
+                      const isReadOnly = isPageReadOnly(item.to);
+                      if (!allowed) return null; // Hide page from menu if no_access
+                      return (
+                        <Button
+                          key={item.to + item.label}
+                          asChild
+                          variant="ghost"
+                          className="shrink-0 justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                         >
-                          <item.icon />
-                          <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
-                        </Link>
-                      </Button>
-                    ))}
+                          <Link
+                            title={item.label}
+                            to={item.to}
+                            activeOptions={{ exact: true }}
+                            onClick={() => setDrawerOpen(false)}
+                          >
+                            <item.icon />
+                            <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+                            {isReadOnly && (
+                              <span
+                                className={`ml-auto rounded bg-blue-500/20 px-1 py-0.2 text-[8px] font-bold text-blue-700 ${collapsed ? "lg:hidden" : ""}`}
+                              >
+                                Read
+                              </span>
+                            )}
+                          </Link>
+                        </Button>
+                      );
+                    })}
                 </div>
               );
             })}
@@ -438,22 +591,50 @@ export function AppShell({ children }: { children: ReactNode }) {
               {authError}
             </p>
           )}
-          {/* Top bar opposite the navigation: theme + sign out */}
-          <div className="no-print sticky top-0 z-20 flex items-center justify-end gap-3 border-b border-border bg-background/90 px-4 py-2 backdrop-blur sm:px-7">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">रङ / Theme</span>
-              <ThemeSelector />
+          {/* Top bar opposite the navigation: employee context + theme + sign out */}
+          <div className="no-print sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-2 backdrop-blur sm:px-7">
+            {/* Employee Access Profile Switcher */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-bold text-muted-foreground hidden md:inline flex items-center gap-1">
+                <UserCheck className="size-3.5 text-primary" />
+                पहुँच प्रोफाइल:
+              </span>
+              <select
+                aria-label="सक्रिय कर्मचारी प्रोफाइल (Active Employee Profile)"
+                className="h-8 rounded-md border border-input bg-card px-2 text-xs font-semibold text-foreground shadow-xs focus:ring-1 focus:ring-primary"
+                value={activeEmployeeId || ""}
+                onChange={(e) => setActiveEmployeeId(e.target.value || null)}
+              >
+                <option value="">👑 मुख्य व्यवस्थापक / Admin (Full Access)</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    👤 {emp.name} ({emp.designation})
+                  </option>
+                ))}
+              </select>
+              {activeEmployeeId && (
+                <span className="hidden lg:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-800 animate-pulse">
+                  कर्मचारी मोड सक्रिय
+                </span>
+              )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              aria-label="साइन आउट (Sign out)"
-              onClick={signOut}
-            >
-              <LogOut />
-              <span className="hidden sm:inline">साइन आउट</span>
-            </Button>
+
+            <div className="flex items-center gap-3 ml-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground hidden sm:inline">रङ / Theme</span>
+                <ThemeSelector />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                aria-label="साइन आउट (Sign out)"
+                onClick={signOut}
+              >
+                <LogOut />
+                <span className="hidden sm:inline">साइन आउट</span>
+              </Button>
+            </div>
           </div>
           {children}
           <ScrollNavigationButtons scrollRef={contentRef} />

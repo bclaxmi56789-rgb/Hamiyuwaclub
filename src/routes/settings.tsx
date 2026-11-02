@@ -30,6 +30,9 @@ import {
   ShieldCheck,
   Key,
   AlertTriangle,
+  UserCheck,
+  ShieldAlert,
+  Check,
 } from "lucide-react";
 import {
   useAppConfig,
@@ -47,7 +50,19 @@ import {
   type AppConfig,
   type AIVaultData,
 } from "@/lib/app-config";
-import { getAppConfiguration, saveAppConfiguration } from "@/lib/workspace.functions";
+import {
+  getAppConfiguration,
+  saveAppConfiguration,
+  getEmployeesData,
+  getEmployeePermissions,
+  saveEmployeePermissionBatch,
+} from "@/lib/workspace.functions";
+import {
+  APP_NAV_PAGES,
+  type AccessLevel,
+  type EmployeePermission,
+} from "@/lib/permissions";
+import type { Employee } from "@/lib/receipt-rules";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import { fiscalYear, fiscalYearRange, fiscalLabel, todayBS } from "@/lib/receipt-rules";
 
@@ -59,6 +74,9 @@ function SettingsPage() {
   const globalConfig = useAppConfig();
   const getAppConfigFn = useServerFn(getAppConfiguration);
   const saveAppConfigFn = useServerFn(saveAppConfiguration);
+  const getEmployeesFn = useServerFn(getEmployeesData);
+  const getPermissionsFn = useServerFn(getEmployeePermissions);
+  const savePermissionsFn = useServerFn(saveEmployeePermissionBatch);
 
   const [form, setForm] = useState<AppConfig>(() => ensureFiscalYearDefaults({ ...globalConfig }));
   const [saving, setSaving] = useState(false);
@@ -79,11 +97,115 @@ function SettingsPage() {
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
 
+  // ─── PERMISSION TAB STATE ───
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [selectedEmpId, setSelectedEmpId] = useState<string>("");
+  const [allPermissions, setAllPermissions] = useState<EmployeePermission[]>([]);
+  const [empPermMap, setEmpPermMap] = useState<Record<string, AccessLevel>>({});
+  const [savingPermissions, setSavingPermissions] = useState(false);
+  const [permSuccessMessage, setPermSuccessMessage] = useState<string | null>(null);
+
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadServerConfig();
+    loadEmployeesAndPermissions();
   }, []);
+
+  async function loadEmployeesAndPermissions() {
+    setLoadingEmployees(true);
+    try {
+      const [empList, permList] = await Promise.all([
+        getEmployeesFn().catch(() => [] as Employee[]),
+        getPermissionsFn().catch(() => [] as EmployeePermission[]),
+      ]);
+      setEmployees(empList || []);
+      setAllPermissions(permList || []);
+      if (empList && empList.length > 0 && !selectedEmpId) {
+        setSelectedEmpId(empList[0].id);
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }
+
+  // Update empPermMap when selected employee changes
+  useEffect(() => {
+    if (!selectedEmpId) return;
+    const currentEmpPerms = allPermissions.filter((p) => p.employee_id === selectedEmpId);
+    const map: Record<string, AccessLevel> = {};
+    for (const page of APP_NAV_PAGES) {
+      const match = currentEmpPerms.find((p) => p.page_path === page.path);
+      map[page.path] = match ? match.access_level : "full_access";
+    }
+    setEmpPermMap(map);
+  }, [selectedEmpId, allPermissions]);
+
+  function handlePermissionChange(path: string, level: AccessLevel) {
+    setEmpPermMap((prev) => ({
+      ...prev,
+      [path]: level,
+    }));
+  }
+
+  function handleSetAllPermissions(level: AccessLevel) {
+    const nextMap: Record<string, AccessLevel> = {};
+    for (const page of APP_NAV_PAGES) {
+      nextMap[page.path] = level;
+    }
+    setEmpPermMap(nextMap);
+  }
+
+  async function handleSavePermissions() {
+    if (!selectedEmpId) return;
+    const emp = employees.find((e) => e.id === selectedEmpId);
+    setSavingPermissions(true);
+    setPermSuccessMessage(null);
+    try {
+      const payload = {
+        employee_id: selectedEmpId,
+        employee_name: emp?.name || "",
+        permissions: Object.entries(empPermMap).map(([page_path, access_level]) => ({
+          page_path,
+          access_level,
+        })),
+      };
+      await savePermissionsFn({ data: payload });
+
+      // Update local storage for immediate application
+      try {
+        const stored = JSON.parse(localStorage.getItem("hami_employee_permissions") || "[]");
+        const filtered = stored.filter((p: EmployeePermission) => p.employee_id !== selectedEmpId);
+        const newRows = payload.permissions.map((p) => ({
+          ...p,
+          employee_id: selectedEmpId,
+          employee_name: emp?.name || "",
+        }));
+        localStorage.setItem("hami_employee_permissions", JSON.stringify([...filtered, ...newRows]));
+      } catch {}
+
+      // Update state
+      setAllPermissions((prev) => {
+        const filtered = prev.filter((p) => p.employee_id !== selectedEmpId);
+        const updated = payload.permissions.map((p) => ({
+          ...p,
+          employee_id: selectedEmpId,
+          employee_name: emp?.name || "",
+        }));
+        return [...filtered, ...updated];
+      });
+
+      setPermSuccessMessage(`${emp?.name || "कर्मचारी"}को पेज अनुमति सफलतापूर्वक सुरक्षित भयो!`);
+      setTimeout(() => setPermSuccessMessage(null), 4000);
+    } catch (e: any) {
+      alert("अनुमति सुरक्षित गर्दा त्रुटि भयो: " + (e?.message || ""));
+    } finally {
+      setSavingPermissions(false);
+    }
+  }
 
   function handleSaveVaultKey(provider: "openrouter" | "gemini" | "openai") {
     const updates: Partial<AIVaultData> = {};
@@ -370,8 +492,12 @@ function SettingsPage() {
         </div>
       )}
 
-      <Tabs defaultValue="vault">
-        <TabsList className="grid grid-cols-3 max-w-xl">
+      <Tabs defaultValue="permissions">
+        <TabsList className="grid grid-cols-4 max-w-2xl">
+          <TabsTrigger value="permissions" className="gap-2 font-bold text-primary">
+            <UserCheck className="h-4 w-4" />
+            कर्मचारी अनुमति (Permissions)
+          </TabsTrigger>
           <TabsTrigger value="vault" className="gap-2 font-bold">
             <Lock className="h-4 w-4 text-primary" />
             AI कुञ्जी भण्डार (AI Vault)
@@ -385,6 +511,201 @@ function SettingsPage() {
             Agentic AI कन्फिग
           </TabsTrigger>
         </TabsList>
+
+        {/* ─── TAB 0: EMPLOYEE PAGE PERMISSIONS ───────────────────────────── */}
+        <TabsContent value="permissions" className="mt-6 space-y-6">
+          <div className="rounded-2xl border bg-card p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-bold text-foreground">
+                    कर्मचारी अनुसार पेज पहुँच तथा अनुमति (Employee Page Access & Permissions)
+                  </h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  कर्मचारी चयन गरी प्रत्येक पेजको लागि पूर्ण पहुँच (Full Access/Create/Edit), हेर्न मात्र मिल्ने (Read-only), वा पहुँच निषेध (No Access) सेट गर्नुहोस्।
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className="bg-primary/10 text-primary border-primary/30 text-xs px-3 py-1 font-mono shrink-0"
+              >
+                🛡️ RBAC सक्रिय
+              </Badge>
+            </div>
+
+            {permSuccessMessage && (
+              <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+                <span className="font-semibold">{permSuccessMessage}</span>
+              </div>
+            )}
+
+            {/* Employee Selector Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-foreground">
+                  १. अनुमति तोकिने कर्मचारी छान्नुहोस् (Select Employee):
+                </Label>
+                {loadingEmployees ? (
+                  <p className="text-xs text-muted-foreground">कर्मचारी लोड हुँदैछ...</p>
+                ) : employees.length === 0 ? (
+                  <p className="text-xs text-rose-600 font-semibold">
+                    हाल कुनै कर्मचारी फेला परेन। पहिले 'Members & Staff' पृष्ठमा कर्मचारी दर्ता गर्नुहोस्।
+                  </p>
+                ) : (
+                  <Select value={selectedEmpId} onValueChange={(val) => setSelectedEmpId(val)}>
+                    <SelectTrigger className="w-full bg-card">
+                      <SelectValue placeholder="कर्मचारी चयन गर्नुहोस्" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name} ({emp.designation})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Quick Batch Actions */}
+              <div className="space-y-1.5 flex flex-col justify-end">
+                <Label className="text-xs font-bold text-muted-foreground">
+                  छिटो चयन (Quick Presets for this Employee):
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs font-semibold text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    onClick={() => handleSetAllPermissions("full_access")}
+                  >
+                    सबै पूर्ण पहुँच (All Edit)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs font-semibold text-blue-700 border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                    onClick={() => handleSetAllPermissions("read_only")}
+                  >
+                    सबै पढ्न मात्र (All Read-only)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs font-semibold text-rose-700 border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                    onClick={() => handleSetAllPermissions("no_access")}
+                  >
+                    सबै बन्द (All No Access)
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Permission Table / Matrix */}
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b bg-muted/60 text-muted-foreground font-bold">
+                  <tr>
+                    <th className="px-3.5 py-3 w-12 text-center">क्र.सं.</th>
+                    <th className="px-3.5 py-3">पेजको नाम र कार्य</th>
+                    <th className="px-3.5 py-3 w-40">श्रेणी (Category)</th>
+                    <th className="px-3.5 py-3 text-center w-80">अनुमति स्तर (Access Level)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {APP_NAV_PAGES.map((page, idx) => {
+                    const currentLevel = empPermMap[page.path] || "full_access";
+                    return (
+                      <tr key={page.path} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-3.5 py-2.5 text-center font-mono text-muted-foreground font-semibold">
+                          {idx + 1}
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <div className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                            <span>{page.nepaliLabel}</span>
+                            <span className="text-muted-foreground text-xs font-mono font-normal">
+                              ({page.label})
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            {page.description} • <span className="font-mono text-primary/80">{page.path}</span>
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <Badge variant="outline" className="text-[10px] font-semibold">
+                            {page.category}
+                          </Badge>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          <div className="inline-flex rounded-lg border p-1 bg-background shadow-xs gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handlePermissionChange(page.path, "full_access")}
+                              className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                currentLevel === "full_access"
+                                  ? "bg-emerald-600 text-white shadow-xs font-bold"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                              }`}
+                            >
+                              {currentLevel === "full_access" && <Check className="size-3" />}
+                              पूर्ण पहुँच (Edit)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handlePermissionChange(page.path, "read_only")}
+                              className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                currentLevel === "read_only"
+                                  ? "bg-blue-600 text-white shadow-xs font-bold"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                              }`}
+                            >
+                              {currentLevel === "read_only" && <Check className="size-3" />}
+                              हेर्न मात्र (Read)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handlePermissionChange(page.path, "no_access")}
+                              className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                currentLevel === "no_access"
+                                  ? "bg-rose-600 text-white shadow-xs font-bold"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                              }`}
+                            >
+                              {currentLevel === "no_access" && <Check className="size-3" />}
+                              निषेध (None)
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom Save Action */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
+              <div className="text-xs text-muted-foreground">
+                कर्मचारीले लगइन गर्दा तोकिएका पृष्ठहरू मात्र खुल्नेछन् वा हेर्न मात्र मिल्नेछ।
+              </div>
+              <Button
+                type="button"
+                onClick={handleSavePermissions}
+                disabled={savingPermissions || !selectedEmpId}
+                className="gap-2 bg-primary font-bold text-primary-foreground shrink-0 shadow-sm"
+              >
+                <Save className="h-4 w-4" />
+                {savingPermissions ? "सुरक्षित हुँदैछ..." : "कर्मचारी अनुमति सुरक्षित गर्नुहोस्"}
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
 
         {/* ─── TAB 0: SEPARATE AI VAULT ───────────────────────────────────── */}
         <TabsContent value="vault" className="mt-6 space-y-6">
