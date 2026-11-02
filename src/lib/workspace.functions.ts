@@ -503,7 +503,7 @@ export const getMembersData = createServerFn({ method: "GET" })
     try {
       const txRes = await context.supabase
         .from("rp_transactions")
-        .select("id, ref_no, txn_date, account_id, party_id, party_name, amount, remarks")
+        .select("id, ref_no, txn_date, txn_type, account_id, party_id, party_name, amount, remarks")
         .eq("owner_id", context.userId)
         .eq("party_type", "employee")
         .order("created_at", { ascending: false });
