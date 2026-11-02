@@ -291,7 +291,7 @@ function MembersPage() {
                   ...server,
                   payment_status: local.payment_status,
                   is_booked: local.is_booked ?? true,
-                  voucher_ref: local.voucher_ref || server.voucher_ref,
+                  voucher_ref: local.voucher_ref || server.voucher_ref || "",
                 });
               }
             } else {
