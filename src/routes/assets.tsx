@@ -645,10 +645,11 @@ function AssetsPage() {
 
   const handleOpenReportModal = (item: TheliStockItem) => {
     setReportingItem(item);
-    setReportLastVoucher(item.last_voucher_booked || "");
-    setReportAmountBooked(item.amount_booked ? String(item.amount_booked) : "");
-    setReportAmountObtained(item.amount_obtained ? String(item.amount_obtained) : "");
-    setReportCancelledCount(item.cancelled_count || 0);
+    // For partially booked theli, start clean or keep blank so user enters today's new last voucher
+    setReportLastVoucher("");
+    setReportAmountBooked("");
+    setReportAmountObtained("");
+    setReportCancelledCount(0);
     setReportActionRemaining("return");
     setReportDate(item.issued_date || "2083/07/15");
     setReportRemarks("");
@@ -1730,10 +1731,14 @@ function AssetsPage() {
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-mono font-extrabold text-blue-900">
-                                {it.range_from} – {it.range_to}
+                                {it.status === "partially_booked" && it.remaining_range_from
+                                  ? `${it.remaining_range_from} – ${it.range_to}`
+                                  : `${it.range_from} – ${it.range_to}`}
                               </span>
                               <span className="rounded bg-blue-500/20 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
-                                {it.total_vouchers} रसिद
+                                {it.status === "partially_booked" && it.remaining_vouchers_count !== undefined
+                                  ? `${it.remaining_vouchers_count} बाँकी`
+                                  : `${it.total_vouchers} रसिद`}
                               </span>
                             </div>
 
@@ -1741,10 +1746,16 @@ function AssetsPage() {
                               <span>वडा {it.ward} ({it.fiscal_year})</span>
                               {it.last_voucher_booked && (
                                 <span className="font-bold text-purple-700">
-                                  काटियो: {it.last_voucher_booked}
+                                  अन्तिम काटियो: {it.last_voucher_booked}
                                 </span>
                               )}
                             </div>
+
+                            {it.status === "partially_booked" && it.remaining_range_from && (
+                              <div className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-1 text-[10px] font-semibold text-amber-800">
+                                ◐ आंशिक — बाँकी दायरा: {it.remaining_range_from} देखि {it.range_to}
+                              </div>
+                            )}
 
                             <Button
                               size="sm"
@@ -1793,7 +1804,10 @@ function AssetsPage() {
                     <span>दैनिक थेली रिपोर्टिङ — {reportingItem.issued_to_name}</span>
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    जारी दायरा: <strong className="font-mono">{reportingItem.range_from} देखि {reportingItem.range_to}</strong> (वडा {reportingItem.ward})
+                    {reportingItem.status === "partially_booked" && reportingItem.remaining_range_from
+                      ? <>बाँकी दायरा: <strong className="font-mono">{reportingItem.remaining_range_from} देखि {reportingItem.range_to}</strong> (वडा {reportingItem.ward})</>
+                      : <>जारी दायरा: <strong className="font-mono">{reportingItem.range_from} देखि {reportingItem.range_to}</strong> (वडा {reportingItem.ward})</>
+                    }
                   </p>
                 </div>
                 <button
@@ -1829,8 +1843,17 @@ function AssetsPage() {
                     value={reportLastVoucher}
                     onChange={(e) => setReportLastVoucher(e.target.value)}
                     className={`${inputCls} font-mono font-extrabold text-sm border-primary/40`}
-                    placeholder={`उदा: ${reportingItem.range_to}`}
+                    placeholder={
+                      reportingItem.status === "partially_booked" && reportingItem.remaining_range_from
+                        ? `उदा: ${reportingItem.remaining_range_from} देखि ${reportingItem.range_to}`
+                        : `उदा: ${reportingItem.range_to}`
+                    }
                   />
+                  {reportingItem.status === "partially_booked" && reportingItem.remaining_range_from && (
+                    <div className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+                      यसअघि अन्तिम काटिएको रसिद: <strong>{reportingItem.last_voucher_booked}</strong> | अब गणना सुरु हुने रसिद: <strong className="font-mono">{reportingItem.remaining_range_from}</strong>
+                    </div>
+                  )}
                   {liveReportCalc && (
                     <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold pt-1">
                       <div className="text-emerald-700">

@@ -1557,7 +1557,15 @@ export function calculateTheliBooking(
   newBalance: number;
   isFullyExhausted: boolean;
 } {
-  const startNum = theliSerialNumber(item.range_from);
+  // For partially_booked items, the effective start is the remaining_range_from
+  // (i.e. next voucher after the last one booked in a prior session).
+  // This ensures subsequent reports count from the correct starting voucher.
+  const effectiveFrom =
+    (item.status === "partially_booked" && item.remaining_range_from)
+      ? item.remaining_range_from
+      : item.range_from;
+
+  const startNum = theliSerialNumber(effectiveFrom);
   const endNum = theliSerialNumber(item.range_to);
   const lastNum = theliSerialNumber(lastVoucherBooked);
   const cancelledCount = Math.max(0, cancelledCountInput || 0);
@@ -1583,7 +1591,7 @@ export function calculateTheliBooking(
       cancelledCount: 0,
       netValidCount: 0,
       remainingCount: endNum - startNum + 1,
-      remainingRange: { from: item.range_from, to: item.range_to, count: endNum - startNum + 1 },
+      remainingRange: { from: effectiveFrom, to: item.range_to, count: endNum - startNum + 1 },
       amountBooked: 0,
       amountObtained: amountObtainedInput || 0,
       newBalance: carriedBalance - (amountObtainedInput || 0),

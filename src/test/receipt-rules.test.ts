@@ -1065,4 +1065,35 @@ describe("Theli Stock Master and Range Calculations", () => {
     expect(calc.netValidCount).toBe(27); // 30 - 3 = 27
     expect(calc.remainingCount).toBe(20);
   });
+
+  it("calculates second booking on partially_booked item starting from remaining_range_from", () => {
+    // Theli originally GT-001 to GT-050, but previously booked up to GT-030 and kept with employee
+    const partialItem: TheliStockItem = {
+      id: "th-1",
+      municipality: "वीरेन्द्रनगर",
+      ward: "4",
+      fiscal_year: "2081/82",
+      range_from: "GT-001",
+      range_to: "GT-050",
+      total_vouchers: 50,
+      status: "partially_booked",
+      last_voucher_booked: "GT-030",
+      remaining_range_from: "GT-031",
+      remaining_range_to: "GT-050",
+      remaining_vouchers_count: 20,
+    };
+
+    // Employee now books from GT-031 up to GT-045 (15 vouchers)
+    const calc = calculateTheliBooking(partialItem, "GT-045", 7500, 7500, 0, 1);
+    expect(calc.bookedCount).toBe(15); // GT-031 to GT-045 = 45 - 31 + 1 = 15 vouchers
+    expect(calc.cancelledCount).toBe(1);
+    expect(calc.netValidCount).toBe(14); // 15 - 1 = 14
+    expect(calc.remainingCount).toBe(5); // GT-046 to GT-050 = 5 vouchers
+    expect(calc.remainingRange).toEqual({
+      from: "GT-046",
+      to: "GT-050",
+      count: 5,
+    });
+    expect(calc.isFullyExhausted).toBe(false);
+  });
 });
