@@ -944,7 +944,24 @@ export function buildEmployeeLedger(params: {
   return rows;
 }
 
-// ─────────────────────────────────────────────
+/**
+ * Outstanding debit balance (employee owes the club) from the employee's
+ * Dr/Cr ledger. Returns 0 when the ledger sits on the credit side.
+ * Used to pre-fill the advance-katti (advance_adjusted) amount when booking
+ * payroll; the user can still adjust the amount before booking.
+ */
+export function employeeOutstandingDr(
+  employee: Pick<Employee, "id" | "opening_balance" | "balance_type"> | null | undefined,
+  payrolls: PayrollRecord[],
+  transactions: EmployeeLedgerTxn[],
+): number {
+  const rows = buildEmployeeLedger({ employee: employee ?? null, payrolls, transactions });
+  const last = rows[rows.length - 1];
+  if (!last || last.runType !== "dr") return 0;
+  return Math.max(0, last.running);
+}
+
+// ─────────────────────────────────────
 // Vendor Master & Ledger
 // ─────────────────────────────────────────────
 
@@ -1239,10 +1256,10 @@ export function theliFinalRasids(rasidsOut: number, cancelled: number): number {
 }
 
 /** Serial rebuilt with the same prefix/padding as the typed one: ("GT-050", 31) → "GT-031". */
-function theliSerialWithFormat(source: string, n: number): string {
+export function theliSerialWithFormat(source: string, n: number): string {
   const digits = (source ?? "").replace(/[^0-9]/g, "");
   const prefix = (source ?? "").replace(/[0-9]/g, "");
-  return `${prefix}${String(n).padStart(digits.length, "0")}`;
+  return `${prefix}${String(n).padStart(digits.length || 1, "0")}`;
 }
 
 /**
@@ -1363,4 +1380,228 @@ export function theliOutsideRanges(
     if (remaining > 0) outside.push({ from: o.from, to: o.to, count: remaining });
   }
   return outside;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   THELI STOCK, ISSUANCE & EMPLOYEE REPORTING
+   ══════════════════════════════════════════════════════════════════ */
+
+export type TheliRangeStatus =
+  "available" | "returned_remaining" | "issued" | "partially_booked" | "completed";
+
+export type TheliStockBatch = {
+  id: string;
+  municipality: string;
+  ward: string;
+  fiscal_year: string;
+  start_from: string;
+  end_to: string;
+  vouchers_per_theli: number;
+  total_vouchers: number;
+  total_theli: number;
+  created_at?: string;
+  remarks?: string;
+};
+
+export type TheliStockItem = {
+  id: string;
+  batch_id?: string;
+  municipality: string;
+  ward: string;
+  fiscal_year: string;
+  theli_no?: number;
+  range_from: string;
+  range_to: string;
+  total_vouchers: number;
+  status: TheliRangeStatus;
+  is_remaining_open?: boolean; // True when partially returned and ready to be issued first!
+
+  // Issuance info
+  issued_to_id?: string;
+  issued_to_name?: string;
+  supervisor_name?: string;
+  issued_date?: string;
+
+  // Reporting / booking
+  last_voucher_booked?: string;
+  booked_vouchers_count?: number;
+  remaining_vouchers_count?: number;
+  remaining_range_from?: string;
+  remaining_range_to?: string;
+  amount_booked?: number;
+  amount_obtained?: number;
+  balance?: number;
+
+  updated_at?: string;
+};
+
+/**
+ * Calculates total number of vouchers and thelis from range start and end.
+ * E.g. start: "GT-0001", end: "GT-1000", vouchersPerTheli: 50 -> { totalVouchers: 1000, totalTheli: 20 }
+ */
+export function calculateTheliStockCounts(
+  startFrom: string | undefined,
+  endTo: string | undefined,
+  vouchersPerTheli = 50,
+): { totalVouchers: number; totalTheli: number } {
+  const s = theliSerialNumber(startFrom);
+  const e = theliSerialNumber(endTo);
+  if (isNaN(s) || isNaN(e) || e < s) {
+    return { totalVouchers: 0, totalTheli: 0 };
+  }
+  const totalVouchers = e - s + 1;
+  const perTheli = Math.max(1, vouchersPerTheli);
+  const totalTheli = Math.ceil(totalVouchers / perTheli);
+  return { totalVouchers, totalTheli };
+}
+
+/**
+ * Generates discrete theli book items from a stock batch.
+ * E.g. "GT-001" to "GT-150" with 50/theli -> 3 items (1..50, 51..100, 101..150).
+ */
+export function generateTheliRanges(
+  batch: Pick<
+    TheliStockBatch,
+    "municipality" | "ward" | "fiscal_year" | "start_from" | "end_to"
+  > & {
+    id?: string;
+    vouchers_per_theli?: number;
+  },
+): TheliStockItem[] {
+  const s = theliSerialNumber(batch.start_from);
+  const e = theliSerialNumber(batch.end_to);
+  if (isNaN(s) || isNaN(e) || e < s) return [];
+
+  const perTheli = Math.max(1, batch.vouchers_per_theli ?? 50);
+  const items: TheliStockItem[] = [];
+  let curr = s;
+  let theliNo = 1;
+
+  while (curr <= e) {
+    const nextEnd = Math.min(curr + perTheli - 1, e);
+    const rangeFrom = theliSerialWithFormat(batch.start_from, curr);
+    const rangeTo = theliSerialWithFormat(batch.end_to, nextEnd);
+    const count = nextEnd - curr + 1;
+
+    items.push({
+      id: `${batch.id || "batch"}-th-${theliNo}`,
+      batch_id: batch.id,
+      municipality: batch.municipality,
+      ward: batch.ward,
+      fiscal_year: batch.fiscal_year,
+      theli_no: theliNo,
+      range_from: rangeFrom,
+      range_to: rangeTo,
+      total_vouchers: count,
+      status: "available",
+      is_remaining_open: false,
+      booked_vouchers_count: 0,
+      remaining_vouchers_count: count,
+      amount_booked: 0,
+      amount_obtained: 0,
+      balance: 0,
+    });
+
+    curr = nextEnd + 1;
+    theliNo++;
+  }
+
+  return items;
+}
+
+/**
+ * Sorts available theli items so that remaining/returned open thelis
+ * appear at the VERY TOP (first range should show this is remaining one),
+ * followed by fresh unopened ones in serial order.
+ */
+export function sortTheliAvailableRanges(items: TheliStockItem[]): TheliStockItem[] {
+  return [...items].sort((a, b) => {
+    // 1. Remaining/returned open thelis always rank first
+    const aIsRemaining = a.is_remaining_open || a.status === "returned_remaining";
+    const bIsRemaining = b.is_remaining_open || b.status === "returned_remaining";
+    if (aIsRemaining && !bIsRemaining) return -1;
+    if (!aIsRemaining && bIsRemaining) return 1;
+
+    // 2. Otherwise sort by numeric start serial
+    const aNum = theliSerialNumber(a.range_from);
+    const bNum = theliSerialNumber(b.range_from);
+    if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+
+    return a.range_from.localeCompare(b.range_from);
+  });
+}
+
+/**
+ * Calculates booking metrics when an employee reports the last voucher booked.
+ */
+export function calculateTheliBooking(
+  item: TheliStockItem,
+  lastVoucherBooked: string | undefined,
+  amountBookedInput?: number,
+  amountObtainedInput?: number,
+  carriedBalance = 0,
+): {
+  bookedCount: number;
+  remainingCount: number;
+  remainingRange: { from: string; to: string; count: number } | null;
+  amountBooked: number;
+  amountObtained: number;
+  newBalance: number;
+  isFullyExhausted: boolean;
+} {
+  const startNum = theliSerialNumber(item.range_from);
+  const endNum = theliSerialNumber(item.range_to);
+  const lastNum = theliSerialNumber(lastVoucherBooked);
+
+  if (isNaN(startNum) || isNaN(endNum)) {
+    return {
+      bookedCount: 0,
+      remainingCount: item.total_vouchers,
+      remainingRange: null,
+      amountBooked: 0,
+      amountObtained: amountObtainedInput || 0,
+      newBalance: carriedBalance - (amountObtainedInput || 0),
+      isFullyExhausted: false,
+    };
+  }
+
+  if (isNaN(lastNum) || lastNum < startNum) {
+    // No vouchers booked yet
+    return {
+      bookedCount: 0,
+      remainingCount: endNum - startNum + 1,
+      remainingRange: { from: item.range_from, to: item.range_to, count: endNum - startNum + 1 },
+      amountBooked: 0,
+      amountObtained: amountObtainedInput || 0,
+      newBalance: carriedBalance - (amountObtainedInput || 0),
+      isFullyExhausted: false,
+    };
+  }
+
+  const clampedLast = Math.min(lastNum, endNum);
+  const bookedCount = clampedLast - startNum + 1;
+  const remainingCount = Math.max(0, endNum - clampedLast);
+
+  const remainingRange =
+    remainingCount > 0
+      ? {
+          from: theliSerialWithFormat(item.range_to, clampedLast + 1),
+          to: item.range_to,
+          count: remainingCount,
+        }
+      : null;
+
+  const amountBooked = Math.max(0, amountBookedInput || 0);
+  const amountObtained = Math.max(0, amountObtainedInput || 0);
+  const newBalance = carriedBalance + amountBooked - amountObtained;
+
+  return {
+    bookedCount,
+    remainingCount,
+    remainingRange,
+    amountBooked,
+    amountObtained,
+    newBalance,
+    isFullyExhausted: remainingCount === 0,
+  };
 }

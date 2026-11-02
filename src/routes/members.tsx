@@ -22,6 +22,7 @@ import {
   calculatePayrollRow,
   buildEmployeeLedger,
   employeeAdvanceTransactions,
+  employeeOutstandingDr,
   type Member,
   type Employee,
   type PayrollRecord,
@@ -431,18 +432,28 @@ function MembersPage() {
       const totalDays = 26;
       const trips = emp.allowance_type === "trip" ? 20 : 0;
       const otherAllowance = Number(emp.other_allowance) || 0;
-      const breakdown = calculatePayrollRow({
+      const calcParams: Parameters<typeof calculatePayrollRow>[0] = {
         basic_salary: emp.basic_salary,
         days_worked: daysWorked,
         total_days: totalDays,
         trips,
-        allowance_type: emp.allowance_type,
-        allowance_rate: emp.allowance_rate,
+        allowance_type: emp.allowance_type || "day",
+        allowance_rate: emp.allowance_rate || 0,
         other_allowance: otherAllowance,
         tax: 0,
-        advance_adjusted: 0,
         other_deductions: 0,
-      });
+      };
+      const base = calculatePayrollRow({ ...calcParams, advance_adjusted: 0 });
+      // Pre-fill advance katti from the employee's outstanding Dr ledger balance
+      // (capped at what salary can absorb); the user can adjust it before booking
+      const advanceAdj = Math.min(
+        employeeOutstandingDr(emp, payrollHistory, empTransactions),
+        base.gross_salary,
+      );
+      const breakdown =
+        advanceAdj > 0
+          ? calculatePayrollRow({ ...calcParams, advance_adjusted: advanceAdj })
+          : base;
 
       return {
         year: payrollYear,
@@ -457,9 +468,9 @@ function MembersPage() {
         allowance: breakdown.allowance,
         other_allowance: breakdown.other_allowance,
         gross_salary: breakdown.gross_salary,
-        tax: 0,
-        advance_adjusted: 0,
-        other_deductions: 0,
+        tax: breakdown.tax,
+        advance_adjusted: breakdown.advance_adjusted,
+        other_deductions: breakdown.other_deductions,
         net_salary: breakdown.net_salary,
         payment_status: "pending",
         payment_mode: "cash",
@@ -469,7 +480,7 @@ function MembersPage() {
     });
 
     setPayrollRows(rows);
-  }, [payrollYear, payrollMonth, empList, payrollHistory]);
+  }, [payrollYear, payrollMonth, empList, payrollHistory, empTransactions]);
 
   // Update a single payroll row field and recalculate live (only if not paid)
   const updatePayrollField = (

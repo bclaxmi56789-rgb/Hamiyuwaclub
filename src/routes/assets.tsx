@@ -2,7 +2,27 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, HandCoins, PenLine, Plus, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  BookOpen,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Filter,
+  HandCoins,
+  Layers,
+  Package,
+  PenLine,
+  Plus,
+  Printer,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  UserCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import { WorkspacePage, money, useWorkspace } from "@/components/workspace";
@@ -11,23 +31,39 @@ import {
   theliRangeCount,
   theliRemainingRange,
   theliSerialNumber,
+  theliSerialWithFormat,
   theliTotals,
+  calculateTheliStockCounts,
+  generateTheliRanges,
+  sortTheliAvailableRanges,
+  calculateTheliBooking,
   validateDateInFiscalYear,
   type Employee,
   type Member,
   type TheliLog,
   type TheliRangeEntry,
+  type TheliStockBatch,
+  type TheliStockItem,
 } from "@/lib/receipt-rules";
-import { getTheliData, saveTheliLog, deleteTheliLog } from "@/lib/workspace.functions";
+import {
+  getTheliData,
+  saveTheliLog,
+  deleteTheliLog,
+  getTheliStockData,
+  saveTheliStockBatch,
+  issueTheliStockItem,
+  reportTheliStockClosing,
+  deleteTheliStockBatch,
+} from "@/lib/workspace.functions";
 
 export const Route = createFileRoute("/assets")({
   head: () => ({
     meta: [
-      { title: "Assets — Theli Ledger | Hami Yuwa Club" },
+      { title: "थेली स्टक तथा कर्मचारी लेजर | Hami Yuwa Club" },
       {
         name: "description",
         content:
-          "Employee-wise theli ledger: morning out ranges, evening closing serial, cancelled rasids and carried difference until settled.",
+          "थेली स्टक दर्ता (पालिका, वडा, आ.व.), कर्मचारी निष्कासन, चालु बाँकी थेली पहिलो प्राथमिकता, अन्तिम काटिएको रसिद रिपोर्टिङ तथा बक्यौता हिसाब।",
       },
     ],
   }),
@@ -35,9 +71,119 @@ export const Route = createFileRoute("/assets")({
 });
 
 const inputCls =
-  "w-full rounded-md border bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary";
+  "w-full rounded-md border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary shadow-2xs";
 
-/* ── थेली बाहिर दायरा rows (S.No + देखि–सम्म, रसिद स्वतः) ─────── */
+/* ── Seed sample stock if brand new ──────────────────────────── */
+const SEED_BATCHES: TheliStockBatch[] = [
+  {
+    id: "tsb-seed-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    start_from: "GT-0001",
+    end_to: "GT-0250",
+    vouchers_per_theli: 50,
+    total_vouchers: 250,
+    total_theli: 5,
+    remarks: "आ.व. २०८१/८२ वडा नं. ४ पहिलो लट थेली स्टक",
+    created_at: new Date().toISOString(),
+  },
+];
+
+const SEED_ITEMS: TheliStockItem[] = [
+  {
+    id: "th-seed-rem",
+    batch_id: "tsb-seed-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 1,
+    range_from: "GT-0031",
+    range_to: "GT-0050",
+    total_vouchers: 20,
+    status: "returned_remaining",
+    is_remaining_open: true, // Rank 1: Remaining theli ready to be issued first!
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 20,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-seed-2",
+    batch_id: "tsb-seed-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 2,
+    range_from: "GT-0051",
+    range_to: "GT-0100",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-seed-3",
+    batch_id: "tsb-seed-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 3,
+    range_from: "GT-0101",
+    range_to: "GT-0150",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-seed-4",
+    batch_id: "tsb-seed-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 4,
+    range_from: "GT-0151",
+    range_to: "GT-0200",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-seed-5",
+    batch_id: "tsb-seed-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 5,
+    range_from: "GT-0201",
+    range_to: "GT-0250",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+];
+
+/* ── Legacy row helper ───────────────────────────────────────── */
 function TheliRangeRows({
   title,
   hint,
@@ -50,13 +196,13 @@ function TheliRangeRows({
   setRows: (rows: TheliRangeEntry[]) => void;
 }) {
   return (
-    <div className="rounded-lg border bg-muted/30 p-2">
+    <div className="rounded-lg border bg-muted/30 p-2.5">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[11px] font-bold text-foreground">{title}</span>
         <button
           type="button"
           onClick={() => setRows([...rows, { from: "", to: "", count: 0 }])}
-          className="inline-flex items-center gap-0.5 rounded bg-primary/10 border border-primary/30 px-1.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20"
+          className="inline-flex items-center gap-0.5 rounded bg-primary/10 border border-primary/30 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20"
         >
           <Plus className="size-3" /> दायरा थप
         </button>
@@ -68,15 +214,11 @@ function TheliRangeRows({
           const t = theliSerialNumber(r.to);
           const autoCount = !isNaN(f) && !isNaN(t) && t >= f;
           return (
-            <div key={i} className="flex items-center gap-1">
-              <span
-                aria-label={`S.No ${i + 1}`}
-                className="w-5 shrink-0 text-center font-mono text-[10px] font-bold text-muted-foreground"
-              >
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="w-5 shrink-0 text-center font-mono text-[10px] font-bold text-muted-foreground">
                 {i + 1}
               </span>
               <input
-                aria-label={`देखि ${i + 1}`}
                 className={inputCls}
                 placeholder="देखि GT-001"
                 value={r.from}
@@ -86,7 +228,6 @@ function TheliRangeRows({
               />
               <span className="text-muted-foreground">–</span>
               <input
-                aria-label={`सम्म ${i + 1}`}
                 className={inputCls}
                 placeholder="सम्म GT-050"
                 value={r.to}
@@ -96,18 +237,16 @@ function TheliRangeRows({
               />
               {autoCount ? (
                 <span
-                  aria-label={`रसिद संख्या ${i + 1}`}
                   title="देखि–सम्म फरकबाट स्वतः गणना"
-                  className="w-14 shrink-0 rounded-md border border-primary/20 bg-primary/10 px-1 py-1.5 text-center font-mono text-xs font-bold text-primary"
+                  className="w-16 shrink-0 rounded-md border border-primary/20 bg-primary/10 px-1 py-1.5 text-center font-mono text-xs font-bold text-primary"
                 >
-                  {theliRangeCount(r)}
+                  {theliRangeCount(r)} रसिद
                 </span>
               ) : (
                 <input
-                  aria-label={`रसिद संख्या ${i + 1}`}
                   type="number"
                   min={0}
-                  className={`${inputCls} w-14`}
+                  className={`${inputCls} w-16`}
                   placeholder="संख्या"
                   value={r.count || ""}
                   onChange={(e) =>
@@ -121,7 +260,6 @@ function TheliRangeRows({
               )}
               <button
                 type="button"
-                aria-label="हटाउनुहोस्"
                 onClick={() => setRows(rows.filter((_, j) => j !== i))}
                 className="rounded p-1 text-red-500 hover:bg-red-500/10"
               >
@@ -130,767 +268,1657 @@ function TheliRangeRows({
             </div>
           );
         })}
-        {rows.length === 0 && <p className="text-[10px] text-muted-foreground">कुनै दायरा छैन।</p>}
-      </div>
-      <span className="mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
-        जम्मा रसिद: {rows.reduce((s, r) => s + theliRangeCount(r), 0)}
-      </span>
-    </div>
-  );
-}
-
-/* ── हरेक कर्मचारीको थेली बक्स (employee-wise) ────────────────── */
-function TheliEmployeeBox({
-  name,
-  logs,
-  busyId,
-  onEdit,
-  onToggleSettled,
-  onDelete,
-}: {
-  name: string;
-  logs: TheliLog[];
-  busyId: string | null;
-  onEdit: (l: TheliLog) => void;
-  onToggleSettled: (l: TheliLog) => void;
-  onDelete: (l: TheliLog) => void;
-}) {
-  const carry = logs[0] ? theliTotals(logs[0]).balance : 0;
-  const sums = logs.reduce(
-    (acc, l) => {
-      const t = theliTotals(l);
-      return {
-        amount:
-          acc.amount +
-          t.balance +
-          (Number(l.cleared_amount) || 0) -
-          (Number(l.opening_balance) || 0),
-        cleared: acc.cleared + (Number(l.cleared_amount) || 0),
-        rasids: acc.rasids + t.rasidsOut,
-        cancelled: acc.cancelled + t.cancelledCount,
-        finalRasids: acc.finalRasids + t.finalRasids,
-      };
-    },
-    { amount: 0, cleared: 0, rasids: 0, cancelled: 0, finalRasids: 0 },
-  );
-  return (
-    <div className="rounded-xl border bg-card p-3 shadow-xs">
-      <div className="mb-2 flex items-center justify-between gap-2 border-b border-border pb-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <HandCoins className="size-4 shrink-0 text-amber-600" />
-          <span className="truncate text-xs font-extrabold text-foreground">{name}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {carry !== 0 && (
-            <span
-              className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                carry > 0
-                  ? "bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300"
-                  : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-              }`}
-            >
-              अन्तर {money(carry)}
-            </span>
-          )}
-          <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
-            {logs.length} दिन
-          </span>
-        </div>
-      </div>
-      <div className="mb-2 grid grid-cols-4 gap-1 rounded-lg bg-muted/40 p-1.5 text-center text-[10px]">
-        <div>
-          <span className="block text-muted-foreground">संकलन</span>
-          <span className="font-mono font-bold text-foreground">{money(sums.amount)}</span>
-        </div>
-        <div>
-          <span className="block text-muted-foreground">बुझाएको</span>
-          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-            {money(sums.cleared)}
-          </span>
-        </div>
-        <div>
-          <span className="block text-muted-foreground">अन्तिम रसिद</span>
-          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
-            {sums.finalRasids}
-          </span>
-        </div>
-        <div>
-          <span className="block text-muted-foreground">रद्द</span>
-          <span className="font-mono font-bold text-orange-600 dark:text-orange-400">
-            {sums.cancelled}
-          </span>
-        </div>
-      </div>
-      <div className="divide-y divide-border">
-        {logs.map((l) => {
-          const t = theliTotals(l);
-          const hasClosing = !!(l.closing_serial && l.closing_serial.trim());
-          return (
-            <div key={l.id} className="flex items-start justify-between gap-2 py-2">
-              <div className="min-w-0">
-                <span className="font-mono text-xs font-bold text-foreground">{l.log_date}</span>
-                <span className="ml-1 text-[10px] text-muted-foreground">{l.supervisor_name}</span>
-                <div className="mt-0.5 flex flex-wrap gap-1">
-                  <span className="rounded bg-amber-500/10 border border-amber-500/20 px-1 py-0.2 text-[9px] font-bold text-amber-700 dark:text-amber-300">
-                    थेली बाहिर {t.outCount}
-                  </span>
-                  {hasClosing ? (
-                    <>
-                      <span className="rounded bg-blue-500/10 border border-blue-500/20 px-1 py-0.2 font-mono text-[9px] font-bold text-blue-700 dark:text-blue-300">
-                        खारेज {l.closing_serial}
-                      </span>
-                      <span className="rounded bg-blue-500/10 border border-blue-500/20 px-1 py-0.2 text-[9px] font-bold text-blue-700 dark:text-blue-300">
-                        काटिएको {t.rasidsOut}
-                      </span>
-                      <span className="rounded bg-orange-500/10 border border-orange-500/20 px-1 py-0.2 text-[9px] font-bold text-orange-700 dark:text-orange-300">
-                        रद्द {t.cancelledCount}
-                      </span>
-                      <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
-                        अन्तिम {t.finalRasids}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="rounded bg-amber-500/10 border border-amber-500/20 px-1 py-0.2 text-[9px] font-bold text-amber-700 dark:text-amber-300">
-                      रकम{" "}
-                      {money(
-                        t.balance +
-                          (Number(l.cleared_amount) || 0) -
-                          (Number(l.opening_balance) || 0),
-                      )}
-                    </span>
-                  )}
-                  {l.settled && (
-                    <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
-                      सेटल ✓
-                    </span>
-                  )}
-                  <span
-                    className={`rounded px-1 py-0.2 text-[9px] font-bold ${
-                      t.balance > 0
-                        ? "bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300"
-                        : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-                    }`}
-                  >
-                    अन्तर {money(t.balance)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex shrink-0 gap-0.5">
-                <button
-                  type="button"
-                  aria-label={l.settled ? "सेटल खारियो गर्नुहोस्" : "सेटल गर्नुहोस्"}
-                  title={
-                    l.settled
-                      ? "सेटल खारियो गर्नुहोस् (अन्तर फेरि बोकिन्छ)"
-                      : "सेटल गर्नुहोस् — यो दिनसम्मको अन्तर बुझाइयो"
-                  }
-                  disabled={busyId === l.id}
-                  onClick={() => onToggleSettled(l)}
-                  className={`rounded p-1 ${
-                    l.settled
-                      ? "text-emerald-600 hover:bg-emerald-500/10"
-                      : "text-muted-foreground hover:bg-muted hover:text-emerald-600"
-                  }`}
-                >
-                  <CheckCircle2 className={`size-3.5 ${busyId === l.id ? "animate-pulse" : ""}`} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="सच्याउनुहोस्"
-                  onClick={() => onEdit(l)}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <PenLine className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="मेट्नुहोस्"
-                  onClick={() => onDelete(l)}
-                  className="rounded p-1 text-red-500 hover:bg-red-500/10"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
 }
 
-/* ── Assets page ──────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   MAIN ASSETS / THELI PAGE
+   ══════════════════════════════════════════════════════════════════ */
 function AssetsPage() {
   const { ward, setWard, signedIn, userId, year } = useWorkspace();
   const queryClient = useQueryClient();
-  const fetchTheliFn = useServerFn(getTheliData);
-  const saveFn = useServerFn(saveTheliLog);
-  const deleteFn = useServerFn(deleteTheliLog);
-  const theliQuery = useQuery({
-    queryKey: ["theli", userId],
-    queryFn: () => fetchTheliFn(),
+
+  // Active view sub-tab
+  const [subTab, setSubTab] = useState<
+    "stock" | "add_stock" | "issue" | "boxes" | "daily_log"
+  >("stock");
+
+  // Server functions
+  const fetchStockFn = useServerFn(getTheliStockData);
+  const saveStockBatchFn = useServerFn(saveTheliStockBatch);
+  const issueStockItemFn = useServerFn(issueTheliStockItem);
+  const reportStockClosingFn = useServerFn(reportTheliStockClosing);
+  const deleteStockBatchFn = useServerFn(deleteTheliStockBatch);
+
+  const fetchLegacyTheliFn = useServerFn(getTheliData);
+  const saveLegacyTheliFn = useServerFn(saveTheliLog);
+  const deleteLegacyTheliFn = useServerFn(deleteTheliLog);
+
+  // Queries
+  const theliStockQuery = useQuery({
+    queryKey: ["theli_stock", userId],
+    queryFn: () => fetchStockFn(),
     enabled: signedIn,
   });
-  const logs: TheliLog[] = useMemo(() => theliQuery.data?.logs ?? [], [theliQuery.data]);
-  const employees: Employee[] = theliQuery.data?.employees ?? [];
-  const members: Member[] = theliQuery.data?.members ?? [];
-  const theliRefresh = () => {
+
+  const refreshAll = () => {
+    void queryClient.invalidateQueries({ queryKey: ["theli_stock"] });
     void queryClient.invalidateQueries({ queryKey: ["theli"] });
   };
 
-  const [logDate, setLogDate] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
-  const [supType, setSupType] = useState<"member" | "employee">("member");
-  const [supId, setSupId] = useState("");
-  const [outRows, setOutRows] = useState<TheliRangeEntry[]>([{ from: "", to: "", count: 0 }]);
-  const [closing, setClosing] = useState("");
-  const [cancelled, setCancelled] = useState("");
-  const [opening, setOpening] = useState("");
-  const [amount, setAmount] = useState("");
-  const [cleared, setCleared] = useState("");
-  const [settleTick, setSettleTick] = useState(false);
-  const [remarks, setRemarks] = useState("");
-  const [editId, setEditId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
-  const [okMsg, setOkMsg] = useState("");
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const logsRef = useRef(logs);
-  logsRef.current = logs;
-
-  useEffect(() => {
-    if (signedIn && !logDate) setLogDate("");
-  }, [signedIn, logDate]);
-
-  /* बोकिएको अन्तर — कर्मचारी अनुसार स्वतः थालनीमा बसालिन्छ */
-  useEffect(() => {
-    if (editId) return;
-    if (logDate === "") return;
-    const carried = employeeId
-      ? (function latestBalance() {
-          const per = logsRef.current
-            .filter((l) => l.employee_id === employeeId && l.log_date < logDate)
-            .sort((a, b) => b.log_date.localeCompare(a.log_date));
-          return per[0] ? theliTotals(per[0]).balance : 0;
-        })()
-      : 0;
-    setOpening(String(carried || 0));
-    setErr("");
-    setOkMsg("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logDate, employeeId]);
-
-  const preview = theliTotals({
-    opening_balance: Number(opening) || 0,
-    amount: Number(amount) || 0,
-    cleared_amount: Number(cleared) || 0,
-    out_entries: outRows,
-    in_entries: [],
+  // State with LocalStorage fallback
+  const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>(() => {
+    try {
+      const s = localStorage.getItem("hami_theli_stock_batches");
+      if (s) return JSON.parse(s);
+    } catch {}
+    return SEED_BATCHES;
   });
-  const liveRasidsOut = theliRasidsOut(outRows, closing);
-  const liveCancelled = Math.max(0, Number(cancelled) || 0);
-  const liveFinal = Math.max(0, liveRasidsOut - liveCancelled);
-  const liveRemaining = theliRemainingRange(outRows, closing);
-  const liveOutTotal = outRows.reduce((s, r) => s + theliRangeCount(r), 0);
-  const fullSettle = Math.max(0, (Number(opening) || 0) + (Number(amount) || 0));
 
-  /* employee-wise grouping — हरेक कर्मचारीको सबै थेली एक बक्समा */
-  const employeeBoxes = useMemo(() => {
-    const map = new Map<string, { key: string; name: string; logs: TheliLog[] }>();
-    for (const l of logs) {
-      const key = l.employee_id || l.employee_name || "—";
-      if (!map.has(key)) map.set(key, { key, name: l.employee_name || "—", logs: [] });
-      map.get(key)!.logs.push(l);
+  const [stockItems, setStockItems] = useState<TheliStockItem[]>(() => {
+    try {
+      const s = localStorage.getItem("hami_theli_stock_items");
+      if (s) return JSON.parse(s);
+    } catch {}
+    return SEED_ITEMS;
+  });
+
+  const [dailyLogs, setDailyLogs] = useState<TheliLog[]>(() => {
+    try {
+      const s = localStorage.getItem("hami_theli_daily_logs");
+      if (s) return JSON.parse(s);
+    } catch {}
+    return [];
+  });
+
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+
+  // Sync server data
+  useEffect(() => {
+    if (theliStockQuery.data) {
+      if (theliStockQuery.data.batches && theliStockQuery.data.batches.length > 0) {
+        setStockBatches(theliStockQuery.data.batches);
+        try {
+          localStorage.setItem(
+            "hami_theli_stock_batches",
+            JSON.stringify(theliStockQuery.data.batches),
+          );
+        } catch {}
+      }
+      if (theliStockQuery.data.items && theliStockQuery.data.items.length > 0) {
+        setStockItems(theliStockQuery.data.items);
+        try {
+          localStorage.setItem(
+            "hami_theli_stock_items",
+            JSON.stringify(theliStockQuery.data.items),
+          );
+        } catch {}
+      }
+      if (theliStockQuery.data.logs) {
+        setDailyLogs(theliStockQuery.data.logs);
+      }
+      if (theliStockQuery.data.employees) {
+        setEmployees(theliStockQuery.data.employees);
+      }
+      if (theliStockQuery.data.members) {
+        setMembers(theliStockQuery.data.members);
+      }
     }
-    for (const g of map.values()) {
-      g.logs.sort(
-        (a, b) =>
-          b.log_date.localeCompare(a.log_date) ||
-          (b.created_at ?? "").localeCompare(a.created_at ?? ""),
-      );
-    }
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [logs]);
+  }, [theliStockQuery.data]);
 
-  const loadLog = (l: TheliLog) => {
-    setEditId(l.id ?? null);
-    setLogDate(l.log_date);
-    setEmployeeId(l.employee_id);
-    setSupType(l.supervisor_type === "employee" ? "employee" : "member");
-    setSupId(l.supervisor_id);
-    setOpening(String(l.opening_balance ?? 0));
-    setOutRows(l.out_entries?.length ? l.out_entries : [{ from: "", to: "", count: 0 }]);
-    setClosing(l.closing_serial ?? "");
-    setCancelled(l.cancelled_count ? String(l.cancelled_count) : "");
-    setAmount(String(l.amount ?? 0));
-    setCleared(String(l.cleared_amount ?? 0));
-    setSettleTick(l.settled === true);
-    setRemarks(l.remarks ?? "");
-    setErr("");
-    setOkMsg("");
-  };
+  // Notifications
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const blankForm = () => {
-    setEditId(null);
-    setEmployeeId("");
-    setSupType("member");
-    setSupId("");
-    setOutRows([{ from: "", to: "", count: 0 }]);
-    setClosing("");
-    setCancelled("");
-    setAmount("");
-    setCleared("");
-    setSettleTick(false);
-    setRemarks("");
-    setErr("");
-    setOkMsg("");
-  };
+  /* ─────────────────────────────────────────────────────────────
+     TAB 1: STOCK MASTER FORM STATE
+     ───────────────────────────────────────────────────────────── */
+  const [newBatchMunicipality, setNewBatchMunicipality] = useState("वीरेन्द्रनगर नगरपालिका");
+  const [newBatchWard, setNewBatchWard] = useState(ward || "4");
+  const [newBatchFY, setNewBatchFY] = useState(year || "2081/82");
+  const [newBatchStart, setNewBatchStart] = useState("GT-0001");
+  const [newBatchEnd, setNewBatchEnd] = useState("GT-1000");
+  const [newBatchPerTheli, setNewBatchPerTheli] = useState<number>(50);
+  const [newBatchRemarks, setNewBatchRemarks] = useState("");
+  const [savingBatch, setSavingBatch] = useState(false);
 
-  const handleSettleTick = (checked: boolean) => {
-    setSettleTick(checked);
-    setCleared(checked ? String(fullSettle) : "");
-  };
+  // Auto-calculated batch counts
+  const batchCounts = useMemo(() => {
+    return calculateTheliStockCounts(newBatchStart, newBatchEnd, newBatchPerTheli);
+  }, [newBatchStart, newBatchEnd, newBatchPerTheli]);
 
-  const handleSave = async () => {
-    setErr("");
-    setOkMsg("");
-    const fyDateErr = validateDateInFiscalYear(logDate, year, "थेली मिति");
-    if (fyDateErr) {
-      setErr(fyDateErr);
+  const handleCreateStockBatch = async () => {
+    setNotice(null);
+    if (!newBatchStart || !newBatchEnd) {
+      setNotice({ type: "error", text: "सुरु र अन्तिम रसिद सिरियल भर्नुहोस्।" });
       return;
     }
-    const emp = employees.find((e) => e.id === employeeId);
+    if (batchCounts.totalVouchers <= 0) {
+      setNotice({ type: "error", text: "अमान्य सिरियल दायरा। अन्तिम नम्बर ठूलो हुनुपर्छ।" });
+      return;
+    }
+
+    setSavingBatch(true);
+    try {
+      const res = await saveStockBatchFn({
+        data: {
+          municipality: newBatchMunicipality,
+          ward: newBatchWard,
+          fiscal_year: newBatchFY,
+          start_from: newBatchStart,
+          end_to: newBatchEnd,
+          vouchers_per_theli: newBatchPerTheli,
+          remarks: newBatchRemarks,
+        },
+      });
+
+      const updatedBatches = [res.batch, ...stockBatches.filter((b) => b.id !== res.batch.id)];
+      const updatedItems = [...res.items, ...stockItems];
+
+      setStockBatches(updatedBatches);
+      setStockItems(updatedItems);
+      try {
+        localStorage.setItem("hami_theli_stock_batches", JSON.stringify(updatedBatches));
+        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+      } catch {}
+
+      setNotice({
+        type: "success",
+        text: `थेली स्टक दर्ता भयो! जम्मा ${batchCounts.total_vouchers ?? batchCounts.totalVouchers} रसिद (${batchCounts.total_theli ?? batchCounts.totalTheli} थेली) स्टकमा थपियो।`,
+      });
+
+      refreshAll();
+      setSubTab("stock");
+    } catch (e: any) {
+      // Local fallback
+      const batchId = `tsb-${Date.now()}`;
+      const newBatch: TheliStockBatch = {
+        id: batchId,
+        municipality: newBatchMunicipality,
+        ward: newBatchWard,
+        fiscal_year: newBatchFY,
+        start_from: newBatchStart,
+        end_to: newBatchEnd,
+        vouchers_per_theli: newBatchPerTheli,
+        total_vouchers: batchCounts.totalVouchers,
+        total_theli: batchCounts.totalTheli,
+        remarks: newBatchRemarks,
+        created_at: new Date().toISOString(),
+      };
+      const genItems = generateTheliRanges({
+        id: batchId,
+        municipality: newBatchMunicipality,
+        ward: newBatchWard,
+        fiscal_year: newBatchFY,
+        start_from: newBatchStart,
+        end_to: newBatchEnd,
+        vouchers_per_theli: newBatchPerTheli,
+      });
+
+      const updatedBatches = [newBatch, ...stockBatches];
+      const updatedItems = [...genItems, ...stockItems];
+
+      setStockBatches(updatedBatches);
+      setStockItems(updatedItems);
+      try {
+        localStorage.setItem("hami_theli_stock_batches", JSON.stringify(updatedBatches));
+        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+      } catch {}
+
+      setNotice({
+        type: "success",
+        text: `थेली स्टक स्थानीय रूपमा सुरक्षित भयो! जम्मा ${batchCounts.totalVouchers} रसिद (${batchCounts.totalTheli} थेली)।`,
+      });
+      setSubTab("stock");
+    } finally {
+      setSavingBatch(false);
+    }
+  };
+
+  /* ─────────────────────────────────────────────────────────────
+     TAB 2: ISSUE THELI STATE
+     ───────────────────────────────────────────────────────────── */
+  const [issueEmployeeId, setIssueEmployeeId] = useState("");
+  const [issueSupervisorName, setIssueSupervisorName] = useState("");
+  const [issueWard, setIssueWard] = useState(ward || "4");
+  const [issueMunicipality, setIssueMunicipality] = useState("वीरेन्द्रनगर नगरपालिका");
+  const [issueDate, setIssueDate] = useState("2083/07/15");
+  const [selectedStockItemId, setSelectedStockItemId] = useState("");
+  const [issuing, setIssuing] = useState(false);
+
+  // Available ranges for issuing (filtered and SORTED so remaining open theli is FIRST!)
+  const availableRanges = useMemo(() => {
+    const unissued = stockItems.filter(
+      (it) =>
+        (it.status === "available" || it.status === "returned_remaining") &&
+        (!issueWard || it.ward === issueWard),
+    );
+    return sortTheliAvailableRanges(unissued);
+  }, [stockItems, issueWard]);
+
+  // Pre-select first range (which is guaranteed to be the remaining one if available!)
+  useEffect(() => {
+    if (availableRanges.length > 0 && !selectedStockItemId) {
+      setSelectedStockItemId(availableRanges[0].id);
+    }
+  }, [availableRanges, selectedStockItemId]);
+
+  const handleIssueTheli = async () => {
+    setNotice(null);
+    const emp = employees.find((e) => e.id === issueEmployeeId);
     if (!emp) {
-      setErr("कर्मचारी छान्नुहोस् (कर्मचारी मास्टरबाट छानिन्छ)।");
+      setNotice({ type: "error", text: "थेली पाउने कर्मचारी छान्नुहोस्।" });
       return;
     }
-    const supList = supType === "employee" ? employees : members;
-    const sup = supList.find((x) => x.id === supId);
-    const cleanRows = (rows: TheliRangeEntry[]) =>
-      rows
-        .filter((r) => (r.from.trim() || r.to.trim()) && theliRangeCount(r) > 0)
-        .map((r) => ({ from: r.from.trim(), to: r.to.trim(), count: theliRangeCount(r) }));
-    const cleanOut = cleanRows(outRows);
-    if (cleanOut.length === 0) {
-      setErr(
-        "बिहान थेली बाहिरको दायरा (देखि–सम्म सिरियल) भर्नुहोस् — मात्र यही अनिवार्य छ, यसका साथै सेभ हुन्छ।",
-      );
+    const item = stockItems.find((it) => it.id === selectedStockItemId);
+    if (!item) {
+      setNotice({ type: "error", text: "स्टकबाट उपलब्ध थेली दायरा छान्नुहोस्।" });
       return;
     }
-    setSaving(true);
+
+    setIssuing(true);
     try {
-      await saveFn({
+      await issueStockItemFn({
         data: {
-          id: editId ?? undefined,
-          log_date: logDate,
-          ward,
-          employee_id: employeeId,
+          item_id: item.id,
+          employee_id: emp.id,
           employee_name: emp.name,
-          supervisor_type: supType,
-          supervisor_id: sup?.id ?? "",
-          supervisor_name: sup?.name ?? "",
-          opening_balance: Number(opening) || 0,
-          out_entries: cleanOut,
-          in_entries: [],
-          closing_serial: closing.trim(),
-          cancelled_count: liveCancelled,
-          amount: Number(amount) || 0,
-          cleared_amount: settleTick ? fullSettle : Number(cleared) || 0,
-          settled: settleTick,
-          remarks: remarks.trim(),
+          supervisor_name: issueSupervisorName,
+          issued_date: issueDate,
         },
       });
-      setOkMsg("थेली विवरण सुरक्षित भयो।");
-      blankForm();
-      theliRefresh();
-    } catch (e) {
-      setErr(e instanceof Error && e.message ? e.message : "सुरक्षित गर्न सकिएन।");
+
+      const updated = stockItems.map((it) =>
+        it.id === item.id
+          ? {
+              ...it,
+              status: "issued" as const,
+              is_remaining_open: false,
+              issued_to_id: emp.id,
+              issued_to_name: emp.name,
+              supervisor_name: issueSupervisorName,
+              issued_date: issueDate,
+            }
+          : it,
+      );
+      setStockItems(updated);
+      try {
+        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updated));
+      } catch {}
+
+      setNotice({
+        type: "success",
+        text: `${emp.name} लाई थेली दायरा (${item.range_from} देखि ${item.range_to}) सफलतापूर्वक जारी गरियो!`,
+      });
+      setSelectedStockItemId("");
+      refreshAll();
+      setSubTab("boxes");
+    } catch {
+      // Local fallback
+      const updated = stockItems.map((it) =>
+        it.id === item.id
+          ? {
+              ...it,
+              status: "issued" as const,
+              is_remaining_open: false,
+              issued_to_id: emp.id,
+              issued_to_name: emp.name,
+              supervisor_name: issueSupervisorName,
+              issued_date: issueDate,
+            }
+          : it,
+      );
+      setStockItems(updated);
+      try {
+        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updated));
+      } catch {}
+      setNotice({
+        type: "success",
+        text: `${emp.name} लाई थेली (${item.range_from}–${item.range_to}) जारी गरियो!`,
+      });
+      setSubTab("boxes");
     } finally {
-      setSaving(false);
+      setIssuing(false);
     }
   };
 
-  const toggleSettled = async (l: TheliLog) => {
-    const id = l.id;
-    if (!id || busyId === id) return;
-    const next = !(l.settled === true);
-    setBusyId(id);
-    setErr("");
+  /* ─────────────────────────────────────────────────────────────
+     TAB 3: EMPLOYEE REPORTING MODAL STATE
+     ───────────────────────────────────────────────────────────── */
+  const [reportingItem, setReportingItem] = useState<TheliStockItem | null>(null);
+  const [reportLastVoucher, setReportLastVoucher] = useState("");
+  const [reportAmountBooked, setReportAmountBooked] = useState("");
+  const [reportAmountObtained, setReportAmountObtained] = useState("");
+  const [reportActionRemaining, setReportActionRemaining] = useState<"return" | "keep_issued">(
+    "return",
+  );
+  const [reportDate, setReportDate] = useState("2083/07/15");
+  const [reportRemarks, setReportRemarks] = useState("");
+  const [savingReport, setSavingReport] = useState(false);
+
+  // Employee's previous running balance from dailyLogs
+  const employeeCarriedBalance = useMemo(() => {
+    if (!reportingItem?.issued_to_id) return 0;
+    const empLogs = dailyLogs
+      .filter((l) => l.employee_id === reportingItem.issued_to_id)
+      .sort((a, b) => b.log_date.localeCompare(a.log_date));
+    return empLogs[0] ? theliTotals(empLogs[0]).balance : 0;
+  }, [reportingItem, dailyLogs]);
+
+  // Live reporting calculations
+  const liveReportCalc = useMemo(() => {
+    if (!reportingItem) return null;
+    return calculateTheliBooking(
+      reportingItem,
+      reportLastVoucher,
+      Number(reportAmountBooked) || 0,
+      Number(reportAmountObtained) || 0,
+      employeeCarriedBalance,
+    );
+  }, [
+    reportingItem,
+    reportLastVoucher,
+    reportAmountBooked,
+    reportAmountObtained,
+    employeeCarriedBalance,
+  ]);
+
+  const handleOpenReportModal = (item: TheliStockItem) => {
+    setReportingItem(item);
+    setReportLastVoucher(item.last_voucher_booked || "");
+    setReportAmountBooked(item.amount_booked ? String(item.amount_booked) : "");
+    setReportAmountObtained(item.amount_obtained ? String(item.amount_obtained) : "");
+    setReportActionRemaining("return");
+    setReportDate(item.issued_date || "2083/07/15");
+    setReportRemarks("");
+  };
+
+  const handleSaveReport = async () => {
+    if (!reportingItem || !liveReportCalc) return;
+    if (!reportLastVoucher.trim()) {
+      alert("अन्तिम काटिएको रसिद नम्बर भर्नुहोस्।");
+      return;
+    }
+
+    setSavingReport(true);
     try {
-      await saveFn({
+      await reportStockClosingFn({
         data: {
-          id,
-          log_date: l.log_date,
-          ward: l.ward ?? "",
-          employee_id: l.employee_id,
-          employee_name: l.employee_name,
-          supervisor_type: l.supervisor_type,
-          supervisor_id: l.supervisor_id,
-          supervisor_name: l.supervisor_name,
-          opening_balance: Number(l.opening_balance) || 0,
-          out_entries: l.out_entries ?? [],
-          in_entries: l.in_entries ?? [],
-          closing_serial: l.closing_serial ?? "",
-          cancelled_count: Math.max(0, Number(l.cancelled_count) || 0),
-          amount: Number(l.amount) || 0,
-          cleared_amount: next
-            ? Math.max(0, (Number(l.opening_balance) || 0) + (Number(l.amount) || 0))
-            : Number(l.cleared_amount) || 0,
-          settled: next,
-          remarks: l.remarks ?? "",
+          item_id: reportingItem.id,
+          last_voucher_booked: reportLastVoucher.trim(),
+          amount_booked: liveReportCalc.amountBooked,
+          amount_obtained: liveReportCalc.amountObtained,
+          carried_balance: employeeCarriedBalance,
+          action_on_remaining: reportActionRemaining,
+          log_date: reportDate,
+          remarks: reportRemarks,
         },
       });
-      setOkMsg(next ? "सेटल गरियो — क्यारी अन्तर सफा भयो।" : "सेटल खारियो।");
-      theliRefresh();
-    } catch (e) {
-      setErr(e instanceof Error && e.message ? e.message : "सेटल गर्न सकिएन।");
+
+      // Update local stockItems state
+      let updatedItems = [...stockItems];
+      if (liveReportCalc.isFullyExhausted || !liveReportCalc.remainingRange) {
+        updatedItems = updatedItems.map((it) =>
+          it.id === reportingItem.id
+            ? {
+                ...it,
+                status: "completed" as const,
+                last_voucher_booked: reportLastVoucher,
+                booked_vouchers_count: liveReportCalc.bookedCount,
+                remaining_vouchers_count: 0,
+                amount_booked: liveReportCalc.amountBooked,
+                amount_obtained: liveReportCalc.amountObtained,
+                balance: liveReportCalc.newBalance,
+              }
+            : it,
+        );
+      } else {
+        if (reportActionRemaining === "return") {
+          // Completed for booked part
+          updatedItems = updatedItems.map((it) =>
+            it.id === reportingItem.id
+              ? {
+                  ...it,
+                  status: "completed" as const,
+                  last_voucher_booked: reportLastVoucher,
+                  booked_vouchers_count: liveReportCalc.bookedCount,
+                  remaining_vouchers_count: 0,
+                  amount_booked: liveReportCalc.amountBooked,
+                  amount_obtained: liveReportCalc.amountObtained,
+                  balance: liveReportCalc.newBalance,
+                }
+              : it,
+          );
+
+          // Add child item as returned open theli (at top of stack!)
+          const childRemaining: TheliStockItem = {
+            id: `th-rem-${Date.now()}`,
+            batch_id: reportingItem.batch_id,
+            municipality: reportingItem.municipality,
+            ward: reportingItem.ward,
+            fiscal_year: reportingItem.fiscal_year,
+            theli_no: reportingItem.theli_no,
+            range_from: liveReportCalc.remainingRange.from,
+            range_to: liveReportCalc.remainingRange.to,
+            total_vouchers: liveReportCalc.remainingRange.count,
+            status: "returned_remaining",
+            is_remaining_open: true, // Will rank at the very top!
+            booked_vouchers_count: 0,
+            remaining_vouchers_count: liveReportCalc.remainingRange.count,
+            amount_booked: 0,
+            amount_obtained: 0,
+            balance: 0,
+          };
+          updatedItems = [childRemaining, ...updatedItems];
+        } else {
+          // Keep issued to employee
+          updatedItems = updatedItems.map((it) =>
+            it.id === reportingItem.id
+              ? {
+                  ...it,
+                  status: "partially_booked" as const,
+                  last_voucher_booked: reportLastVoucher,
+                  booked_vouchers_count: liveReportCalc.bookedCount,
+                  remaining_vouchers_count: liveReportCalc.remainingCount,
+                  remaining_range_from: liveReportCalc.remainingRange?.from,
+                  remaining_range_to: liveReportCalc.remainingRange?.to,
+                  amount_booked: liveReportCalc.amountBooked,
+                  amount_obtained: liveReportCalc.amountObtained,
+                  balance: liveReportCalc.newBalance,
+                }
+              : it,
+          );
+        }
+      }
+
+      setStockItems(updatedItems);
+      try {
+        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+      } catch {}
+
+      setNotice({
+        type: "success",
+        text: `थेली रिपोर्टिङ सुरक्षित भयो! काटिएको रसिद: ${liveReportCalc.bookedCount}, बक्यौता अन्तर: रु. ${liveReportCalc.newBalance}।`,
+      });
+      setReportingItem(null);
+      refreshAll();
+    } catch (e: any) {
+      alert("त्रुटि भयो: " + (e?.message || "रिपोर्ट सेभ भएन"));
     } finally {
-      setBusyId(null);
+      setSavingReport(false);
     }
   };
 
-  const handleDelete = async (l: TheliLog) => {
-    setErr("");
-    if (!window.confirm(`${l.log_date} ${l.employee_name} को थेली विवरण मेट्ने हो?`)) return;
-    try {
-      await deleteFn({ data: { id: l.id ?? "" } });
-      setOkMsg("मेटियो।");
-      theliRefresh();
-    } catch (e) {
-      setErr(e instanceof Error && e.message ? e.message : "मेट्न सकिएन।");
-    }
-  };
+  /* ─────────────────────────────────────────────────────────────
+     EMPLOYEES GROUPED BOXES
+     ───────────────────────────────────────────────────────────── */
+  const employeeTheliCards = useMemo(() => {
+    return employees.map((emp) => {
+      const issued = stockItems.filter(
+        (it) => it.issued_to_id === emp.id && (it.status === "issued" || it.status === "partially_booked"),
+      );
+      const allEmpItems = stockItems.filter((it) => it.issued_to_id === emp.id);
+
+      // Latest carried balance
+      const empLogs = dailyLogs
+        .filter((l) => l.employee_id === emp.id)
+        .sort((a, b) => b.log_date.localeCompare(a.log_date));
+      const carryBalance = empLogs[0] ? theliTotals(empLogs[0]).balance : 0;
+
+      const totalBooked = allEmpItems.reduce((s, it) => s + (Number(it.amount_booked) || 0), 0);
+      const totalObtained = allEmpItems.reduce(
+        (s, it) => s + (Number(it.amount_obtained) || 0),
+        0,
+      );
+
+      return {
+        emp,
+        issued,
+        allEmpItems,
+        carryBalance,
+        totalBooked,
+        totalObtained,
+      };
+    });
+  }, [employees, stockItems, dailyLogs]);
+
+  /* ─────────────────────────────────────────────────────────────
+     TAB 4: STOCK FILTER & SEARCH
+     ───────────────────────────────────────────────────────────── */
+  const [stockSearch, setStockSearch] = useState("");
+  const [stockFilterWard, setStockFilterWard] = useState<string>("all");
+  const [stockFilterStatus, setStockFilterStatus] = useState<string>("all");
+
+  const filteredStockItems = useMemo(() => {
+    return stockItems.filter((it) => {
+      if (stockFilterWard !== "all" && it.ward !== stockFilterWard) return false;
+      if (stockFilterStatus !== "all" && it.status !== stockFilterStatus) return false;
+      if (stockSearch.trim()) {
+        const q = stockSearch.toLowerCase();
+        const matchesRange =
+          it.range_from.toLowerCase().includes(q) || it.range_to.toLowerCase().includes(q);
+        const matchesEmp = it.issued_to_name?.toLowerCase().includes(q);
+        const matchesWard = it.ward.includes(q);
+        if (!matchesRange && !matchesEmp && !matchesWard) return false;
+      }
+      return true;
+    });
+  }, [stockItems, stockFilterWard, stockFilterStatus, stockSearch]);
+
+  // Overall Stock KPI totals
+  const stockSummary = useMemo(() => {
+    const total = stockItems.length;
+    const totalVouchers = stockItems.reduce((s, it) => s + it.total_vouchers, 0);
+    const available = stockItems.filter(
+      (it) => it.status === "available" || it.status === "returned_remaining",
+    ).length;
+    const issued = stockItems.filter(
+      (it) => it.status === "issued" || it.status === "partially_booked",
+    ).length;
+    const completed = stockItems.filter((it) => it.status === "completed").length;
+    const totalAmountBooked = stockItems.reduce(
+      (s, it) => s + (Number(it.amount_booked) || 0),
+      0,
+    );
+    const totalAmountObtained = stockItems.reduce(
+      (s, it) => s + (Number(it.amount_obtained) || 0),
+      0,
+    );
+    const totalBalance = stockItems.reduce((s, it) => s + (Number(it.balance) || 0), 0);
+
+    return {
+      total,
+      totalVouchers,
+      available,
+      issued,
+      completed,
+      totalAmountBooked,
+      totalAmountObtained,
+      totalBalance,
+    };
+  }, [stockItems]);
 
   return (
     <WorkspacePage title="Assets">
-      <p className="mb-4 text-xs text-muted-foreground">
-        कर्मचारी अनुसार थेली लेजर — बिहान थेली बाहिर (अनिवार्य), बेलुका खारेज सिरियल र रद्द रसिद।
-        प्रत्येक कर्मचारीको अन्तर बोकिन्छ, ✓ सेटल थिचेसम्म।
-      </p>
+      <div className="space-y-4">
+        {/* Header Strip */}
+        <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4 shadow-xs">
+          <div>
+            <h1 className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <Package className="size-5 text-primary" />
+              <span>थेली स्टक, निष्कासन तथा कर्मचारी लेजर प्रणाली</span>
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              पालिका, वडा, आ.व. अनुसार थेली स्टक व्यवस्थापन, कर्मचारीलाई निष्कासन, चालु बाँकी थेली पहिलो प्राथमिकता तथा दैनिक रसिद हिसाब।
+            </p>
+          </div>
 
-      {theliQuery.isPending ? (
-        <p role="status">थेली लोड हुँदै…</p>
-      ) : theliQuery.isError ? (
-        <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-          <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-            थेली लोड गर्न सकिएन।
-          </p>
-          <Button size="sm" variant="outline" className="mt-2" onClick={() => theliQuery.refetch()}>
-            फेरि प्रयास
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              className="text-xs font-semibold"
+            >
+              <Printer className="mr-1.5 size-3.5" />
+              <span>प्रिन्ट गर्नुहोस्</span>
+            </Button>
+          </div>
         </div>
-      ) : (
-        <>
-          {/*_entry form */}
-          <div className="mb-5 rounded-xl border bg-card p-4 shadow-xs">
-            <div className="mb-2.5 flex items-center justify-between gap-2">
-              <span className="text-sm font-extrabold text-foreground">
-                {editId ? "थेली विवरण सच्याउने" : "थेली विवरण (बिहान मात्र भरे पनि सेभ हुन्छ)"}
-              </span>
-              {editId && (
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={blankForm}>
-                  नयाँ फारम
-                </Button>
+
+        {/* Global Alert Notification */}
+        {notice && (
+          <div
+            role="alert"
+            className={`flex items-center justify-between rounded-xl p-3 text-xs font-semibold shadow-xs transition-all ${
+              notice.type === "success"
+                ? "bg-emerald-500/10 text-emerald-800 border border-emerald-500/30"
+                : "bg-destructive/10 text-destructive border border-destructive/30"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {notice.type === "success" ? (
+                <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              ) : (
+                <AlertCircle className="size-4 shrink-0 text-destructive" />
               )}
+              <span>{notice.text}</span>
+            </div>
+            <button
+              onClick={() => setNotice(null)}
+              className="rounded p-1 opacity-70 hover:opacity-100"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Sub-Navigation Tabs */}
+        <div className="no-print flex border-b gap-2 sm:gap-6 overflow-x-auto text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setSubTab("stock")}
+            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              subTab === "stock"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Package className="size-3.5" />
+            <span>थेली स्टक स्थिति (Stock Status)</span>
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-mono text-primary font-bold">
+              {stockItems.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab("add_stock")}
+            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              subTab === "add_stock"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Plus className="size-3.5" />
+            <span>नयाँ थेली स्टक दर्ता (Add Stock)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab("issue")}
+            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              subTab === "issue"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <UserCheck className="size-3.5" />
+            <span>कर्मचारीलाई थेली जारी (Issue Theli)</span>
+            {availableRanges.some((r) => r.is_remaining_open) && (
+              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] text-amber-700 font-bold">
+                बाँकी थेली छ!
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSubTab("boxes")}
+            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              subTab === "boxes"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <HandCoins className="size-3.5" />
+            <span>कर्मचारी अनुसार थेली बक्स (Employee Boxes)</span>
+            <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono font-bold">
+              {employees.length}
+            </span>
+          </button>
+        </div>
+
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* SUB-TAB 1: THELI STOCK STATUS & LIVE TABLE                    */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {subTab === "stock" && (
+          <div className="space-y-4">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="rounded-xl border bg-card p-3 shadow-2xs">
+                <span className="text-[11px] text-muted-foreground font-semibold">कुल थेली संख्या</span>
+                <div className="text-xl font-extrabold text-foreground mt-0.5">{stockSummary.total} थेली</div>
+                <div className="text-[10px] text-muted-foreground font-mono">{stockSummary.totalVouchers} रसिद</div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-emerald-700 font-semibold">उपलब्ध मौज्दात</span>
+                <div className="text-xl font-extrabold text-emerald-700 mt-0.5">{stockSummary.available} थेली</div>
+                <div className="text-[10px] text-emerald-600 font-semibold">निष्कासनका लागि तयार</div>
+              </div>
+
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-blue-700 font-semibold">कर्मचारीसँग जारी</span>
+                <div className="text-xl font-extrabold text-blue-700 mt-0.5">{stockSummary.issued} थेली</div>
+                <div className="text-[10px] text-blue-600 font-semibold">फिल्डमा संकलन भइरहेको</div>
+              </div>
+
+              <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-purple-700 font-semibold">संकलित काटिएको रकम</span>
+                <div className="text-xl font-extrabold text-purple-700 mt-0.5">{money(stockSummary.totalAmountBooked)}</div>
+                <div className="text-[10px] text-purple-600 font-semibold">बुझाएको: {money(stockSummary.totalAmountObtained)}</div>
+              </div>
+
+              <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 shadow-2xs col-span-2 sm:col-span-1">
+                <span className="text-[11px] text-rose-700 font-semibold">बाँकी क्यारी अन्तर</span>
+                <div className="text-xl font-extrabold text-rose-700 mt-0.5">{money(stockSummary.totalBalance)}</div>
+                <div className="text-[10px] text-rose-600 font-semibold">कर्मचारीको खातामा बोकिएको</div>
+              </div>
             </div>
 
-            <div className="space-y-2.5">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                    मिति (BS Date)
-                  </label>
-                  <BSDatePicker
-                    value={logDate}
-                    onChange={(d) => {
-                      setLogDate(d);
-                    }}
+            {/* Filter and Search Bar */}
+            <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3 shadow-2xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[200px]">
+                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="सिरियल, कर्मचारी वा वडा खोज्नुहोस्…"
+                    value={stockSearch}
+                    onChange={(e) => setStockSearch(e.target.value)}
+                    className={`${inputCls} pl-8`}
                   />
                 </div>
+
+                <select
+                  value={stockFilterWard}
+                  onChange={(e) => setStockFilterWard(e.target.value)}
+                  className={`${inputCls} w-auto`}
+                >
+                  <option value="all">सबै वडा</option>
+                  {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
+                    <option key={w} value={w}>
+                      वडा {w}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={stockFilterStatus}
+                  onChange={(e) => setStockFilterStatus(e.target.value)}
+                  className={`${inputCls} w-auto`}
+                >
+                  <option value="all">सबै अवस्था (All Status)</option>
+                  <option value="available">उपलब्ध (Available)</option>
+                  <option value="returned_remaining">बाँकी फिर्ता (Remaining Open)</option>
+                  <option value="issued">जारी गरिएको (Issued)</option>
+                  <option value="partially_booked">प्रयोगमा (Partially Booked)</option>
+                  <option value="completed">सम्पन्न (Completed)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setSubTab("issue")}
+                  className="text-xs font-bold bg-primary text-primary-foreground shadow-2xs flex items-center gap-1.5"
+                >
+                  <UserCheck className="size-3.5" />
+                  <span>थेली जारी गर्नुहोस्</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSubTab("add_stock")}
+                  className="text-xs font-bold"
+                >
+                  <Plus className="size-3.5" />
+                  <span>स्टक थप्नुहोस्</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Live Stock Items Table */}
+            <div className="overflow-x-auto rounded-xl border bg-card shadow-2xs">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b bg-muted/40 font-semibold text-muted-foreground">
+                  <tr>
+                    <th className="px-3.5 py-3">सि.नं.</th>
+                    <th className="px-3.5 py-3">थेली / सिरियल दायरा</th>
+                    <th className="px-3.5 py-3">वडा र पालिका</th>
+                    <th className="px-3.5 py-3">रसिद</th>
+                    <th className="px-3.5 py-3">अवस्था (Status)</th>
+                    <th className="px-3.5 py-3">जिम्मेवार कर्मचारी</th>
+                    <th className="px-3.5 py-3">अन्तिम काटिएको</th>
+                    <th className="px-3.5 py-3 text-right">काटिएको रकम</th>
+                    <th className="px-3.5 py-3 text-right">बुझाएको</th>
+                    <th className="px-3.5 py-3 text-right">बाँकी अन्तर</th>
+                    <th className="no-print px-3.5 py-3 text-right">कार्य</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredStockItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="py-12 text-center text-muted-foreground">
+                        कुनै थेली फेला परेन। माथिको 'नयाँ थेली स्टक दर्ता' बाट स्टक थप्नुहोस्।
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStockItems.map((item, idx) => {
+                      const isRemaining =
+                        item.is_remaining_open || item.status === "returned_remaining";
+                      return (
+                        <tr
+                          key={item.id || idx}
+                          className={`hover:bg-muted/30 transition-colors ${
+                            isRemaining ? "bg-amber-500/5 font-medium" : ""
+                          }`}
+                        >
+                          <td className="px-3.5 py-3 font-mono text-muted-foreground">{idx + 1}</td>
+                          <td className="px-3.5 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-foreground text-sm">
+                                {item.range_from} – {item.range_to}
+                              </span>
+                              {isRemaining && (
+                                <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[9px] font-bold text-amber-800">
+                                  ★ बाँकी चालु थेली
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              थेली नं: {item.theli_no || idx + 1} | आ.व. {item.fiscal_year}
+                            </div>
+                          </td>
+                          <td className="px-3.5 py-3">
+                            <span className="rounded bg-primary/10 px-2 py-0.5 font-bold text-primary text-[11px]">
+                              वडा {item.ward}
+                            </span>
+                            <div className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[140px]">
+                              {item.municipality}
+                            </div>
+                          </td>
+                          <td className="px-3.5 py-3 font-mono">
+                            <div className="font-bold">{item.total_vouchers}</div>
+                            {item.remaining_vouchers_count !== undefined &&
+                              item.remaining_vouchers_count !== item.total_vouchers && (
+                                <div className="text-[10px] text-muted-foreground">
+                                  बाँकी: {item.remaining_vouchers_count}
+                                </div>
+                              )}
+                          </td>
+                          <td className="px-3.5 py-3">
+                            {item.status === "available" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                ● उपलब्ध (Stock)
+                              </span>
+                            )}
+                            {item.status === "returned_remaining" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                ↺ फिर्ता बाँकी (Ready)
+                              </span>
+                            )}
+                            {item.status === "issued" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                ➔ कर्मचारीसँग जारी
+                              </span>
+                            )}
+                            {item.status === "partially_booked" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                                ◐ प्रयोग भइरहेको
+                              </span>
+                            )}
+                            {item.status === "completed" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted border px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                ✓ सम्पन्न (Finished)
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3">
+                            {item.issued_to_name ? (
+                              <div>
+                                <span className="font-bold text-foreground">{item.issued_to_name}</span>
+                                <div className="text-[10px] text-muted-foreground">
+                                  मिति: {item.issued_date || "—"}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 font-mono">
+                            {item.last_voucher_booked ? (
+                              <div>
+                                <span className="font-bold text-blue-700">{item.last_voucher_booked}</span>
+                                <div className="text-[10px] text-muted-foreground">
+                                  काटियो: {item.booked_vouchers_count || 0}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 text-right font-mono font-semibold">
+                            {money(item.amount_booked || 0)}
+                          </td>
+                          <td className="px-3.5 py-3 text-right font-mono text-emerald-700 font-semibold">
+                            {money(item.amount_obtained || 0)}
+                          </td>
+                          <td className="px-3.5 py-3 text-right font-mono">
+                            <span
+                              className={`rounded px-1.5 py-0.5 font-bold ${
+                                (item.balance || 0) > 0
+                                  ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {money(item.balance || 0)}
+                            </span>
+                          </td>
+                          <td className="no-print px-3.5 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {(item.status === "available" || item.status === "returned_remaining") && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-[11px] font-bold text-primary border-primary/30"
+                                  onClick={() => {
+                                    setSelectedStockItemId(item.id);
+                                    setIssueWard(item.ward);
+                                    setSubTab("issue");
+                                  }}
+                                >
+                                  जारी
+                                </Button>
+                              )}
+                              {(item.status === "issued" || item.status === "partially_booked") && (
+                                <Button
+                                  size="sm"
+                                  className="h-7 px-2 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  onClick={() => handleOpenReportModal(item)}
+                                >
+                                  रिपोर्टिङ
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* SUB-TAB 2: ADD THELI STOCK BATCH (स्टक दर्ता फारम)           */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {subTab === "add_stock" && (
+          <div className="max-w-2xl mx-auto rounded-xl border bg-card p-5 shadow-xs space-y-4">
+            <div className="border-b pb-3">
+              <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
+                <Plus className="size-4 text-primary" />
+                <span>नयाँ थेली स्टक दर्ता (Theli Stock Registration)</span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                पालिका, वडा, आ.व. छान्नुहोस् र सुरु देखि अन्तिम सिरियल दायरा भर्नुहोस्। रसिद र थेली संख्या स्वतः गणना हुन्छ।
+              </p>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                    वडा (Ward)
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    नगरपालिका / पालिका (Municipality) *
+                  </label>
+                  <input
+                    type="text"
+                    value={newBatchMunicipality}
+                    onChange={(e) => setNewBatchMunicipality(e.target.value)}
+                    className={inputCls}
+                    placeholder="उदा: वीरेन्द्रनगर नगरपालिका"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    वडा नं. (Ward) *
                   </label>
                   <select
-                    aria-label="वडा छान्नुहोस्"
+                    value={newBatchWard}
+                    onChange={(e) => setNewBatchWard(e.target.value)}
                     className={inputCls}
-                    value={ward}
-                    onChange={(e) => setWard(e.target.value)}
                   >
-                    <option value="">वडा छान्नुहोस्</option>
                     {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
                       <option key={w} value={w}>
-                        वडा {w}
+                        वडा नं. {w}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                    कर्मचारी (Employee)
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    आर्थिक वर्ष (Fiscal Year) *
                   </label>
                   <select
-                    aria-label="कर्मचारी छान्नुहोस्"
+                    value={newBatchFY}
+                    onChange={(e) => setNewBatchFY(e.target.value)}
                     className={inputCls}
-                    value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)}
                   >
-                    <option value="">— छान्नुहोस् —</option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id ?? ""}>
-                        {e.name}
-                        {e.designation ? ` (${e.designation})` : ""}
+                    {["2080/81", "2081/82", "2082/83", "2083/84", "2084/85"].map((y) => (
+                      <option key={y} value={y}>
+                        आ.व. {y}
                       </option>
                     ))}
                   </select>
                 </div>
+
                 <div>
-                  <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                    सुपरभाइजर (इच्छा भए छान्नुहोस्)
-                  </label>
-                  <div className="flex gap-1">
-                    <select
-                      aria-label="सुपरभाइजर प्रकार"
-                      className={inputCls}
-                      value={supType}
-                      onChange={(e) => {
-                        setSupType(e.target.value === "employee" ? "employee" : "member");
-                        setSupId("");
-                      }}
-                    >
-                      <option value="member">सदस्य</option>
-                      <option value="employee">कर्मचारी</option>
-                    </select>
-                    <select
-                      aria-label="सुपरभाइजर छान्नुहोस्"
-                      className={inputCls}
-                      value={supId}
-                      onChange={(e) => setSupId(e.target.value)}
-                    >
-                      <option value="">— खाली —</option>
-                      {(supType === "employee" ? employees : members).map((x) => (
-                        <option key={x.id} value={x.id ?? ""}>
-                          {x.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <TheliRangeRows
-                title="थेली बाहिर (बिहान)"
-                hint="S.No अनुसार देखि–सम्म सिरियल भर्नुहोस् — रसिद संख्या फरकबाट स्वतः गणना हुन्छ।"
-                rows={outRows}
-                setRows={setOutRows}
-              />
-
-              {/* थेली भित्र (बेलुका) */}
-              <div className="rounded-lg border bg-muted/30 p-2">
-                <div className="mb-1 text-[11px] font-bold text-foreground">
-                  थेली भित्र (बेलुका) — इच्छा (सेभ हुन अनिवार्य छैन)
-                </div>
-                <p className="mb-1.5 text-[10px] text-muted-foreground">
-                  आज काटिएको अन्तिम रसिदको खारेज सिरियल र रद्द रसिद भर्नुहोस् — संख्या र फर्किएको
-                  दायरा स्वतः गणना हुन्छ।
-                </p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <div>
-                    <label className="mb-0.5 block text-[9px] font-semibold text-muted-foreground">
-                      खारेज सिरियल (आजको अन्तिम रसिद)
-                    </label>
-                    <input
-                      aria-label="खारेज सिरियल"
-                      className={inputCls}
-                      placeholder="खारेज GT-030"
-                      value={closing}
-                      onChange={(e) => setClosing(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-0.5 block text-[9px] font-semibold text-muted-foreground">
-                      रद्द रसिद
-                    </label>
-                    <input
-                      aria-label="रद्द रसिद"
-                      type="number"
-                      min={0}
-                      className={inputCls}
-                      placeholder="रद्द 0"
-                      title="आज रद्द भएका रसिद संख्या"
-                      value={cancelled || ""}
-                      onChange={(e) => setCancelled(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                  <span className="rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
-                    काटिएको: {liveRasidsOut}
-                  </span>
-                  <span className="text-[11px] font-bold text-muted-foreground">−</span>
-                  <span className="rounded bg-orange-500/10 border border-orange-500/20 px-1.5 py-0.5 text-[10px] font-bold text-orange-700 dark:text-orange-300">
-                    रद्द: {liveCancelled}
-                  </span>
-                  <span className="text-[11px] font-bold text-muted-foreground">=</span>
-                  <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                    अन्तिम रसिद: {liveFinal}
-                  </span>
-                </div>
-                {liveRemaining && (
-                  <div className="mt-1">
-                    <span
-                      title="खारेज सिरियल पछि थेली सँगसँगै फर्किने बाँकी रसिद"
-                      className="inline-block rounded bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-violet-700 dark:text-violet-300"
-                    >
-                      फर्किएको दायरा: {liveRemaining.from}–{liveRemaining.to} ({liveRemaining.count}
-                      )
-                    </span>
-                  </div>
-                )}
-                {liveOutTotal > 0 && (
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    थेली बाहिर दिइएका रसिद: {liveOutTotal} — फर्किएको संख्या सिरियल मिल्नुपर्छ।
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                    थालनी ब्यालेन्स (क्यारी)
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    देखि सिरियल (Starts From) *
                   </label>
                   <input
-                    aria-label="थालनी ब्यालेन्स"
-                    type="number"
-                    className={inputCls}
-                    placeholder="0"
-                    value={opening}
-                    onChange={(e) => setOpening(e.target.value)}
+                    type="text"
+                    value={newBatchStart}
+                    onChange={(e) => setNewBatchStart(e.target.value)}
+                    className={`${inputCls} font-mono font-bold`}
+                    placeholder="उदा: GT-0001"
                   />
                 </div>
+
                 <div>
-                  <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                    रकम (संकलन)
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    सम्म सिरियल (End To) *
                   </label>
                   <input
-                    aria-label="संकलित रकम"
-                    type="number"
-                    className={inputCls}
-                    placeholder="0"
-                    value={amount}
-                    onChange={(e) => {
-                      setAmount(e.target.value);
-                      if (settleTick) setSettleTick(false);
-                    }}
-                  />
-                </div>
-                <div>
-                  <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                    सफा रकम (जम्मा)
-                  </label>
-                  <input
-                    aria-label="सफा रकम"
-                    type="number"
-                    className={inputCls}
-                    placeholder="0"
-                    value={cleared}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setCleared(v);
-                      setSettleTick(fullSettle > 0 && Math.max(0, Number(v) || 0) >= fullSettle);
-                    }}
+                    type="text"
+                    value={newBatchEnd}
+                    onChange={(e) => setNewBatchEnd(e.target.value)}
+                    className={`${inputCls} font-mono font-bold`}
+                    placeholder="उदा: GT-1000"
                   />
                 </div>
               </div>
-              <label className="flex cursor-pointer items-center gap-1.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                <input
-                  type="checkbox"
-                  aria-label="सेटल गरियो"
-                  className="size-3 accent-emerald-600"
-                  checked={settleTick}
-                  onChange={(e) => handleSettleTick(e.target.checked)}
-                />
-                ✓ सेटल गरियो — थालनी + रकम सबै बुझाइयो (अन्तर रु.{" "}
-                {fullSettle.toLocaleString("en-IN")})
-              </label>
-              <p className="text-[10px] text-muted-foreground">
-                थालनी + रकम − सफा रकम = अन्तर रु. {(preview.balance || 0).toLocaleString("en-IN")} —
-                उक्त कर्मचारीको ब्यालेन्समा अर्को दिन स्वतः बोकिन्छ; ✓ सेटल थिचेसम्म।
-              </p>
 
               <div>
-                <label className="mb-0.5 block text-[10px] font-semibold text-muted-foreground">
-                  कैफियत
+                <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                  रसिद प्रति थेली (Vouchers per Theli Book)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={newBatchPerTheli}
+                    onChange={(e) => setNewBatchPerTheli(Number(e.target.value) || 50)}
+                    className={`${inputCls} w-28 font-mono`}
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    (सामान्यतया १ थेलीमा ५० वा १०० वटा रसिद हुन्छ)
+                  </span>
+                </div>
+              </div>
+
+              {/* Automatic Calculation Preview Banner */}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="text-[11px] font-bold text-primary mb-2 flex items-center gap-1.5">
+                  <Sparkles className="size-4" />
+                  <span>स्वतः गणना विवरण (Live Automatic Calculation):</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">जम्मा रसिद संख्या (Vouchers)</span>
+                    <span className="text-lg font-extrabold font-mono text-foreground">
+                      {batchCounts.totalVouchers} वटा
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">जम्मा थेली संख्या (Theli Books)</span>
+                    <span className="text-lg font-extrabold font-mono text-emerald-700">
+                      {batchCounts.totalTheli} थेली
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">प्रति थेली रसिद</span>
+                    <span className="text-lg font-extrabold font-mono text-foreground">
+                      {newBatchPerTheli} वटा
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                  कैफियत (Remarks / Note)
                 </label>
                 <input
-                  aria-label="कैफियत"
+                  type="text"
+                  value={newBatchRemarks}
+                  onChange={(e) => setNewBatchRemarks(e.target.value)}
                   className={inputCls}
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  placeholder=""
+                  placeholder="उदा: नयाँ छापिएर आएको थेली लट"
                 />
               </div>
 
-              {err && (
-                <div
-                  role="alert"
-                  className="rounded-md bg-red-500/10 border border-red-500/30 p-2 text-[11px] font-semibold text-red-700 dark:text-red-300"
+              <div className="pt-2 flex justify-end gap-2 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSubTab("stock")}
                 >
-                  {err}
-                </div>
-              )}
-              {okMsg && (
-                <div
-                  role="status"
-                  className="rounded-md bg-emerald-500/10 border border-emerald-500/30 p-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300"
+                  रद्द गर्नुहोस्
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={savingBatch || batchCounts.totalVouchers <= 0}
+                  onClick={handleCreateStockBatch}
+                  className="font-bold bg-primary text-primary-foreground"
                 >
-                  {okMsg}
-                </div>
-              )}
-
-              <Button size="sm" className="w-full" disabled={saving} onClick={handleSave}>
-                {saving ? "सुरक्षित हुँदै…" : "सुरक्षित गर्नुहोस्"}
-              </Button>
-
-              {(employees.length === 0 || members.length === 0) && (
-                <p className="text-[10px] text-muted-foreground">
-                  कर्मचारी/सदस्य सूची खाली छ? Members &amp; Staff पानामा मास्टर भर्नुहोस्।
-                </p>
-              )}
+                  {savingBatch ? "सुरक्षित हुँदै…" : "थेली स्टक सुरक्षित गर्नुहोस्"}
+                </Button>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* कर्मचारी अनुसार थेली बक्स */}
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-extrabold text-foreground">
-              कर्मचारी अनुसार थेली ({employeeBoxes.length})
-            </h2>
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* SUB-TAB 3: ISSUE THELI TO EMPLOYEE (कर्मचारीलाई थेली जारी)      */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {subTab === "issue" && (
+          <div className="max-w-3xl mx-auto rounded-xl border bg-card p-5 shadow-xs space-y-4">
+            <div className="border-b pb-3">
+              <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
+                <UserCheck className="size-4 text-primary" />
+                <span>कर्मचारीलाई थेली निष्कासन / जारी (Issue Theli to Employee)</span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                कर्मचारी छान्नुहोस् र उपलब्ध थेली दायरा छान्नुहोस्। <strong>बाँकी रहेको चालु थेली स्वतः पहिलो स्थानमा देखिन्छ।</strong>
+              </p>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    थेली बुझ्ने कर्मचारी (Employee Name) *
+                  </label>
+                  <select
+                    value={issueEmployeeId}
+                    onChange={(e) => setIssueEmployeeId(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">— कर्मचारी छान्नुहोस् —</option>
+                    {employees.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} ({e.designation})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    जिम्मेवार सुपरभाइजर (Supervisor)
+                  </label>
+                  <select
+                    value={issueSupervisorName}
+                    onChange={(e) => setIssueSupervisorName(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">— सुपरभाइजर छान्नुहोस् —</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.name}>
+                        {m.name} ({m.designation})
+                      </option>
+                    ))}
+                    {employees.map((e) => (
+                      <option key={e.id} value={e.name}>
+                        {e.name} ({e.designation})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    नगरपालिका (Municipality)
+                  </label>
+                  <input
+                    type="text"
+                    value={issueMunicipality}
+                    onChange={(e) => setIssueMunicipality(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    वडा नं. (Ward)
+                  </label>
+                  <select
+                    value={issueWard}
+                    onChange={(e) => setIssueWard(e.target.value)}
+                    className={inputCls}
+                  >
+                    {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
+                      <option key={w} value={w}>
+                        वडा नं. {w}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                    जारी मिति (Issue Date BS)
+                  </label>
+                  <BSDatePicker value={issueDate} onChange={setIssueDate} />
+                </div>
+              </div>
+
+              {/* Range Selection Box — With Remaining One Prominently at Top */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-bold text-foreground">
+                    उपलब्ध थेली दायरा छान्नुहोस् (Available Theli Range) *
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    (पहिलो दायरा बाँकी चालु थेली हो)
+                  </span>
+                </div>
+
+                {availableRanges.length === 0 ? (
+                  <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground bg-muted/20">
+                    यस वडामा कुनै थेली उपलब्ध छैन। पहिले 'नयाँ थेली स्टक दर्ता' बाट स्टक थप्नुहोस्।
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                    {availableRanges.map((item, idx) => {
+                      const isRemaining =
+                        item.is_remaining_open || item.status === "returned_remaining";
+                      const isSelected = selectedStockItemId === item.id;
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => setSelectedStockItemId(item.id)}
+                          className={`cursor-pointer rounded-xl border p-3 transition-all flex items-center justify-between ${
+                            isSelected
+                              ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                              : isRemaining
+                                ? "border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10"
+                                : "border-border bg-card hover:bg-muted/40"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="radio"
+                              name="theli_range_select"
+                              checked={isSelected}
+                              onChange={() => setSelectedStockItemId(item.id)}
+                              className="size-4 accent-primary"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-extrabold text-sm text-foreground">
+                                  {item.range_from} – {item.range_to}
+                                </span>
+                                {isRemaining && (
+                                  <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-[9px] font-extrabold text-amber-800 animate-pulse">
+                                    ★ बाँकी रहेको चालु थेली (पहिले जारी गर्नुहोस्)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                वडा नं. {item.ward} | रसिद संख्या: {item.total_vouchers} वटा | आ.व. {item.fiscal_year}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="font-bold text-xs text-foreground font-mono">
+                              {item.total_vouchers} रसिद
+                            </span>
+                            <div className="text-[10px] text-emerald-600 font-semibold">उपलब्ध</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSubTab("stock")}
+                >
+                  रद्द
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={issuing || !selectedStockItemId || !issueEmployeeId}
+                  onClick={handleIssueTheli}
+                  className="font-bold bg-primary text-primary-foreground flex items-center gap-1.5"
+                >
+                  <UserCheck className="size-3.5" />
+                  <span>{issuing ? "जारी हुँदै…" : "थेली कर्मचारीलाई जारी गर्नुहोस्"}</span>
+                </Button>
+              </div>
+            </div>
           </div>
-          {employeeBoxes.length === 0 ? (
-            <p className="mb-4 rounded-xl border border-dashed bg-muted/20 p-6 text-center text-xs text-muted-foreground">
-              माथिको फारमबाट बिहानको थेली विवरण सेभ गर्नुहोस् — हरेक कर्मचारीको थेली तल एक-एक बक्समा
-              देखिन्छ।
-            </p>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {employeeBoxes.map((g) => (
-                <TheliEmployeeBox
-                  key={g.key}
-                  name={g.name}
-                  logs={g.logs}
-                  busyId={busyId}
-                  onEdit={loadLog}
-                  onToggleSettled={toggleSettled}
-                  onDelete={handleDelete}
-                />
+        )}
+
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* SUB-TAB 4: EMPLOYEE THELI BOXES (कर्मचारी अनुसार थेली बक्स)     */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {subTab === "boxes" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <div>
+                <h2 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                  <HandCoins className="size-4 text-primary" />
+                  <span>कर्मचारी अनुसार थेली बक्स तथा दैनिक रिपोर्टिङ</span>
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  प्रत्येक कर्मचारीको बक्समा जारी थेली, अन्तिम काटिएको रसिद रिपोर्टिङ तथा बक्यौता हिसाब हेर्न सकिन्छ।
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {employeeTheliCards.map(({ emp, issued, carryBalance, totalBooked, totalObtained }) => (
+                <div
+                  key={emp.id}
+                  className="rounded-xl border bg-card p-4 shadow-2xs hover:shadow-sm transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2 border-b pb-2 mb-3">
+                      <div>
+                        <div className="font-bold text-sm text-foreground">{emp.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{emp.designation}</div>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          carryBalance > 0
+                            ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
+                            : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
+                        }`}
+                      >
+                        अन्तर: {money(carryBalance)}
+                      </span>
+                    </div>
+
+                    {/* Summary row */}
+                    <div className="grid grid-cols-2 gap-2 text-center text-xs bg-muted/20 rounded-lg p-2 mb-3">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">काटिएको रकम</span>
+                        <span className="font-bold font-mono text-foreground">{money(totalBooked)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">बुझाएको रकम</span>
+                        <span className="font-bold font-mono text-emerald-700">{money(totalObtained)}</span>
+                      </div>
+                    </div>
+
+                    {/* Currently Issued Theli in Hands */}
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-bold text-muted-foreground block">
+                        हाल हातमा रहेको थेली ({issued.length}):
+                      </span>
+
+                      {issued.length === 0 ? (
+                        <div className="rounded-lg border border-dashed p-3 text-center text-[11px] text-muted-foreground">
+                          हाल कुनै थेली जारी भएको छैन।
+                        </div>
+                      ) : (
+                        issued.map((it) => (
+                          <div
+                            key={it.id}
+                            className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-2.5 text-xs space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono font-extrabold text-blue-900">
+                                {it.range_from} – {it.range_to}
+                              </span>
+                              <span className="rounded bg-blue-500/20 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
+                                {it.total_vouchers} रसिद
+                              </span>
+                            </div>
+
+                            <div className="text-[10px] text-muted-foreground flex items-center justify-between">
+                              <span>वडा {it.ward} ({it.fiscal_year})</span>
+                              {it.last_voucher_booked && (
+                                <span className="font-bold text-purple-700">
+                                  काटियो: {it.last_voucher_booked}
+                                </span>
+                              )}
+                            </div>
+
+                            <Button
+                              size="sm"
+                              className="w-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white mt-1 h-7 flex items-center justify-center gap-1"
+                              onClick={() => handleOpenReportModal(it)}
+                            >
+                              <PenLine className="size-3" />
+                              <span>दैनिक थेली रिपोर्टिङ भर्नुहोस्</span>
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 mt-3 border-t flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs font-semibold w-full"
+                      onClick={() => {
+                        setIssueEmployeeId(emp.id);
+                        setSubTab("issue");
+                      }}
+                    >
+                      <Plus className="size-3 mr-1" />
+                      <span>नयाँ थेली थप जारी गर्नुहोस्</span>
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {/* REPORTING MODAL DIALOG (अन्तिम काटिएको रसिद रिपोर्टिङ)         */}
+        {/* ═════════════════════════════════════════════════════════════ */}
+        {reportingItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+            <div className="relative w-full max-w-lg rounded-2xl border bg-card p-5 shadow-2xl space-y-4">
+              <div className="border-b pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
+                    <PenLine className="size-4 text-emerald-600" />
+                    <span>दैनिक थेली रिपोर्टिङ — {reportingItem.issued_to_name}</span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    जारी दायरा: <strong className="font-mono">{reportingItem.range_from} देखि {reportingItem.range_to}</strong> (वडा {reportingItem.ward})
+                  </p>
+                </div>
+                <button
+                  onClick={() => setReportingItem(null)}
+                  className="rounded p-1 text-muted-foreground hover:text-foreground"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3.5 text-xs">
+                {/* Carried Balance Banner */}
+                <div className="rounded-xl border bg-muted/30 p-2.5 flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground font-semibold">
+                    पहिलेको बाँकी अन्तर (Carried Balance)
+                  </span>
+                  <span
+                    className={`font-mono font-bold text-xs ${
+                      employeeCarriedBalance > 0 ? "text-rose-600" : "text-emerald-600"
+                    }`}
+                  >
+                    {money(employeeCarriedBalance)}
+                  </span>
+                </div>
+
+                {/* Main Input: Last Voucher Booked */}
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3.5 space-y-2">
+                  <label className="block text-xs font-extrabold text-primary">
+                    १. अन्तिम काटिएको रसिद नम्बर (Last Voucher Booked No.) *
+                  </label>
+                  <input
+                    type="text"
+                    value={reportLastVoucher}
+                    onChange={(e) => setReportLastVoucher(e.target.value)}
+                    className={`${inputCls} font-mono font-extrabold text-sm border-primary/40`}
+                    placeholder={`उदा: ${reportingItem.range_to}`}
+                  />
+                  {liveReportCalc && (
+                    <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold pt-1">
+                      <div className="text-emerald-700">
+                        काटिएको रसिद: <strong>{liveReportCalc.bookedCount} वटा</strong>
+                      </div>
+                      <div className="text-purple-700">
+                        बाँकी रसिद: <strong>{liveReportCalc.remainingCount} वटा</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Amount inputs */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                      २. काटिएको रकम (Booked Amount - रु.) *
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={reportAmountBooked}
+                      onChange={(e) => setReportAmountBooked(e.target.value)}
+                      className={`${inputCls} font-mono font-bold`}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                      ३. बुझाएको रकम (Obtained Cash - रु.) *
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={reportAmountObtained}
+                      onChange={(e) => setReportAmountObtained(e.target.value)}
+                      className={`${inputCls} font-mono font-bold text-emerald-700`}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Balance / Credit Calculation */}
+                {liveReportCalc && (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">
+                        नयाँ बक्यौता अन्तर (Running Balance on Credit)
+                      </span>
+                      <span className="font-extrabold text-sm font-mono text-amber-900">
+                        {money(liveReportCalc.newBalance)}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground text-right max-w-[200px]">
+                      (थालनी रु. {employeeCarriedBalance} + काटिएको रु. {liveReportCalc.amountBooked} − बुझाइएको रु. {liveReportCalc.amountObtained})
+                    </div>
+                  </div>
+                )}
+
+                {/* Remaining Range: Returned or Kept Issued? */}
+                {liveReportCalc && liveReportCalc.remainingRange && (
+                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-2">
+                    <div className="font-bold text-purple-900 text-xs">
+                      बाँकी रसिद दायरा ({liveReportCalc.remainingRange.from} देखि {liveReportCalc.remainingRange.to}) — के गर्ने?
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="remaining_action"
+                          value="return"
+                          checked={reportActionRemaining === "return"}
+                          onChange={() => setReportActionRemaining("return")}
+                          className="accent-primary"
+                        />
+                        <span className="font-semibold text-foreground text-[11px]">
+                          🟢 <strong>स्टकमा फिर्ता बुझाउने (Returned to Stock)</strong> — बाँकी दायरा स्टकमा आउनेछ र अर्को पटक निष्कासन गर्दा सबैभन्दा पहिलो स्थानमा देखिनेछ।
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="remaining_action"
+                          value="keep_issued"
+                          checked={reportActionRemaining === "keep_issued"}
+                          onChange={() => setReportActionRemaining("keep_issued")}
+                          className="accent-primary"
+                        />
+                        <span className="font-semibold text-foreground text-[11px]">
+                          🟡 <strong>कर्मचारीसँगै जारी रहने (Kept Issued)</strong> — यो बाँकी दायरा भोलि संकलनका लागि यसै कर्मचारीको हातमा रहनेछ।
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                      रिपोर्ट मिति (BS Date)
+                    </label>
+                    <BSDatePicker value={reportDate} onChange={setReportDate} />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                      कैफियत (Remarks)
+                    </label>
+                    <input
+                      type="text"
+                      value={reportRemarks}
+                      onChange={(e) => setReportRemarks(e.target.value)}
+                      className={inputCls}
+                      placeholder="वैकल्पिक टिप्पणी"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setReportingItem(null)}
+                  >
+                    रद्द
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={savingReport || !reportLastVoucher}
+                    onClick={handleSaveReport}
+                    className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    {savingReport ? "सुरक्षित हुँदै…" : "दैनिक रिपोर्ट सुरक्षित गर्नुहोस्"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </WorkspacePage>
   );
 }

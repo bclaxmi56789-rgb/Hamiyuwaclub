@@ -26,6 +26,7 @@ import {
   getCustomerTotalRate,
   buildEmployeeLedger,
   employeeAdvanceTransactions,
+  employeeOutstandingDr,
   type Receipt,
   type PayrollRecord,
   type EmployeeLedgerTxn,
@@ -805,6 +806,49 @@ describe("buildEmployeeLedger", () => {
   });
 });
 
+describe("employeeOutstandingDr", () => {
+  it("returns 0 when the ledger sits on the credit side", () => {
+    expect(employeeOutstandingDr(emp, [], [])).toBe(0);
+    expect(
+      employeeOutstandingDr({ id: "emp-1", opening_balance: 5000, balance_type: "cr" }, [], []),
+    ).toBe(0);
+  });
+
+  it("includes a debit opening balance", () => {
+    expect(
+      employeeOutstandingDr({ id: "emp-1", opening_balance: 3000, balance_type: "dr" }, [], []),
+    ).toBe(3000);
+  });
+
+  it("returns outstanding advances with no salary credit yet", () => {
+    const dr = employeeOutstandingDr(
+      emp,
+      [],
+      [txn({ ref_no: "P-0009", txn_date: "2082/06/10", amount: 10000 })],
+    );
+    expect(dr).toBe(10000);
+  });
+
+  it("keeps a debit remainder when a smaller salary is booked", () => {
+    const dr = employeeOutstandingDr(
+      emp,
+      [payrollRow({ payment_status: "booked", advance_adjusted: 50000, net_salary: 0 })],
+      [txn({ ref_no: "P-0009", txn_date: "2082/06/10", amount: 50000 })],
+    );
+    // advance 50000 Dr − booked credit 45000 (50000 gross − 5000 TDS) = 5000 Dr
+    expect(dr).toBe(5000);
+  });
+
+  it("returns 0 once the booked salary offsets the advance", () => {
+    const dr = employeeOutstandingDr(
+      emp,
+      [payrollRow({ payment_status: "booked", advance_adjusted: 10000, net_salary: 35000 })],
+      [txn({ ref_no: "P-0009", txn_date: "2082/06/10", amount: 10000 })],
+    );
+    expect(dr).toBe(0);
+  });
+});
+
 describe("employeeAdvanceTransactions", () => {
   it("keeps only payment-type advances for that employee", () => {
     const payrolls = [payrollRow({ voucher_ref: "P-0001" })];
@@ -824,5 +868,155 @@ describe("employeeAdvanceTransactions", () => {
 
   it("returns nothing without an employee id", () => {
     expect(employeeAdvanceTransactions(undefined, [txn()], [])).toEqual([]);
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════
+   THELI STOCK, ISSUANCE & EMPLOYEE REPORTING TESTS
+   ══════════════════════════════════════════════════════════════════ */
+import {
+  calculateTheliStockCounts,
+  generateTheliRanges,
+  sortTheliAvailableRanges,
+  calculateTheliBooking,
+  type TheliStockItem,
+} from "../lib/receipt-rules";
+
+describe("Theli Stock Master and Range Calculations", () => {
+  it("calculates total vouchers and theli count automatically", () => {
+    const res = calculateTheliStockCounts("GT-0001", "GT-1000", 50);
+    expect(res.totalVouchers).toBe(1000);
+    expect(res.totalTheli).toBe(20);
+
+    const res2 = calculateTheliStockCounts("101", "225", 50);
+    expect(res2.totalVouchers).toBe(125);
+    expect(res2.totalTheli).toBe(3); // 50 + 50 + 25 = 3 thelis
+  });
+
+  it("handles empty or reversed range safely", () => {
+    expect(calculateTheliStockCounts("", "")).toEqual({ totalVouchers: 0, totalTheli: 0 });
+    expect(calculateTheliStockCounts("GT-500", "GT-100")).toEqual({
+      totalVouchers: 0,
+      totalTheli: 0,
+    });
+  });
+
+  it("generates discrete theli book items preserving prefix and formatting", () => {
+    const items = generateTheliRanges({
+      id: "b-1",
+      municipality: "वीरेन्द्रनगर",
+      ward: "4",
+      fiscal_year: "2081/82",
+      start_from: "GT-001",
+      end_to: "GT-120",
+      vouchers_per_theli: 50,
+    });
+
+    expect(items.length).toBe(3);
+    expect(items[0].theli_no).toBe(1);
+    expect(items[0].range_from).toBe("GT-001");
+    expect(items[0].range_to).toBe("GT-050");
+    expect(items[0].total_vouchers).toBe(50);
+
+    expect(items[1].theli_no).toBe(2);
+    expect(items[1].range_from).toBe("GT-051");
+    expect(items[1].range_to).toBe("GT-100");
+    expect(items[1].total_vouchers).toBe(50);
+
+    expect(items[2].theli_no).toBe(3);
+    expect(items[2].range_from).toBe("GT-101");
+    expect(items[2].range_to).toBe("GT-120");
+    expect(items[2].total_vouchers).toBe(20);
+  });
+
+  it("sortTheliAvailableRanges puts remaining/returned open theli at the VERY TOP", () => {
+    const items: TheliStockItem[] = [
+      {
+        id: "th-1",
+        municipality: "वीरेन्द्रनगर",
+        ward: "4",
+        fiscal_year: "2081/82",
+        range_from: "GT-001",
+        range_to: "GT-050",
+        total_vouchers: 50,
+        status: "available",
+      },
+      {
+        id: "th-rem",
+        municipality: "वीरेन्द्रनगर",
+        ward: "4",
+        fiscal_year: "2081/82",
+        range_from: "GT-031",
+        range_to: "GT-050",
+        total_vouchers: 20,
+        status: "returned_remaining",
+        is_remaining_open: true,
+      },
+      {
+        id: "th-2",
+        municipality: "वीरेन्द्रनगर",
+        ward: "4",
+        fiscal_year: "2081/82",
+        range_from: "GT-051",
+        range_to: "GT-100",
+        total_vouchers: 50,
+        status: "available",
+      },
+    ];
+
+    const sorted = sortTheliAvailableRanges(items);
+    expect(sorted[0].id).toBe("th-rem"); // Remaining open theli is first!
+    expect(sorted[0].is_remaining_open).toBe(true);
+    expect(sorted[1].id).toBe("th-1");
+    expect(sorted[2].id).toBe("th-2");
+  });
+
+  it("calculateTheliBooking computes booked vouchers, balance on credit, and remaining range", () => {
+    const item: TheliStockItem = {
+      id: "th-1",
+      municipality: "वीरेन्द्रनगर",
+      ward: "4",
+      fiscal_year: "2081/82",
+      range_from: "GT-001",
+      range_to: "GT-050",
+      total_vouchers: 50,
+      status: "issued",
+    };
+
+    // Employee reports up to GT-030 booked, Booked amount 15000, Obtained cash 12000, Previous carry 500
+    const calc = calculateTheliBooking(item, "GT-030", 15000, 12000, 500);
+
+    expect(calc.bookedCount).toBe(30);
+    expect(calc.remainingCount).toBe(20);
+    expect(calc.remainingRange).toEqual({
+      from: "GT-031",
+      to: "GT-050",
+      count: 20,
+    });
+    expect(calc.amountBooked).toBe(15000);
+    expect(calc.amountObtained).toBe(12000);
+    // Balance = Carry 500 + Booked 15000 - Obtained 12000 = 3500 credit
+    expect(calc.newBalance).toBe(3500);
+    expect(calc.isFullyExhausted).toBe(false);
+  });
+
+  it("marks as fully exhausted when last voucher reaches end of range", () => {
+    const item: TheliStockItem = {
+      id: "th-1",
+      municipality: "वीरेन्द्रनगर",
+      ward: "4",
+      fiscal_year: "2081/82",
+      range_from: "GT-001",
+      range_to: "GT-050",
+      total_vouchers: 50,
+      status: "issued",
+    };
+
+    const calc = calculateTheliBooking(item, "GT-050", 25000, 25000, 0);
+    expect(calc.bookedCount).toBe(50);
+    expect(calc.remainingCount).toBe(0);
+    expect(calc.remainingRange).toBeNull();
+    expect(calc.newBalance).toBe(0);
+    expect(calc.isFullyExhausted).toBe(true);
   });
 });

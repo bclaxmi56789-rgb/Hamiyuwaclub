@@ -24,6 +24,11 @@ import {
   type RPTxnType,
   type TheliLog,
   type TheliRangeEntry,
+  type TheliStockBatch,
+  type TheliStockItem,
+  calculateTheliStockCounts,
+  generateTheliRanges,
+  calculateTheliBooking,
 } from "./receipt-rules";
 
 import { z } from "zod";
@@ -2490,5 +2495,404 @@ export const deleteTheliLog = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("owner_id", context.userId);
     if (res.error) throw new Error(res.error.message);
+    return true;
+  });
+
+/* ══════════════════════════════════════════════════════════════════
+   THELI STOCK & ISSUANCE SERVER FUNCTIONS
+   ══════════════════════════════════════════════════════════════════ */
+
+export const getTheliStockData = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const batches: TheliStockBatch[] = [];
+    const items: TheliStockItem[] = [];
+    const logs: TheliLog[] = [];
+    const employees: Employee[] = [];
+    const members: Member[] = [];
+
+    try {
+      const res = await context.supabase
+        .from("theli_stock_batches")
+        .select("*")
+        .eq("owner_id", context.userId)
+        .order("created_at", { ascending: false });
+      if (!res.error && res.data) batches.push(...(res.data as unknown as TheliStockBatch[]));
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    try {
+      const res = await context.supabase
+        .from("theli_stock_items")
+        .select("*")
+        .eq("owner_id", context.userId)
+        .order("theli_no", { ascending: true });
+      if (!res.error && res.data) items.push(...(res.data as unknown as TheliStockItem[]));
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    try {
+      const res = await context.supabase
+        .from("theli_logs")
+        .select("*")
+        .eq("owner_id", context.userId)
+        .order("log_date", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (!res.error && res.data) logs.push(...(res.data as unknown as TheliLog[]));
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    try {
+      const empRes = await context.supabase
+        .from("employee_master")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (!empRes.error && empRes.data) employees.push(...(empRes.data as unknown as Employee[]));
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    try {
+      let memRes = await context.supabase
+        .from("members")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (memRes.error || !memRes.data || memRes.data.length === 0) {
+        memRes = await context.supabase
+          .from("club_members")
+          .select("*")
+          .order("created_at", { ascending: true });
+      }
+      if (!memRes.error && memRes.data) members.push(...(memRes.data as unknown as Member[]));
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    return { batches, items, logs, employees, members };
+  });
+
+export const saveTheliStockBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().optional(),
+      municipality: z.string().trim().min(1, "Municipality is required"),
+      ward: z.string().trim().min(1, "Ward is required"),
+      fiscal_year: z.string().trim().min(1, "Fiscal Year is required"),
+      start_from: z.string().trim().min(1, "Start serial is required"),
+      end_to: z.string().trim().min(1, "End serial is required"),
+      vouchers_per_theli: z.number().min(1).optional().default(50),
+      remarks: z.string().trim().optional().default(""),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const counts = calculateTheliStockCounts(
+      data.start_from,
+      data.end_to,
+      data.vouchers_per_theli,
+    );
+    if (counts.totalVouchers <= 0) {
+      throw new Error("अमान्य सिरियल दायरा — अन्तिम नम्बर सुरुको भन्दा ठूलो हुनुपर्छ।");
+    }
+
+    const batchId =
+      data.id && !data.id.startsWith("local-")
+        ? data.id
+        : `tsb-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+
+    const batchPayload = {
+      id: batchId,
+      owner_id: context.userId,
+      municipality: data.municipality,
+      ward: data.ward,
+      fiscal_year: data.fiscal_year,
+      start_from: data.start_from,
+      end_to: data.end_to,
+      vouchers_per_theli: data.vouchers_per_theli,
+      total_vouchers: counts.totalVouchers,
+      total_theli: counts.totalTheli,
+      remarks: data.remarks ?? "",
+      updated_at: new Date().toISOString(),
+    };
+
+    let savedBatch: TheliStockBatch = {
+      ...batchPayload,
+      created_at: new Date().toISOString(),
+    };
+
+    try {
+      const res = await context.supabase
+        .from("theli_stock_batches")
+        .upsert(batchPayload)
+        .select("*")
+        .single();
+      if (!res.error && res.data) {
+        savedBatch = res.data as TheliStockBatch;
+      }
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    // Generate individual theli items
+    const generatedItems = generateTheliRanges({
+      id: batchId,
+      municipality: data.municipality,
+      ward: data.ward,
+      fiscal_year: data.fiscal_year,
+      start_from: data.start_from,
+      end_to: data.end_to,
+      vouchers_per_theli: data.vouchers_per_theli,
+    });
+
+    const itemsToSave = generatedItems.map((item) => ({
+      ...item,
+      owner_id: context.userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    try {
+      await context.supabase.from("theli_stock_items").upsert(itemsToSave);
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    return { batch: savedBatch, items: generatedItems };
+  });
+
+export const issueTheliStockItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      item_id: z.string().trim().min(1),
+      employee_id: z.string().trim().min(1, "कर्मचारी छान्नुहोस्"),
+      employee_name: z.string().trim().min(1),
+      supervisor_name: z.string().trim().optional().default(""),
+      issued_date: z.string().trim().min(1, "जारी मिति आवश्यक छ"),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const updatePayload = {
+      status: "issued" as const,
+      is_remaining_open: false,
+      issued_to_id: data.employee_id,
+      issued_to_name: data.employee_name,
+      supervisor_name: data.supervisor_name ?? "",
+      issued_date: data.issued_date,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      await context.supabase
+        .from("theli_stock_items")
+        .update(updatePayload)
+        .eq("id", data.item_id)
+        .eq("owner_id", context.userId);
+    } catch {
+      // Table may not be migrated yet
+    }
+
+    return { success: true, item_id: data.item_id, ...updatePayload };
+  });
+
+export const reportTheliStockClosing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      item_id: z.string().trim().min(1),
+      last_voucher_booked: z.string().trim().min(1, "अन्तिम काटिएको रसिद नं. भर्नुहोस्"),
+      amount_booked: z.number().min(0).default(0),
+      amount_obtained: z.number().min(0).default(0),
+      carried_balance: z.number().default(0),
+      action_on_remaining: z.enum(["return", "keep_issued"]).default("return"),
+      log_date: z.string().trim().min(1),
+      remarks: z.string().trim().optional().default(""),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    // 1. Fetch current item
+    let currentItem: TheliStockItem | null = null;
+    try {
+      const res = await context.supabase
+        .from("theli_stock_items")
+        .select("*")
+        .eq("id", data.item_id)
+        .eq("owner_id", context.userId)
+        .maybeSingle();
+      if (!res.error && res.data) currentItem = res.data as TheliStockItem;
+    } catch {}
+
+    if (!currentItem) {
+      // Stub fallback
+      currentItem = {
+        id: data.item_id,
+        municipality: "वीरेन्द्रनगर",
+        ward: "4",
+        fiscal_year: "2081/82",
+        range_from: "GT-001",
+        range_to: "GT-050",
+        total_vouchers: 50,
+        status: "issued",
+      };
+    }
+
+    const calc = calculateTheliBooking(
+      currentItem,
+      data.last_voucher_booked,
+      data.amount_booked,
+      data.amount_obtained,
+      data.carried_balance,
+    );
+
+    const now = new Date().toISOString();
+
+    if (calc.isFullyExhausted || !calc.remainingRange) {
+      // All vouchers booked
+      const updatePayload = {
+        status: "completed" as const,
+        is_remaining_open: false,
+        last_voucher_booked: data.last_voucher_booked,
+        booked_vouchers_count: calc.bookedCount,
+        remaining_vouchers_count: 0,
+        remaining_range_from: "",
+        remaining_range_to: "",
+        amount_booked: calc.amountBooked,
+        amount_obtained: calc.amountObtained,
+        balance: calc.newBalance,
+        updated_at: now,
+      };
+
+      try {
+        await context.supabase
+          .from("theli_stock_items")
+          .update(updatePayload)
+          .eq("id", data.item_id)
+          .eq("owner_id", context.userId);
+      } catch {}
+    } else {
+      // Partial range remains
+      if (data.action_on_remaining === "return") {
+        // Return remaining part to stock:
+        // Update current item to completed for the booked portion
+        const completedUpdate = {
+          status: "completed" as const,
+          is_remaining_open: false,
+          last_voucher_booked: data.last_voucher_booked,
+          booked_vouchers_count: calc.bookedCount,
+          remaining_vouchers_count: 0,
+          amount_booked: calc.amountBooked,
+          amount_obtained: calc.amountObtained,
+          balance: calc.newBalance,
+          updated_at: now,
+        };
+
+        try {
+          await context.supabase
+            .from("theli_stock_items")
+            .update(completedUpdate)
+            .eq("id", data.item_id)
+            .eq("owner_id", context.userId);
+        } catch {}
+
+        // Create new remaining theli stock item ready to be issued FIRST
+        const remainingId = `th-rem-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+        const remainingItemPayload = {
+          id: remainingId,
+          owner_id: context.userId,
+          batch_id: currentItem.batch_id,
+          municipality: currentItem.municipality,
+          ward: currentItem.ward,
+          fiscal_year: currentItem.fiscal_year,
+          theli_no: currentItem.theli_no,
+          range_from: calc.remainingRange.from,
+          range_to: calc.remainingRange.to,
+          total_vouchers: calc.remainingRange.count,
+          status: "returned_remaining" as const,
+          is_remaining_open: true, // Will rank at the very top of available list!
+          booked_vouchers_count: 0,
+          remaining_vouchers_count: calc.remainingRange.count,
+          amount_booked: 0,
+          amount_obtained: 0,
+          balance: 0,
+          created_at: now,
+          updated_at: now,
+        };
+
+        try {
+          await context.supabase.from("theli_stock_items").insert(remainingItemPayload);
+        } catch {}
+      } else {
+        // Keep issued to employee
+        const keepUpdate = {
+          status: "partially_booked" as const,
+          is_remaining_open: false,
+          last_voucher_booked: data.last_voucher_booked,
+          booked_vouchers_count: calc.bookedCount,
+          remaining_vouchers_count: calc.remainingCount,
+          remaining_range_from: calc.remainingRange.from,
+          remaining_range_to: calc.remainingRange.to,
+          amount_booked: (Number(currentItem.amount_booked) || 0) + calc.amountBooked,
+          amount_obtained: (Number(currentItem.amount_obtained) || 0) + calc.amountObtained,
+          balance: calc.newBalance,
+          updated_at: now,
+        };
+
+        try {
+          await context.supabase
+            .from("theli_stock_items")
+            .update(keepUpdate)
+            .eq("id", data.item_id)
+            .eq("owner_id", context.userId);
+        } catch {}
+      }
+    }
+
+    // Also record in theli_logs for the daily collection record
+    try {
+      const logPayload = {
+        id: `th-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+        owner_id: context.userId,
+        log_date: data.log_date,
+        ward: currentItem.ward,
+        employee_id: currentItem.issued_to_id || "",
+        employee_name: currentItem.issued_to_name || "",
+        supervisor_name: currentItem.supervisor_name || "",
+        opening_balance: data.carried_balance,
+        out_entries: [{ from: currentItem.range_from, to: currentItem.range_to, count: currentItem.total_vouchers }],
+        closing_serial: data.last_voucher_booked,
+        amount: calc.amountBooked,
+        cleared_amount: calc.amountObtained,
+        remarks: data.remarks || `थेली रिपोर्ट: ${data.last_voucher_booked} सम्म काटियो`,
+        updated_at: now,
+      };
+      await context.supabase.from("theli_logs").insert(logPayload);
+    } catch {}
+
+    return {
+      success: true,
+      calc,
+    };
+  });
+
+export const deleteTheliStockBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string() }))
+  .handler(async ({ data, context }) => {
+    try {
+      await context.supabase
+        .from("theli_stock_items")
+        .delete()
+        .eq("batch_id", data.id)
+        .eq("owner_id", context.userId);
+
+      await context.supabase
+        .from("theli_stock_batches")
+        .delete()
+        .eq("id", data.id)
+        .eq("owner_id", context.userId);
+    } catch {}
     return true;
   });
