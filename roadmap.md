@@ -1,0 +1,26 @@
+# Receipt updates
+- [x] Diagnose confirmation: only existing confirmed social account found; no email signup/resend recorded, user must submit email signup
+- [x] Show stable ward/year/number reference on new receipt forms and shared vouchers used for history reprints
+- [x] Replace all social sign-in buttons with email/password login, signup and confirmation state
+- [x] Add password recovery; verify simulated confirmation state and real authenticated access; inbox delivery requires user's signup
+- [x] Apply club theme and app navigation without Lovable Cloud branding
+- [x] Present People Master with all five saved details
+- [x] Add an interactive BS calendar picker
+- [x] Improve sign-in error/session handling and verify authenticated record access and sign-out; external provider popup requires user completion
+- [x] Add app navigation, dashboard, customer master, receipt history and Cloud page
+- [x] Verify app navigation, signed-in master read-back, history reprint and Cloud connection
+- [x] Ward selection and dynamic receipt headings
+- [x] Separate atomic numbering by ward and Shrawan–Ashadh fiscal year
+- [x] Cloud customer master and repeat-customer suggestions
+- [x] Verify ward switching, fiscal-year boundaries, mobile layout and rule tests
+- [x] Verify signed-in saving and master read-back
+- [ ] Fix "Fiscal year out of range" on receipts-payments: client guard added; run supabase/fix-save-rp-fiscal-year.sql in the Cloud SQL editor to update the stale deployed save_rp_transaction (FY check, to_account_id NULL-fix, manual payment reference; verified locally on PG16)
+- [x] RP journal: newest-first with View voucher (printable, ref number + FY header) per transaction; identical view for receipt, payment and transfer
+- [x] Cash-book reference box on receipt, payment and transfer forms (live from rp_counters via getRpRefPreview) and two-way links between the RP receipt tab and the Receipts module
+- [x] Bill scan: separate deduction (discount) from additions (other charges — VAT/delivery/load-unload), signed totals strip, explained formula, AI scan fills both fields and maps the bill grand total to the scanned amount with an "= अन्तिम रकम" quick set
+- [x] Duplicate bills blocked: same vendor + bill number rejected client-side, in saveExpenseRecord (Nepali message) and by ux_expense_vendor_bill unique index (migration 0021, also in the pending cloud fix script)
+- [x] Masters table dues badge now shows only unpaid months ("बाँकी: रु. X (N महिना)") — receipt-paid months and paid opening dues are removed (remainingDuesForPerson in receipt-rules); fully-paid customers show a small "चुक्ता" chip instead
+- [x] Sidebar navigation reorganized into grouped sections (Dashboard, COLLECTION & OPERATIONS, MASTER SETUP, FINANCE & ACCOUNTING, EVENTS & GOVERNANCE, ADMINISTRATION & AI) with two new pages: /reports (collection vs expense reports) and /ai-assistant (fullscreen AI copilot)
+- [x] Nav sections open/close: collapsible group headers with chevron, MASTER SETUP pinned at the top, choices remembered in localStorage; groups default closed (Dashboard always visible), AI Assistant listed before Settings & Permissions
+- [x] Theli daily log on Collection Map (थेली tab in the customer drawer): morning थेली बाहिर / evening थेली भित्र card-range rows, out−in = फारकत theli, amount vs cleared amount difference = cash balance that carries forward to the next day's opening; employee name from Employee master and supervisor from Member or Employee master; edit/delete history (theli_logs table, migration 0022, also section 5 of the pending cloud fix script)
+- [x] Theli section discoverability + दायरा difference: dedicated "थेली" quick button next to the customer-list button opens the tab directly, drawer opens by default on desktop; summary and history show the not-yet-returned card ranges (out range minus matching in-range counts, बाहिरी दायरा chips)
