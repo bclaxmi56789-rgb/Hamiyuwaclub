@@ -68,3 +68,4 @@ describe("Employee Page Permissions (Access Control)", () => {
     expect(masters?.nepaliLabel).toContain("ग्राहक");
   });
 });
+

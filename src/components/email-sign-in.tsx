@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   LogIn,
   Mail,
@@ -12,6 +13,7 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,12 +23,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { signupOutcome } from "@/lib/email-auth";
 import { useAppConfig } from "@/lib/app-config";
 import { ThemeSelector } from "@/components/theme-selector";
+import { saveAdminPin } from "@/lib/workspace.functions";
 
 export function SignInPanel() {
   const appConfig = useAppConfig();
+  const saveAdminPinFn = useServerFn(saveAdminPin);
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [adminPin, setAdminPin] = useState("");
+  const [confirmAdminPin, setConfirmAdminPin] = useState("");
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +45,8 @@ export function SignInPanel() {
     setError("");
     setNotice("");
     setPassword("");
+    setAdminPin("");
+    setConfirmAdminPin("");
     setConfirmation(false);
   }
 
@@ -57,17 +65,43 @@ export function SignInPanel() {
           "यदि यो इमेल दर्ता छ भने, पासवर्ड रिसेट लिङ्क पठाइएको छ। कृपया आफ्नो इनबक्स वा स्प्याम फोल्डर जाँच्नुहोस्।"
         );
       } else if (mode === "signup") {
+        if (!/^\d{4}$/.test(adminPin)) {
+          setError("Admin PIN ठीक ४ अंक (4 digits) को हुनुपर्छ।");
+          setBusy(false);
+          return;
+        }
+        if (adminPin !== confirmAdminPin) {
+          setError("Admin PIN र दोहोर्‍याइएको PIN मिलेन।");
+          setBusy(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { admin_pin: adminPin },
+          },
         });
         if (error) throw error;
+
+        // If email confirmation is disabled and session is directly created, save admin_pin immediately
+        if (data.session) {
+          try {
+            await saveAdminPinFn({ data: { admin_pin: adminPin } });
+          } catch (pinErr) {
+            console.warn("Failed to set admin pin on signup:", pinErr);
+          }
+        }
+
         if (signupOutcome(Boolean(data.session)) === "confirm-email") {
           setConfirmation(true);
           setPassword("");
+          setAdminPin("");
+          setConfirmAdminPin("");
           setNotice(
-            "तपाईंको इमेलमा पुष्टिकरण लिङ्क पठाइएको छ। साइन इन गर्नुअघि लिङ्कमा थिच्नुहोस्।"
+            "तपाईंको इमेलमा पुष्टिकरण लिङ्क पठाइएको छ। साइन इन गर्नुअघि लिङ्कमा थिच्नुहोस्। Admin PIN सुरक्षित राखिएको छ।"
           );
         }
       } else {
@@ -264,6 +298,56 @@ export function SignInPanel() {
                 >
                   {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Admin PIN fields during signup */}
+          {mode === "signup" && !confirmation && (
+            <div className="p-3.5 rounded-2xl bg-primary/5 border border-primary/20 space-y-3">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                <KeyRound className="h-4 w-4 shrink-0" />
+                <span>व्यवस्थापक PIN सेट गर्नुहोस् (Admin PIN Setup)</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                मुख्य व्यवस्थापकको रूपमा प्रवेश गर्दा तथा संवेदनशील परिवर्तन गर्दा यो ४ अंकको गोप्य PIN आवश्यक पर्नेछ।
+              </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-foreground">
+                    Admin PIN (४ अंक)
+                  </Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    required
+                    disabled={busy}
+                    placeholder="••••"
+                    value={adminPin}
+                    onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    className="text-center font-mono tracking-widest bg-background/80 h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-foreground">
+                    PIN पुष्टि (Confirm)
+                  </Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    required
+                    disabled={busy}
+                    placeholder="••••"
+                    value={confirmAdminPin}
+                    onChange={(e) =>
+                      setConfirmAdminPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    className="text-center font-mono tracking-widest bg-background/80 h-9"
+                  />
+                </div>
               </div>
             </div>
           )}

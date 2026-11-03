@@ -28,3 +28,4 @@ REVOKE ALL ON public.employee_permissions FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.employee_permissions TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
+

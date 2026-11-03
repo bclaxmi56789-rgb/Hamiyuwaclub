@@ -488,7 +488,11 @@ export const getMembersData = createServerFn({ method: "GET" })
         .eq("owner_id", context.userId)
         .order("name", { ascending: true });
       if (!accRes.error && accRes.data) {
-        accounts = accRes.data as Array<{ id: string; name: string; account_type: "cash" | "bank" }>;
+        accounts = accRes.data as Array<{
+          id: string;
+          name: string;
+          account_type: "cash" | "bank";
+        }>;
       }
     } catch {
       // Table may not be migrated yet
@@ -522,7 +526,14 @@ export const getMembersData = createServerFn({ method: "GET" })
       // Table may not be migrated yet
     }
 
-    return { members, bodMembers: members, employees, payrollRecords, accounts, employeeTransactions };
+    return {
+      members,
+      bodMembers: members,
+      employees,
+      payrollRecords,
+      accounts,
+      employeeTransactions,
+    };
   });
 
 export const saveMember = createServerFn({ method: "POST" })
@@ -836,7 +847,11 @@ export const savePayrollRecords = createServerFn({ method: "POST" })
           .eq("id", existing.data.id)
           .select("*")
           .maybeSingle();
-        if (updateRes.error && (updateRes.error.message.includes("other_allowance") || updateRes.error.message.includes("voucher_ref"))) {
+        if (
+          updateRes.error &&
+          (updateRes.error.message.includes("other_allowance") ||
+            updateRes.error.message.includes("voucher_ref"))
+        ) {
           const { other_allowance, voucher_ref, ...fallback } = recordPayload;
           updateRes = await context.supabase
             .from("payroll_records")
@@ -860,7 +875,11 @@ export const savePayrollRecords = createServerFn({ method: "POST" })
           })
           .select("*")
           .maybeSingle();
-        if (insertRes.error && (insertRes.error.message.includes("other_allowance") || insertRes.error.message.includes("voucher_ref"))) {
+        if (
+          insertRes.error &&
+          (insertRes.error.message.includes("other_allowance") ||
+            insertRes.error.message.includes("voucher_ref"))
+        ) {
           const { other_allowance, voucher_ref, ...fallback } = recordPayload;
           insertRes = await context.supabase
             .from("payroll_records")
@@ -915,8 +934,18 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const results: PayrollRecord[] = [];
     const MONTH_NAMES = [
-      "बैशाख", "जेठ", "असार", "श्रावण", "भदौ", "असोज",
-      "कार्तिक", "मंसिर", "पौष", "माघ", "फाल्गुन", "चैत्र"
+      "बैशाख",
+      "जेठ",
+      "असार",
+      "श्रावण",
+      "भदौ",
+      "असोज",
+      "कार्तिक",
+      "मंसिर",
+      "पौष",
+      "माघ",
+      "फाल्गुन",
+      "चैत्र",
     ];
 
     for (const item of data.records) {
@@ -938,8 +967,14 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
       }
 
       // REQUIRE BOOKING: Must be booked before paying
-      if (existing.data && existing.data.payment_status !== "booked" && !(existing.data as any).is_booked) {
-        throw new Error(`पेरोल पहिले बुक गर्नुहोस् (${item.employee_name}) — बुकिङ नगरी भुक्तानी हुँदैन।`);
+      if (
+        existing.data &&
+        existing.data.payment_status !== "booked" &&
+        !(existing.data as any).is_booked
+      ) {
+        throw new Error(
+          `पेरोल पहिले बुक गर्नुहोस् (${item.employee_name}) — बुकिङ नगरी भुक्तानी हुँदैन।`,
+        );
       }
 
       const monthName = MONTH_NAMES[item.month] ?? `महिना ${item.month + 1}`;
@@ -1007,7 +1042,11 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
           .select("*")
           .maybeSingle();
 
-        if (updateRes.error && (updateRes.error.message.includes("other_allowance") || updateRes.error.message.includes("voucher_ref"))) {
+        if (
+          updateRes.error &&
+          (updateRes.error.message.includes("other_allowance") ||
+            updateRes.error.message.includes("voucher_ref"))
+        ) {
           const { other_allowance, voucher_ref, ...fallback } = recordPayload;
           updateRes = await context.supabase
             .from("payroll_records")
@@ -1020,7 +1059,11 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
         if (updateRes.data) {
           results.push(updateRes.data as PayrollRecord);
         } else {
-          results.push({ id: existing.data.id, ...recordPayload, is_booked: true } as PayrollRecord);
+          results.push({
+            id: existing.data.id,
+            ...recordPayload,
+            is_booked: true,
+          } as PayrollRecord);
         }
       } else {
         const newId = `pr-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
@@ -1033,7 +1076,11 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
           .select("*")
           .maybeSingle();
 
-        if (insertRes.error && (insertRes.error.message.includes("other_allowance") || insertRes.error.message.includes("voucher_ref"))) {
+        if (
+          insertRes.error &&
+          (insertRes.error.message.includes("other_allowance") ||
+            insertRes.error.message.includes("voucher_ref"))
+        ) {
           const { other_allowance, voucher_ref, ...fallback } = recordPayload;
           insertRes = await context.supabase
             .from("payroll_records")
@@ -1978,6 +2025,7 @@ export const saveAppConfiguration = createServerFn({ method: "POST" })
       custom_ai_endpoint: z.string().optional(),
       custom_ai_key: z.string().optional(),
       custom_ai_model: z.string().optional(),
+      admin_pin: z.string().trim().max(10).optional(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -2589,11 +2637,7 @@ export const saveTheliStockBatch = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => {
-    const counts = calculateTheliStockCounts(
-      data.start_from,
-      data.end_to,
-      data.vouchers_per_theli,
-    );
+    const counts = calculateTheliStockCounts(data.start_from, data.end_to, data.vouchers_per_theli);
     if (counts.totalVouchers <= 0) {
       throw new Error("अमान्य सिरियल दायरा — अन्तिम नम्बर सुरुको भन्दा ठूलो हुनुपर्छ।");
     }
@@ -2902,7 +2946,13 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
         employee_name: currentItem.issued_to_name || "",
         supervisor_name: currentItem.supervisor_name || "",
         opening_balance: data.carried_balance,
-        out_entries: [{ from: currentItem.range_from, to: currentItem.range_to, count: currentItem.total_vouchers }],
+        out_entries: [
+          {
+            from: currentItem.range_from,
+            to: currentItem.range_to,
+            count: currentItem.total_vouchers,
+          },
+        ],
         closing_serial: data.last_voucher_booked,
         amount: calc.amountBooked,
         cleared_amount: calc.amountObtained,
@@ -2989,11 +3039,216 @@ export const saveEmployeePermissionBatch = createServerFn({ method: "POST" })
         .from("employee_permissions")
         .upsert(rows, { onConflict: "owner_id,employee_id,page_path" })
         .select("*");
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) {
+        return { success: false, saved: rows, error: res.error.message };
+      }
       return { success: true, saved: res.data };
     } catch (e: any) {
-      // Return payload for local fallback in case table is not migrated yet
-      return { success: true, saved: rows, error: e?.message };
+      return { success: false, saved: rows, error: e?.message };
+    }
+  });
+
+// ═══════════════════════════════════════════════════════════
+// EMPLOYEE CREDENTIALS VAULT (ID & Password Storage)
+// ═══════════════════════════════════════════════════════════
+
+export const getEmployeeCredentialsList = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    // Errors propagate to the caller so the Settings UI can show exactly why
+    // the vault is unavailable (e.g. table not migrated yet). Never silently
+    // pretend an empty list means "no credentials saved".
+    const res = await context.supabase
+      .from("employee_credentials")
+      .select("*")
+      .eq("owner_id", context.userId);
+    if (res.error) {
+      throw new Error(
+        `Credentials vault रिड्डमा छैन (table missing?) — SQL migration चलाउनुहोस्: ${res.error.message}`,
+      );
+    }
+    return res.data ?? [];
+  });
+
+export const saveEmployeeCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      employee_id: z.string().trim().min(1, "कर्मचारी छान्नुहोस्"),
+      employee_name: z.string().trim().optional().default(""),
+      login_id: z.string().trim().min(1, "लगइन आईडी आवश्यक छ"),
+      login_password: z.string().trim().min(1, "पासवर्ड आवश्यक छ"),
+      login_pin: z
+        .string()
+        .trim()
+        .regex(/^\d{4}$/, "PIN चार अंकको हुनुपर्छ (4 digits)"),
+      is_active: z.boolean().optional().default(true),
+      notes: z.string().optional().default(""),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const payload = {
+      employee_id: data.employee_id,
+      owner_id: context.userId,
+      employee_name: data.employee_name || "",
+      login_id: data.login_id,
+      login_password: data.login_password,
+      login_pin: data.login_pin,
+      is_active: data.is_active,
+      notes: data.notes || "",
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const res = await context.supabase
+        .from("employee_credentials")
+        .upsert(payload, { onConflict: "employee_id" })
+        .select("*")
+        .single();
+      if (res.error) {
+        return { success: false, credential: payload, error: res.error.message };
+      }
+      return { success: true, credential: res.data };
+    } catch (e: any) {
+      return { success: false, credential: payload, error: e?.message };
+    }
+  });
+
+export const deleteEmployeeCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      employee_id: z.string().trim().min(1),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      const res = await context.supabase
+        .from("employee_credentials")
+        .delete()
+        .eq("employee_id", data.employee_id)
+        .eq("owner_id", context.userId);
+      if (res.error) return { success: false, error: res.error.message };
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message };
+    }
+  });
+
+// PIN unlock: verify an employee's login PIN server-side so the client never
+// receives PINs to compare. Returns only identity info on success.
+export const verifyEmployeePin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      employee_id: z.string().trim().min(1, "कर्मचारी छान्नुहोस्"),
+      pin: z.string().trim().regex(/^\d+$/, "PIN अंक मात्र हुनुपर्छ"),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      const res = await context.supabase
+        .from("employee_credentials")
+        .select("employee_id, employee_name, login_pin, is_active")
+        .eq("owner_id", context.userId)
+        .eq("employee_id", data.employee_id)
+        .maybeSingle();
+      if (res.error) throw new Error(res.error.message);
+      const cred = res.data as {
+        employee_id: string;
+        employee_name: string;
+        login_pin: string;
+        is_active: boolean;
+      } | null;
+      if (!cred || !cred.is_active) {
+        return { ok: false, code: "not_found" as const };
+      }
+      if (!/^\d{4}$/.test(cred.login_pin)) {
+        return { ok: false, code: "pin_not_set" as const };
+      }
+      if (cred.login_pin !== data.pin) {
+        return { ok: false, code: "wrong_pin" as const };
+      }
+      return {
+        ok: true,
+        code: "ok" as const,
+        employee_id: cred.employee_id,
+        employee_name: cred.employee_name,
+      };
+    } catch (e: any) {
+      return { ok: false, code: "error" as const, error: e?.message };
+    }
+  });
+
+// Admin PIN unlock: verify owner's Admin PIN server-side against app_configuration.
+export const verifyAdminPin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      pin: z.string().trim().regex(/^\d{4}$/, "Admin PIN चार अंकको हुनुपर्छ"),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      const res = await context.supabase
+        .from("app_configuration")
+        .select("admin_pin")
+        .eq("owner_id", context.userId)
+        .maybeSingle();
+      if (res.error) throw new Error(res.error.message);
+      const conf = res.data as { admin_pin?: string | null } | null;
+      const configuredPin = (conf?.admin_pin || "").trim();
+
+      // If no admin PIN set in DB yet, allow entry or prompt to configure
+      if (!configuredPin) {
+        return { ok: true, code: "pin_not_set" as const };
+      }
+
+      if (configuredPin !== data.pin) {
+        return { ok: false, code: "wrong_pin" as const };
+      }
+
+      return { ok: true, code: "ok" as const };
+    } catch (e: any) {
+      return { ok: false, code: "error" as const, error: e?.message };
+    }
+  });
+
+// Save Admin PIN upon initial signup or update from Settings
+export const saveAdminPin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      admin_pin: z.string().trim().regex(/^\d{4}$/, "Admin PIN चार अंकको हुनुपर्छ"),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      // Upsert into app_configuration for this user
+      const res = await context.supabase
+        .from("app_configuration")
+        .upsert(
+          {
+            owner_id: context.userId,
+            admin_pin: data.admin_pin,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "owner_id" },
+        )
+        .select("admin_pin")
+        .maybeSingle();
+
+      if (res.error) {
+        // Fallback: try update if upsert failed due to missing constraint
+        const upd = await context.supabase
+          .from("app_configuration")
+          .update({ admin_pin: data.admin_pin, updated_at: new Date().toISOString() })
+          .eq("owner_id", context.userId);
+        if (upd.error) return { ok: false, error: upd.error.message };
+      }
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message };
     }
   });
 

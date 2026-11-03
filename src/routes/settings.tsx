@@ -56,11 +56,16 @@ import {
   getEmployeesData,
   getEmployeePermissions,
   saveEmployeePermissionBatch,
+  getEmployeeCredentialsList,
+  saveEmployeeCredentials,
+  deleteEmployeeCredentials,
+  saveAdminPin,
 } from "@/lib/workspace.functions";
 import {
   APP_NAV_PAGES,
   type AccessLevel,
   type EmployeePermission,
+  type EmployeeCredentials,
 } from "@/lib/permissions";
 import type { Employee } from "@/lib/receipt-rules";
 import { BSDatePicker } from "@/components/bs-date-picker";
@@ -77,6 +82,10 @@ function SettingsPage() {
   const getEmployeesFn = useServerFn(getEmployeesData);
   const getPermissionsFn = useServerFn(getEmployeePermissions);
   const savePermissionsFn = useServerFn(saveEmployeePermissionBatch);
+  const getCredentialsFn = useServerFn(getEmployeeCredentialsList);
+  const saveCredentialsFn = useServerFn(saveEmployeeCredentials);
+  const deleteCredentialsFn = useServerFn(deleteEmployeeCredentials);
+  const saveAdminPinFn = useServerFn(saveAdminPin);
 
   const [form, setForm] = useState<AppConfig>(() => ensureFiscalYearDefaults({ ...globalConfig }));
   const [saving, setSaving] = useState(false);
@@ -97,7 +106,14 @@ function SettingsPage() {
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
 
-  // ─── PERMISSION TAB STATE ───
+  // ─── ADMIN PIN VAULT STATE ───
+  const [adminPinInput, setAdminPinInput] = useState(() => globalConfig.admin_pin || "");
+  const [showAdminPin, setShowAdminPin] = useState(false);
+  const [savingAdminPin, setSavingAdminPin] = useState(false);
+  const [adminPinSuccess, setAdminPinSuccess] = useState<string | null>(null);
+  const [adminPinError, setAdminPinError] = useState("");
+
+  // ─── PERMISSION & VAULT STATE ───
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState<string>("");
@@ -105,6 +121,20 @@ function SettingsPage() {
   const [empPermMap, setEmpPermMap] = useState<Record<string, AccessLevel>>({});
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [permSuccessMessage, setPermSuccessMessage] = useState<string | null>(null);
+  const [accessLoadError, setAccessLoadError] = useState<string>("");
+  const [credLoadError, setCredLoadError] = useState<string>("");
+  const [accessSaveError, setAccessSaveError] = useState<string>("");
+
+  // ─── EMPLOYEE ID & PASSWORD VAULT STATE ───
+  const [credentialsList, setCredentialsList] = useState<EmployeeCredentials[]>([]);
+  const [empLoginId, setEmpLoginId] = useState("");
+  const [empPassword, setEmpPassword] = useState("");
+  const [empPin, setEmpPin] = useState("");
+  const [empNotes, setEmpNotes] = useState("");
+  const [showEmpPassword, setShowEmpPassword] = useState(false);
+  const [savingCredentials, setSavingCredentials] = useState(false);
+  const [credSuccessMessage, setCredSuccessMessage] = useState<string | null>(null);
+  const [credError, setCredError] = useState<string>("");
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -116,23 +146,37 @@ function SettingsPage() {
   async function loadEmployeesAndPermissions() {
     setLoadingEmployees(true);
     try {
-      const [empList, permList] = await Promise.all([
-        getEmployeesFn().catch(() => [] as Employee[]),
-        getPermissionsFn().catch(() => [] as EmployeePermission[]),
-      ]);
+      const empList = await getEmployeesFn().catch(() => [] as Employee[]);
       setEmployees(empList || []);
-      setAllPermissions(permList || []);
       if (empList && empList.length > 0 && !selectedEmpId) {
-        setSelectedEmpId(empList[0].id);
+        setSelectedEmpId(empList[0]?.id ?? "");
       }
-    } catch {
-      // Fallback
+      // Permission + credential load errors are surfaced, never silently reset
+      // to empty — otherwise saved access looks like it wasn't saved at all.
+      const [permResult, credResult] = await Promise.allSettled([
+        getPermissionsFn(),
+        getCredentialsFn(),
+      ]);
+      if (permResult.status === "fulfilled") {
+        setAllPermissions((permResult.value as unknown as EmployeePermission[]) || []);
+      } else {
+        setAccessLoadError(
+          String((permResult.reason as Error)?.message || permResult.reason || "अज्ञात त्रुटि"),
+        );
+      }
+      if (credResult.status === "fulfilled") {
+        setCredentialsList((credResult.value as unknown as EmployeeCredentials[]) || []);
+      } else {
+        setCredLoadError(
+          String((credResult.reason as Error)?.message || credResult.reason || "अज्ञात त्रुटि"),
+        );
+      }
     } finally {
       setLoadingEmployees(false);
     }
   }
 
-  // Update empPermMap when selected employee changes
+  // Update empPermMap and Credentials inputs when selected employee changes
   useEffect(() => {
     if (!selectedEmpId) return;
     const currentEmpPerms = allPermissions.filter((p) => p.employee_id === selectedEmpId);
@@ -142,7 +186,99 @@ function SettingsPage() {
       map[page.path] = match ? match.access_level : "full_access";
     }
     setEmpPermMap(map);
-  }, [selectedEmpId, allPermissions]);
+
+    // Sync vault credentials fields for this employee
+    const matchedCred = credentialsList.find((c) => c.employee_id === selectedEmpId);
+    if (matchedCred) {
+      setEmpLoginId(matchedCred.login_id);
+      setEmpPassword(matchedCred.login_password);
+      setEmpPin(matchedCred.login_pin || "");
+      setEmpNotes(matchedCred.notes || "");
+    } else {
+      // Default suggested login ID
+      const emp = employees.find((e) => e.id === selectedEmpId);
+      const suggestedId = emp ? emp.name.toLowerCase().replace(/\s+/g, "_") : "";
+      setEmpLoginId(suggestedId);
+      setEmpPassword("");
+      setEmpPin("");
+      setEmpNotes("");
+    }
+  }, [selectedEmpId, allPermissions, credentialsList, employees]);
+
+  async function handleSaveCredentials() {
+    if (!selectedEmpId) return;
+    if (!empLoginId.trim()) {
+      alert("लगइन आईडी भर्नुहोस्।");
+      return;
+    }
+    if (!empPassword.trim()) {
+      alert("पासवर्ड भर्नुहोस्।");
+      return;
+    }
+    if (!/^\d{4}$/.test(empPin.trim())) {
+      alert("PIN चार अंकको हुनुपर्छ (उदा. 1234)। सङ्केत: यो PIN ले कर्मचारीको पहुँच खोल्छ।");
+      return;
+    }
+    const emp = employees.find((e) => e.id === selectedEmpId);
+    setSavingCredentials(true);
+    setCredSuccessMessage(null);
+    setCredError("");
+    try {
+      const payload = {
+        employee_id: selectedEmpId,
+        employee_name: emp?.name || "",
+        login_id: empLoginId.trim(),
+        login_password: empPassword.trim(),
+        login_pin: empPin.trim(),
+        is_active: true,
+        notes: empNotes.trim(),
+      };
+      const result = await saveCredentialsFn({ data: payload });
+      if (result && result.success === false) {
+        setCredError(
+          `सुरक्षित गर्न सकिएन (database)। ${result.error || ""} — संकेत: supabase/apply-employee-credentials.sql र supabase/apply-employee-login-pin.sql चलाउनुपर्ने हुनसक्छ।`,
+        );
+        return;
+      }
+      // Reload straight from the server so the UI only ever shows what the
+      // database actually contains — no optimistic guesses, no local copies.
+      const fresh = await getCredentialsFn();
+      setCredentialsList((fresh as unknown as EmployeeCredentials[]) || []);
+      setCredSuccessMessage(
+        `${emp?.name || "कर्मचारी"}को ID, पासवर्ड र PIN भण्डार (Vault) मा सुरक्षित भयो र पुष्टि गरियो ✓`,
+      );
+      setTimeout(() => setCredSuccessMessage(null), 4000);
+    } catch (err) {
+      setCredError(
+        `सुरक्षित गर्न सकिएन: ${(err as Error)?.message || "अज्ञात त्रुटि"} — संकेत: supabase/apply-employee-credentials.sql चलाउनुहोस्।`,
+      );
+    } finally {
+      setSavingCredentials(false);
+    }
+  }
+
+  async function handleSaveAdminPin() {
+    if (!/^\d{4}$/.test(adminPinInput.trim())) {
+      setAdminPinError("Admin PIN चार अंकको हुनुपर्छ (४ वटा नम्बर)।");
+      return;
+    }
+    setSavingAdminPin(true);
+    setAdminPinError("");
+    setAdminPinSuccess(null);
+    try {
+      const res = await saveAdminPinFn({ data: { admin_pin: adminPinInput.trim() } });
+      if (res && res.ok === false) {
+        setAdminPinError(`सुरक्षित गर्न सकिएन: ${res.error || "अज्ञात त्रुटि"}`);
+        return;
+      }
+      setAdminPinSuccess("Admin PIN सफलतापूर्वक भण्डार (Vault) मा सुरक्षित भयो ✓");
+      setTimeout(() => setAdminPinSuccess(null), 4000);
+    } catch (err: any) {
+      setAdminPinError(`त्रुटि: ${err?.message || "सुरक्षित गर्न सकिएन"}`);
+    } finally {
+      setSavingAdminPin(false);
+    }
+  }
 
   function handlePermissionChange(path: string, level: AccessLevel) {
     setEmpPermMap((prev) => ({
@@ -173,35 +309,25 @@ function SettingsPage() {
           access_level,
         })),
       };
-      await savePermissionsFn({ data: payload });
+      const result = await savePermissionsFn({ data: payload });
+      if (result && result.success === false) {
+        setAccessSaveError(
+          `अनुमति सुरक्षित गर्न सकिएन (database)। ${result.error || ""} — संकेत: supabase/apply-employee-permissions.sql चलाउनुहोस्।`,
+        );
+        return;
+      }
+      // Reload straight from the server to confirm what was actually saved.
+      const freshPerms = await getPermissionsFn();
+      setAllPermissions((freshPerms as unknown as EmployeePermission[]) || []);
 
-      // Update local storage for immediate application
-      try {
-        const stored = JSON.parse(localStorage.getItem("hami_employee_permissions") || "[]");
-        const filtered = stored.filter((p: EmployeePermission) => p.employee_id !== selectedEmpId);
-        const newRows = payload.permissions.map((p) => ({
-          ...p,
-          employee_id: selectedEmpId,
-          employee_name: emp?.name || "",
-        }));
-        localStorage.setItem("hami_employee_permissions", JSON.stringify([...filtered, ...newRows]));
-      } catch {}
-
-      // Update state
-      setAllPermissions((prev) => {
-        const filtered = prev.filter((p) => p.employee_id !== selectedEmpId);
-        const updated = payload.permissions.map((p) => ({
-          ...p,
-          employee_id: selectedEmpId,
-          employee_name: emp?.name || "",
-        }));
-        return [...filtered, ...updated];
-      });
-
-      setPermSuccessMessage(`${emp?.name || "कर्मचारी"}को पेज अनुमति सफलतापूर्वक सुरक्षित भयो!`);
+      setPermSuccessMessage(
+        `${emp?.name || "कर्मचारी"}को पेज अनुमति सुरक्षित भयो र पुष्टि गरियो ✓`,
+      );
       setTimeout(() => setPermSuccessMessage(null), 4000);
     } catch (e: any) {
-      alert("अनुमति सुरक्षित गर्दा त्रुटि भयो: " + (e?.message || ""));
+      setAccessSaveError(
+        `अनुमति सुरक्षित गर्दा त्रुटि भयो: ${e?.message || "अज्ञात त्रुटि"} — संकेत: supabase/apply-employee-permissions.sql चलाउनुहोस्।`,
+      );
     } finally {
       setSavingPermissions(false);
     }
@@ -514,6 +640,86 @@ function SettingsPage() {
 
         {/* ─── TAB 0: EMPLOYEE PAGE PERMISSIONS ───────────────────────────── */}
         <TabsContent value="permissions" className="mt-6 space-y-6">
+          {/* Admin Vault Box for Admin PIN */}
+          <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                    <span>मुख्य व्यवस्थापक PIN भण्डार (Admin PIN Vault)</span>
+                    <Badge className="bg-amber-500 text-white text-[10px]">गोप्य / Secure</Badge>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    लगइन गर्दा मुख्य व्यवस्थापक (Admin Full Access) को लागि प्रयोग हुने ४ अंकको गोप्य PIN।
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 items-end">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-foreground">
+                  Admin PIN (४ अंक)
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showAdminPin ? "text" : "password"}
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={adminPinInput}
+                    onChange={(e) =>
+                      setAdminPinInput(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    placeholder="••••"
+                    disabled={savingAdminPin}
+                    className="h-10 text-center font-mono tracking-[0.4em] text-base bg-card pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPin(!showAdminPin)}
+                    className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                    aria-label={showAdminPin ? "PIN लुकाउनुहोस्" : "PIN देखाउनुहोस्"}
+                  >
+                    {showAdminPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <Button
+                  type="button"
+                  onClick={handleSaveAdminPin}
+                  disabled={savingAdminPin || adminPinInput.length !== 4}
+                  className="w-full h-10 font-bold gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {savingAdminPin ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  <span>Admin PIN सुरक्षित गर्नुहोस्</span>
+                </Button>
+              </div>
+            </div>
+
+            {adminPinError && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-medium flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{adminPinError}</span>
+              </div>
+            )}
+
+            {adminPinSuccess && (
+              <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-medium flex items-start gap-2">
+                <Check className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{adminPinSuccess}</span>
+              </div>
+            )}
+          </div>
+
           <div className="rounded-2xl border bg-card p-6 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
               <div className="space-y-1">
@@ -524,7 +730,8 @@ function SettingsPage() {
                   </h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  कर्मचारी चयन गरी प्रत्येक पेजको लागि पूर्ण पहुँच (Full Access/Create/Edit), हेर्न मात्र मिल्ने (Read-only), वा पहुँच निषेध (No Access) सेट गर्नुहोस्।
+                  कर्मचारी चयन गरी प्रत्येक पेजको लागि पूर्ण पहुँच (Full Access/Create/Edit), हेर्न
+                  मात्र मिल्ने (Read-only), वा पहुँच निषेध (No Access) सेट गर्नुहोस्।
                 </p>
               </div>
               <Badge
@@ -542,6 +749,29 @@ function SettingsPage() {
               </div>
             )}
 
+            {accessLoadError && (
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  अनुमति लोड हुन सकेन — देखाइएको स्थिति saved data होइन। {accessLoadError}
+                </span>
+              </div>
+            )}
+
+            {credLoadError && (
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>लगइन/PIN भण्डार लोड हुन सकेन। {credLoadError}</span>
+              </div>
+            )}
+
+            {accessSaveError && (
+              <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3.5 text-destructive text-xs flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{accessSaveError}</span>
+              </div>
+            )}
+
             {/* Employee Selector Bar */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border">
               <div className="space-y-1.5">
@@ -552,7 +782,8 @@ function SettingsPage() {
                   <p className="text-xs text-muted-foreground">कर्मचारी लोड हुँदैछ...</p>
                 ) : employees.length === 0 ? (
                   <p className="text-xs text-rose-600 font-semibold">
-                    हाल कुनै कर्मचारी फेला परेन। पहिले 'Members & Staff' पृष्ठमा कर्मचारी दर्ता गर्नुहोस्।
+                    हाल कुनै कर्मचारी फेला परेन। पहिले 'Members & Staff' पृष्ठमा कर्मचारी दर्ता
+                    गर्नुहोस्।
                   </p>
                 ) : (
                   <Select value={selectedEmpId} onValueChange={(val) => setSelectedEmpId(val)}>
@@ -560,11 +791,13 @@ function SettingsPage() {
                       <SelectValue placeholder="कर्मचारी चयन गर्नुहोस्" />
                     </SelectTrigger>
                     <SelectContent>
-                      {employees.map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.name} ({emp.designation})
-                        </SelectItem>
-                      ))}
+                      {employees
+                        .filter((emp): emp is Employee & { id: string } => Boolean(emp.id))
+                        .map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.name} ({emp.designation})
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -607,102 +840,262 @@ function SettingsPage() {
               </div>
             </div>
 
-            {/* Permission Table / Matrix */}
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b bg-muted/60 text-muted-foreground font-bold">
-                  <tr>
-                    <th className="px-3.5 py-3 w-12 text-center">क्र.सं.</th>
-                    <th className="px-3.5 py-3">पेजको नाम र कार्य</th>
-                    <th className="px-3.5 py-3 w-40">श्रेणी (Category)</th>
-                    <th className="px-3.5 py-3 text-center w-80">अनुमति स्तर (Access Level)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {APP_NAV_PAGES.map((page, idx) => {
-                    const currentLevel = empPermMap[page.path] || "full_access";
-                    return (
-                      <tr key={page.path} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-3.5 py-2.5 text-center font-mono text-muted-foreground font-semibold">
-                          {idx + 1}
-                        </td>
-                        <td className="px-3.5 py-2.5">
-                          <div className="font-bold text-foreground text-sm flex items-center gap-1.5">
-                            <span>{page.nepaliLabel}</span>
-                            <span className="text-muted-foreground text-xs font-mono font-normal">
-                              ({page.label})
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5">
-                            {page.description} • <span className="font-mono text-primary/80">{page.path}</span>
-                          </div>
-                        </td>
-                        <td className="px-3.5 py-2.5">
-                          <Badge variant="outline" className="text-[10px] font-semibold">
-                            {page.category}
-                          </Badge>
-                        </td>
-                        <td className="px-3.5 py-2.5 text-center">
-                          <div className="inline-flex rounded-lg border p-1 bg-background shadow-xs gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handlePermissionChange(page.path, "full_access")}
-                              className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
-                                currentLevel === "full_access"
-                                  ? "bg-emerald-600 text-white shadow-xs font-bold"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                              }`}
-                            >
-                              {currentLevel === "full_access" && <Check className="size-3" />}
-                              पूर्ण पहुँच (Edit)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handlePermissionChange(page.path, "read_only")}
-                              className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
-                                currentLevel === "read_only"
-                                  ? "bg-blue-600 text-white shadow-xs font-bold"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                              }`}
-                            >
-                              {currentLevel === "read_only" && <Check className="size-3" />}
-                              हेर्न मात्र (Read)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handlePermissionChange(page.path, "no_access")}
-                              className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
-                                currentLevel === "no_access"
-                                  ? "bg-rose-600 text-white shadow-xs font-bold"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                              }`}
-                            >
-                              {currentLevel === "no_access" && <Check className="size-3" />}
-                              निषेध (None)
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            {/* ─── SECTION 2: Authentication & Credentials (same box) ─── */}
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-primary" />
+                  <h4 className="text-sm font-bold text-foreground">
+                    २. लगइन तथा PIN (Authentication &amp; Credentials)
+                  </h4>
+                </div>
+                {selectedEmpId &&
+                  (credentialsList.some((c) => c.employee_id === selectedEmpId) ? (
+                    <Badge className="bg-green-600 text-white text-[10px]">
+                      ✓ भण्डारमा सुरक्षित (Saved)
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px]">
+                      ✓ खाली (Not saved)
+                    </Badge>
+                  ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                यो खाताको इमेल + पासवर्ड लगइन भएपछि कर्मचारीले आफ्नो नाम छानेर यही ४ अंकको PIN
+                प्रविष्ट गरेमात्र तोकिएको पहुँच खुल्छ। यो PIN बाहेक अन्य कुनै विधिले भित्र जान
+                मिल्दैन। Admin (मुख्य खाता आफैं) लाई PIN छाड्न सकिन्छ — पूर्ण पहुँचका लागि।
+              </p>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">लगइन आईडी (Login ID)</Label>
+                  <Input
+                    value={empLoginId}
+                    onChange={(e) => setEmpLoginId(e.target.value)}
+                    disabled={!selectedEmpId || savingCredentials}
+                    placeholder="उदा. anusha_oli"
+                    className="h-9 text-sm bg-card"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">पासवर्ड (Password)</Label>
+                  <div className="relative">
+                    <Input
+                      type={showEmpPassword ? "text" : "password"}
+                      value={empPassword}
+                      onChange={(e) => setEmpPassword(e.target.value)}
+                      disabled={!selectedEmpId || savingCredentials}
+                      placeholder="••••••••"
+                      className="h-9 pr-10 text-sm bg-card"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEmpPassword(!showEmpPassword)}
+                      className="absolute right-2.5 top-2 text-muted-foreground hover:text-foreground"
+                      aria-label={showEmpPassword ? "पासवर्ड लुकाउनुहोस्" : "पासवर्ड देखाउनुहोस्"}
+                    >
+                      {showEmpPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold">
+                    अनलक PIN (४ अंक) <span className="text-primary">— पहुँच खोल्ने कोड</span>
+                  </Label>
+                  <Input
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={empPin}
+                    onChange={(e) => setEmpPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    disabled={!selectedEmpId || savingCredentials}
+                    placeholder="उदा. 1234"
+                    className="h-9 text-sm tracking-[0.4em] font-mono text-center bg-card"
+                  />
+                </div>
+              </div>
+
+              {credError && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs font-medium flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{credError}</span>
+                </div>
+              )}
+
+              {credSuccessMessage && (
+                <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-medium flex items-start gap-2">
+                  <Check className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{credSuccessMessage} — सर्भरबाट पुन: पढेर पुष्टि गरिएको।</span>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-3">
+                <div className="text-xs text-muted-foreground">
+                  {credentialsList.length > 0
+                    ? `${credentialsList.length} जना कर्मचारीको लगइन/PIN भण्डार (database) मा सुरक्षित छ।`
+                    : "अझै कुनै कर्मचारीको PIN सेट गरिएको छैन।"}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {credentialsList.some((c) => c.employee_id === selectedEmpId) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10"
+                      disabled={!selectedEmpId || savingCredentials}
+                      onClick={async () => {
+                        if (
+                          !window.confirm(
+                            "यो कर्मचारीको लगइन/PIN मेट्ने? मेटिएपछि कर्मचारी भित्र जान सक्दैन।",
+                          )
+                        )
+                          return;
+                        setCredError("");
+                        setCredSuccessMessage(null);
+                        try {
+                          const res = await deleteCredentialsFn({
+                            data: { employee_id: selectedEmpId },
+                          });
+                          if (res && res.success === false) {
+                            setCredError(`मेट्न सकिएन: ${res.error || ""}`);
+                            return;
+                          }
+                          const fresh = await getCredentialsFn();
+                          setCredentialsList((fresh as unknown as EmployeeCredentials[]) || []);
+                          setEmpLoginId("");
+                          setEmpPassword("");
+                          setEmpPin("");
+                          setEmpNotes("");
+                        } catch (err) {
+                          setCredError(
+                            `मेट्न सकिएन: ${(err as Error)?.message || "अज्ञात त्रुटि"}`,
+                          );
+                        }
+                      }}
+                    >
+                      मेट्नुहोस्
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={handleSaveCredentials}
+                    disabled={savingCredentials || !selectedEmpId}
+                    className="gap-2 bg-primary font-bold text-primary-foreground shadow-sm"
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingCredentials ? "सुरक्षित हुँदैछ..." : "लगइन र PIN सुरक्षित गर्नुहोस्"}
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            {/* Bottom Save Action */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
-              <div className="text-xs text-muted-foreground">
-                कर्मचारीले लगइन गर्दा तोकिएका पृष्ठहरू मात्र खुल्नेछन् वा हेर्न मात्र मिल्नेछ।
+            {/* Permission Table / Matrix */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-bold text-foreground">
+                  ३. पेज अनुमति (Access Matrix) — PIN खोलिएपछि के देख्न/गर्न पाउँछ?
+                </h4>
               </div>
-              <Button
-                type="button"
-                onClick={handleSavePermissions}
-                disabled={savingPermissions || !selectedEmpId}
-                className="gap-2 bg-primary font-bold text-primary-foreground shrink-0 shadow-sm"
-              >
-                <Save className="h-4 w-4" />
-                {savingPermissions ? "सुरक्षित हुँदैछ..." : "कर्मचारी अनुमति सुरक्षित गर्नुहोस्"}
-              </Button>
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b bg-muted/60 text-muted-foreground font-bold">
+                    <tr>
+                      <th className="px-3.5 py-3 w-12 text-center">क्र.सं.</th>
+                      <th className="px-3.5 py-3">पेजको नाम र कार्य</th>
+                      <th className="px-3.5 py-3 w-40">श्रेणी (Category)</th>
+                      <th className="px-3.5 py-3 text-center w-80">अनुमति स्तर (Access Level)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {APP_NAV_PAGES.map((page, idx) => {
+                      const currentLevel = empPermMap[page.path] || "full_access";
+                      return (
+                        <tr key={page.path} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-3.5 py-2.5 text-center font-mono text-muted-foreground font-semibold">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3.5 py-2.5">
+                            <div className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                              <span>{page.nepaliLabel}</span>
+                              <span className="text-muted-foreground text-xs font-mono font-normal">
+                                ({page.label})
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {page.description} •{" "}
+                              <span className="font-mono text-primary/80">{page.path}</span>
+                            </div>
+                          </td>
+                          <td className="px-3.5 py-2.5">
+                            <Badge variant="outline" className="text-[10px] font-semibold">
+                              {page.category}
+                            </Badge>
+                          </td>
+                          <td className="px-3.5 py-2.5 text-center">
+                            <div className="inline-flex rounded-lg border p-1 bg-background shadow-xs gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handlePermissionChange(page.path, "full_access")}
+                                className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                  currentLevel === "full_access"
+                                    ? "bg-emerald-600 text-white shadow-xs font-bold"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                }`}
+                              >
+                                {currentLevel === "full_access" && <Check className="size-3" />}
+                                पूर्ण पहुँच (Edit)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePermissionChange(page.path, "read_only")}
+                                className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                  currentLevel === "read_only"
+                                    ? "bg-blue-600 text-white shadow-xs font-bold"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                }`}
+                              >
+                                {currentLevel === "read_only" && <Check className="size-3" />}
+                                हेर्न मात्र (Read)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePermissionChange(page.path, "no_access")}
+                                className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                  currentLevel === "no_access"
+                                    ? "bg-rose-600 text-white shadow-xs font-bold"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                }`}
+                              >
+                                {currentLevel === "no_access" && <Check className="size-3" />}
+                                निषेध (None)
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Bottom Save Action */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
+                <div className="text-xs text-muted-foreground">
+                  कर्मचारीले लगइन गर्दा तोकिएका पृष्ठहरू मात्र खुल्नेछन् वा हेर्न मात्र मिल्नेछ।
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleSavePermissions}
+                  disabled={savingPermissions || !selectedEmpId}
+                  className="gap-2 bg-primary font-bold text-primary-foreground shrink-0 shadow-sm"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingPermissions ? "सुरक्षित हुँदैछ..." : "कर्मचारी अनुमति सुरक्षित गर्नुहोस्"}
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>

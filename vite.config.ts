@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Vercel needs a Vercel-shaped server build; VERCEL=1 is set in Vercel CI.
+  // Without this defaults to a Cloudflare Worker bundle that Vercel can't run.
+  nitro: process.env.VERCEL ? { preset: "vercel" } : undefined,
 });

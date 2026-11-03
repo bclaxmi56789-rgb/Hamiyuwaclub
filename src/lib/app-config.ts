@@ -26,6 +26,9 @@ export interface AppConfig {
   custom_ai_endpoint: string;
   custom_ai_key: string;
   custom_ai_model: string;
+
+  // Security Admin PIN (4 digits)
+  admin_pin?: string;
 }
 
 export const USER_OPENROUTER_KEY =
@@ -89,6 +92,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   custom_ai_endpoint: "",
   custom_ai_key: "",
   custom_ai_model: "",
+  admin_pin: "",
 };
 
 const STORAGE_KEY = "hami_app_configuration";
