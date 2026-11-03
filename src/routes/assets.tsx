@@ -54,6 +54,7 @@ import {
   issueMultipleTheliStockItems,
   reportTheliStockClosing,
   deleteTheliStockBatch,
+  clearAllTheliData,
 } from "@/lib/workspace.functions";
 
 export const Route = createFileRoute("/assets")({
@@ -74,114 +75,9 @@ const inputCls =
   "w-full rounded-md border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary shadow-2xs";
 
 /* ── Seed sample stock if brand new ──────────────────────────── */
-const SEED_BATCHES: TheliStockBatch[] = [
-  {
-    id: "tsb-seed-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    start_from: "GT-0001",
-    end_to: "GT-0250",
-    vouchers_per_theli: 50,
-    total_vouchers: 250,
-    total_theli: 5,
-    remarks: "आ.व. २०८१/८२ वडा नं. ४ पहिलो लट थेली स्टक",
-    created_at: new Date().toISOString(),
-  },
-];
+const SEED_BATCHES: TheliStockBatch[] = [];
 
-const SEED_ITEMS: TheliStockItem[] = [
-  {
-    id: "th-seed-rem",
-    batch_id: "tsb-seed-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 1,
-    range_from: "GT-0031",
-    range_to: "GT-0050",
-    total_vouchers: 20,
-    status: "returned_remaining",
-    is_remaining_open: true, // Rank 1: Remaining theli ready to be issued first!
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 20,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-seed-2",
-    batch_id: "tsb-seed-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 2,
-    range_from: "GT-0051",
-    range_to: "GT-0100",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-seed-3",
-    batch_id: "tsb-seed-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 3,
-    range_from: "GT-0101",
-    range_to: "GT-0150",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-seed-4",
-    batch_id: "tsb-seed-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 4,
-    range_from: "GT-0151",
-    range_to: "GT-0200",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-seed-5",
-    batch_id: "tsb-seed-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 5,
-    range_from: "GT-0201",
-    range_to: "GT-0250",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-];
+const SEED_ITEMS: TheliStockItem[] = [];
 
 /* ── Legacy row helper ───────────────────────────────────────── */
 function TheliRangeRows({
@@ -295,6 +191,8 @@ function AssetsPage() {
   const fetchLegacyTheliFn = useServerFn(getTheliData);
   const saveLegacyTheliFn = useServerFn(saveTheliLog);
   const deleteLegacyTheliFn = useServerFn(deleteTheliLog);
+  const clearAllTheliFn = useServerFn(clearAllTheliData);
+  const [clearingData, setClearingData] = useState(false);
 
   // Queries
   const theliStockQuery = useQuery({
@@ -339,27 +237,17 @@ function AssetsPage() {
   // Sync server data
   useEffect(() => {
     if (theliStockQuery.data) {
-      if (theliStockQuery.data.batches && theliStockQuery.data.batches.length > 0) {
-        setStockBatches(theliStockQuery.data.batches);
-        try {
-          localStorage.setItem(
-            "hami_theli_stock_batches",
-            JSON.stringify(theliStockQuery.data.batches),
-          );
-        } catch {}
-      }
-      if (theliStockQuery.data.items && theliStockQuery.data.items.length > 0) {
-        setStockItems(theliStockQuery.data.items);
-        try {
-          localStorage.setItem(
-            "hami_theli_stock_items",
-            JSON.stringify(theliStockQuery.data.items),
-          );
-        } catch {}
-      }
-      if (theliStockQuery.data.logs) {
-        setDailyLogs(theliStockQuery.data.logs);
-      }
+      const bList = theliStockQuery.data.batches || [];
+      const iList = theliStockQuery.data.items || [];
+      const lList = theliStockQuery.data.logs || [];
+      setStockBatches(bList);
+      setStockItems(iList);
+      setDailyLogs(lList);
+      try {
+        localStorage.setItem("hami_theli_stock_batches", JSON.stringify(bList));
+        localStorage.setItem("hami_theli_stock_items", JSON.stringify(iList));
+        localStorage.setItem("hami_theli_daily_logs", JSON.stringify(lList));
+      } catch {}
       if (theliStockQuery.data.employees) {
         setEmployees(theliStockQuery.data.employees);
       }
@@ -371,6 +259,51 @@ function AssetsPage() {
 
   // Notifications
   const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleClearAllTheliAndLedger = async () => {
+    if (
+      !window.confirm(
+        "चेतावनी: के तपाईं थेली स्टक र लेजरका सबै पुरानो डाटा मेटाउन चाहनुहुन्छ? यसपछि नयाँ थेली स्टक दर्ता गर्न सकिनेछ।",
+      )
+    ) {
+      return;
+    }
+    setClearingData(true);
+    setNotice(null);
+    try {
+      await clearAllTheliFn();
+      setStockBatches([]);
+      setStockItems([]);
+      setDailyLogs([]);
+      try {
+        localStorage.removeItem("hami_theli_stock_batches");
+        localStorage.removeItem("hami_theli_stock_items");
+        localStorage.removeItem("hami_theli_daily_logs");
+      } catch {}
+      refreshAll();
+      setNotice({
+        type: "success",
+        text: "थेली स्टक र लेजरको सम्पूर्ण पुरानो डाटा सफलतापूर्वक मेटाइयो। अब नयाँ डाटा भर्न सक्नुहुन्छ।",
+      });
+    } catch (e: any) {
+      // Local fallback reset
+      setStockBatches([]);
+      setStockItems([]);
+      setDailyLogs([]);
+      try {
+        localStorage.removeItem("hami_theli_stock_batches");
+        localStorage.removeItem("hami_theli_stock_items");
+        localStorage.removeItem("hami_theli_daily_logs");
+      } catch {}
+      refreshAll();
+      setNotice({
+        type: "success",
+        text: "स्थानीय थेली र लेजर डाटा खाली गरियो।",
+      });
+    } finally {
+      setClearingData(false);
+    }
+  };
 
   /* ─────────────────────────────────────────────────────────────
      TAB 1: STOCK MASTER FORM STATE
@@ -920,69 +853,84 @@ function AssetsPage() {
         )}
 
         {/* Sub-Navigation Tabs */}
-        <div className="no-print flex border-b gap-2 sm:gap-6 overflow-x-auto text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setSubTab("stock")}
-            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              subTab === "stock"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Package className="size-3.5" />
-            <span>थेली स्टक स्थिति (Stock Status)</span>
-            <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-mono text-primary font-bold">
-              {stockItems.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSubTab("add_stock")}
-            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              subTab === "add_stock"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Plus className="size-3.5" />
-            <span>नयाँ थेली स्टक दर्ता (Add Stock)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSubTab("issue")}
-            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              subTab === "issue"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <UserCheck className="size-3.5" />
-            <span>कर्मचारीलाई थेली जारी (Issue Theli)</span>
-            {availableRanges.some((r) => r.is_remaining_open) && (
-              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] text-amber-700 font-bold">
-                बाँकी थेली छ!
+        <div className="no-print flex items-center justify-between border-b gap-2 overflow-x-auto">
+          <div className="flex gap-2 sm:gap-6 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setSubTab("stock")}
+              className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                subTab === "stock"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Package className="size-3.5" />
+              <span>थेली स्टक स्थिति (Stock Status)</span>
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-mono text-primary font-bold">
+                {stockItems.length}
               </span>
-            )}
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setSubTab("boxes")}
-            className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              subTab === "boxes"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <HandCoins className="size-3.5" />
-            <span>कर्मचारी अनुसार थेली बक्स (Employee Boxes)</span>
-            <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono font-bold">
-              {employees.length}
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setSubTab("add_stock")}
+              className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                subTab === "add_stock"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Plus className="size-3.5" />
+              <span>नयाँ थेली स्टक दर्ता (Add Stock)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSubTab("issue")}
+              className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                subTab === "issue"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <UserCheck className="size-3.5" />
+              <span>कर्मचारीलाई थेली जारी (Issue Theli)</span>
+              {availableRanges.some((r) => r.is_remaining_open) && (
+                <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] text-amber-700 font-bold">
+                  बाँकी थेली छ!
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSubTab("boxes")}
+              className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                subTab === "boxes"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <HandCoins className="size-3.5" />
+              <span>कर्मचारी अनुसार थेली बक्स (Employee Boxes)</span>
+              <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono font-bold">
+                {employees.length}
+              </span>
+            </button>
+          </div>
+
+          {(stockItems.length > 0 || dailyLogs.length > 0) && (
+            <button
+              type="button"
+              disabled={clearingData}
+              onClick={handleClearAllTheliAndLedger}
+              className="mb-2 shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-destructive hover:bg-destructive/10 border border-destructive/30 rounded-lg px-2.5 py-1 transition-all"
+              title="सबै पुरानो थेली र लेजर डाटा मेटाउनुहोस्"
+            >
+              <Trash2 className="size-3" />
+              <span>{clearingData ? "मेटिँदैछ…" : "पुरानो थेली/लेजर मेटाउनुहोस्"}</span>
+            </button>
+          )}
         </div>
 
         {/* ═════════════════════════════════════════════════════════════ */}

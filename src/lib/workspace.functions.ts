@@ -2990,6 +2990,32 @@ export const deleteTheliStockBatch = createServerFn({ method: "POST" })
     return true;
   });
 
+// Clear all theli data (theli stock batches, stock items, and daily theli ledger logs)
+export const clearAllTheliData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    try {
+      await context.supabase
+        .from("theli_stock_items")
+        .delete()
+        .eq("owner_id", context.userId);
+
+      await context.supabase
+        .from("theli_stock_batches")
+        .delete()
+        .eq("owner_id", context.userId);
+
+      await context.supabase
+        .from("theli_logs")
+        .delete()
+        .eq("owner_id", context.userId);
+
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message };
+    }
+  });
+
 // ═══════════════════════════════════════════════════════════
 // EMPLOYEE PAGE PERMISSIONS (Access Control)
 // ═══════════════════════════════════════════════════════════
