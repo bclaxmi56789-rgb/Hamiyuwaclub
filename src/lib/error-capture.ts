@@ -1,6 +1,31 @@
 // Captures the original Error out-of-band so server.ts can recover the stack
 // when h3 has already swallowed the throw into a generic 500 Response.
 
+// Ensure DOM globals exist during SSR so isomorphic libraries (like Leaflet)
+// do not throw "ReferenceError: window is not defined" when imported on the server.
+if (typeof globalThis !== "undefined" && typeof (globalThis as any).window === "undefined") {
+  const g = globalThis as any;
+  g.window = g;
+  g.document = {
+    documentElement: { style: {} },
+    getElementsByTagName: () => [],
+    createElement: () => ({ style: {}, setAttribute: () => {} }),
+    createElementNS: () => ({ style: {} }),
+  };
+  if (!g.navigator) {
+    try {
+      Object.defineProperty(g, "navigator", {
+        value: { userAgent: "node" },
+        writable: true,
+        configurable: true,
+      });
+    } catch {
+      // ignore
+    }
+  }
+  g.screen = {};
+}
+
 let lastCapturedError: { error: unknown; at: number } | undefined;
 const TTL_MS = 5_000;
 
