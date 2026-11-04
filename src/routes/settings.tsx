@@ -102,6 +102,8 @@ function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [vault, setVault] = useState<AIVaultData>(() => getAIVault());
   const [vaultSavedMessage, setVaultSavedMessage] = useState<string | null>(null);
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState<string | null>(null);
+  const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
   const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
@@ -360,6 +362,31 @@ function SettingsPage() {
     setTimeout(() => setVaultSavedMessage(null), 3500);
   }
 
+  async function handleSaveAllVaultKeys() {
+    setSaving(true);
+    setSavedSuccess(false);
+    try {
+      const allUpdates: Partial<AIVaultData> = {
+        openrouter_api_key: form.openrouter_api_key,
+        openrouter_model: form.openrouter_model,
+        gemini_api_key: form.gemini_api_key,
+        gemini_model: form.gemini_model,
+        openai_api_key: form.openai_api_key,
+        openai_model: form.openai_model,
+      };
+      const updatedVault = saveAIVault(allUpdates);
+      setVault(updatedVault);
+      saveStoredConfig(form);
+      await saveAppConfigFn({ data: { ...form, ...allUpdates } });
+      setVaultSavedMessage("सबै AI Keys र मोडलहरू भण्डारमा सुरक्षित गरियो ✓");
+      setTimeout(() => setVaultSavedMessage(null), 4000);
+    } catch (err) {
+      alert("AI Vault सेभ गर्न सकिएन: " + ((err as Error)?.message || "अज्ञात त्रुटि"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleFetchGeminiModels() {
     if (!form.gemini_api_key.trim()) {
       alert("पहिले Gemini API Key प्रविष्ट गर्नुहोस्।");
@@ -506,8 +533,40 @@ function SettingsPage() {
     custom_ai_model: form.custom_ai_model,
   };
 
-  const handleSaveProfile = () => void handleSaveSection(PROFILE_FIELDS);
-  const handleSaveAI = () => void handleSaveSection(AI_FIELDS);
+  async function handleSaveProfile() {
+    const fyErr = validateFiscalYearForm();
+    if (fyErr) {
+      alert(fyErr);
+      return;
+    }
+    setSaving(true);
+    setProfileSuccessMessage(null);
+    try {
+      saveStoredConfig(PROFILE_FIELDS);
+      await saveAppConfigFn({ data: PROFILE_FIELDS });
+      setProfileSuccessMessage("संस्था तथा लोगो प्रोफाइल सफलतापूर्वक सुरक्षित गरियो ✓");
+      setTimeout(() => setProfileSuccessMessage(null), 4000);
+    } catch (err: unknown) {
+      alert("कन्फिगरेसन सुरक्षित गर्न सकिएन: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveAI() {
+    setSaving(true);
+    setAiSuccessMessage(null);
+    try {
+      saveStoredConfig(AI_FIELDS);
+      await saveAppConfigFn({ data: AI_FIELDS });
+      setAiSuccessMessage("Agentic AI सेटिङ सफलतापूर्वक सुरक्षित गरियो ✓");
+      setTimeout(() => setAiSuccessMessage(null), 4000);
+    } catch (err: unknown) {
+      alert("AI सेटिङ सुरक्षित गर्न सकिएन: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSave() {
     const fyErr = validateFiscalYearForm();
@@ -595,10 +654,6 @@ function SettingsPage() {
             संस्थाको प्रोफाइल, लोगो, तथा रसिद/बिल स्क्यानका लागि Gemini / OpenAI मोडल सेटिङ
           </p>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="gap-2 shrink-0">
-          <Save className="h-4 w-4" />
-          {saving ? "सुरक्षित हुँदैछ..." : "कन्फिगरेसन सेभ गर्नुहोस्"}
-        </Button>
       </div>
 
       {savedSuccess && (
@@ -618,23 +673,23 @@ function SettingsPage() {
         </div>
       )}
 
-      <Tabs defaultValue="permissions">
-        <TabsList className="grid grid-cols-4 max-w-2xl">
-          <TabsTrigger value="permissions" className="gap-2 font-bold text-primary">
-            <UserCheck className="h-4 w-4" />
-            कर्मचारी अनुमति (Permissions)
+      <Tabs defaultValue="permissions" className="w-full">
+        <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full h-auto p-1.5 bg-muted/70 rounded-xl gap-1">
+          <TabsTrigger value="permissions" className="gap-2 py-2.5 font-bold text-xs sm:text-sm">
+            <UserCheck className="h-4 w-4 shrink-0" />
+            <span>कर्मचारी अनुमति (Permissions)</span>
           </TabsTrigger>
-          <TabsTrigger value="vault" className="gap-2 font-bold">
-            <Lock className="h-4 w-4 text-primary" />
-            AI कुञ्जी भण्डार (AI Vault)
+          <TabsTrigger value="vault" className="gap-2 py-2.5 font-bold text-xs sm:text-sm">
+            <Lock className="h-4 w-4 shrink-0" />
+            <span>AI कुञ्जी भण्डार (AI Vault)</span>
           </TabsTrigger>
-          <TabsTrigger value="entity" className="gap-2">
-            <Building2 className="h-4 w-4" />
-            संस्था र लोगो (Entity)
+          <TabsTrigger value="entity" className="gap-2 py-2.5 font-bold text-xs sm:text-sm">
+            <Building2 className="h-4 w-4 shrink-0" />
+            <span>संस्था र लोगो (Entity)</span>
           </TabsTrigger>
-          <TabsTrigger value="ai" className="gap-2">
-            <Bot className="h-4 w-4" />
-            Agentic AI कन्फिग
+          <TabsTrigger value="ai" className="gap-2 py-2.5 font-bold text-xs sm:text-sm">
+            <Bot className="h-4 w-4 shrink-0" />
+            <span>Agentic AI कन्फिग</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1399,6 +1454,90 @@ function SettingsPage() {
             </div>
           </div>
 
+          {/* 3. OpenAI Vault Box */}
+          <div className="rounded-2xl border bg-card p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="size-8 rounded-lg bg-emerald-600/10 text-emerald-600 font-black text-xs flex items-center justify-center">
+                  OA
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-foreground">OpenAI Vault</h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    ChatGPT / GPT-4o OCR तथा ब्याकअप मोडल
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className={`text-xs px-2.5 py-0.5 font-semibold ${
+                  form.openai_api_key
+                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {form.openai_api_key ? "✓ भण्डारमा सुरक्षित (Saved)" : "कुञ्जी खाली"}
+              </Badge>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">OpenAI API Key</Label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showOpenAIKey ? "text" : "password"}
+                      value={form.openai_api_key}
+                      onChange={(e) => setForm((p) => ({ ...p, openai_api_key: e.target.value }))}
+                      placeholder="sk-proj-..."
+                      className="font-mono text-xs pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOpenAIKey(!showOpenAIKey)}
+                      className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                    >
+                      {showOpenAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleSaveVaultKey("openai")}
+                    disabled={saving}
+                    className="gap-1.5 shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span>भण्डारमा सेभ</span>
+                  </Button>
+                </div>
+                <div className="text-[11px] font-mono text-muted-foreground">
+                  हालको कुञ्जी: {maskApiKey(form.openai_api_key)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">OpenAI मोडल (Active Model)</Label>
+                  <Select
+                    value={form.openai_model || "gpt-4o-mini"}
+                    onValueChange={(val) => setForm((p) => ({ ...p, openai_model: val }))}
+                  >
+                    <SelectTrigger className="text-xs font-mono">
+                      <SelectValue placeholder="मोडल छान्नुहोस्" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4o-mini">
+                        gpt-4o-mini (तीव्र, किफायती, भिजन OCR)
+                      </SelectItem>
+                      <SelectItem value="gpt-4o">gpt-4o (पूर्ण फ्ल्यागशिप)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Test AI Connection Bar */}
           <div className="rounded-2xl border bg-card p-5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="space-y-0.5">
@@ -1447,6 +1586,30 @@ function SettingsPage() {
               </div>
             </div>
           )}
+
+          {/* ─── Vault Tab Save Button ─── */}
+          {vaultSavedMessage && (
+            <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+              <span className="font-semibold">{vaultSavedMessage}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
+            <p className="text-xs text-muted-foreground">
+              यहाँ प्रविष्ट गरिएका सबै API Keys सुरक्षित भण्डार (AI Vault) मा सधैंका लागि सेभ गर्न
+              यो बटन थिच्नुहोस्।
+            </p>
+            <Button
+              type="button"
+              onClick={() => void handleSaveAllVaultKeys()}
+              disabled={saving}
+              className="gap-2 font-bold shrink-0 bg-primary"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "सुरक्षित हुँदैछ..." : "AI Vault सेभ गर्नुहोस्"}
+            </Button>
+          </div>
         </TabsContent>
 
         {/* ─── TAB 1: ENTITY & LOGO ────────────────────────────────────────── */}
@@ -1653,8 +1816,23 @@ function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex justify-end border-t pt-4">
-            <Button onClick={handleSaveProfile} disabled={saving} className="gap-2">
+          {profileSuccessMessage && (
+            <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+              <span className="font-semibold">{profileSuccessMessage}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
+            <p className="text-xs text-muted-foreground">
+              संस्थाको नाम, लोगो, सम्पर्क विवरण, तथा आर्थिक वर्षको मिति सेभ गर्न यो बटन थिच्नुहोस्।
+            </p>
+            <Button
+              type="button"
+              onClick={handleSaveProfile}
+              disabled={saving}
+              className="gap-2 font-bold shrink-0 bg-primary"
+            >
               <Save className="h-4 w-4" />
               {saving ? "सुरक्षित हुँदैछ..." : "संस्था प्रोफाइल सेभ गर्नुहोस्"}
             </Button>
@@ -2097,8 +2275,23 @@ function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex justify-end border-t pt-4">
-            <Button onClick={handleSaveAI} disabled={saving} className="gap-2">
+          {aiSuccessMessage && (
+            <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+              <span className="font-semibold">{aiSuccessMessage}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
+            <p className="text-xs text-muted-foreground">
+              बिल स्क्यान (OCR) तथा एआई सहायकका लागि मोडल तथा प्रदायक सेटिङ सेभ गर्नुहोस्।
+            </p>
+            <Button
+              type="button"
+              onClick={handleSaveAI}
+              disabled={saving}
+              className="gap-2 font-bold shrink-0 bg-primary"
+            >
               <Save className="h-4 w-4" />
               {saving ? "सुरक्षित हुँदैछ..." : "AI सेटिङ सेभ गर्नुहोस्"}
             </Button>
@@ -2106,13 +2299,6 @@ function SettingsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Footer Save */}
-      <div className="flex justify-end gap-3 border-t pt-4">
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
-          <Save className="h-4 w-4" />
-          {saving ? "सुरक्षित हुँदैछ..." : "कन्फिगरेसन सेभ गर्नुहोस्"}
-        </Button>
-      </div>
     </div>
   );
 }

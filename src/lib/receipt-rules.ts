@@ -777,7 +777,8 @@ export type EmployeeLedgerRow = {
   /** BS display date; "-" for the opening pseudo-row */
   date_bs: string;
   particulars: string;
-  source: "opening" | "salary_booked" | "salary_paid" | "advance";
+  /** "opening" | "salary_booked" | "salary_paid" | "advance" | "reimbursement" */
+  source: "opening" | "salary_booked" | "salary_paid" | "advance" | "reimbursement";
   ref?: string;
   dr: number;
   cr: number;
@@ -837,14 +838,18 @@ export function employeeAdvanceTransactions(
  *   is not double-counted)
  * - Salary paid (cash) → Dr: net_salary
  * - Advance paid (cash) → Dr
+ * - Reimbursement bills (employee_reimbursed expenses) → Dr: the bill
+ *   payable sits on the employee's ledger instead of the vendor's
  * Draft (pending) payroll rows do not post.
  */
 export function buildEmployeeLedger(params: {
   employee?: Pick<Employee, "id" | "opening_balance" | "balance_type"> | null;
   payrolls: PayrollRecord[];
   transactions: EmployeeLedgerTxn[];
+  /** Reimbursement expenses; only employee_reimbursed bills for this employee post */
+  expenses?: ExpenseRecord[];
 }): EmployeeLedgerRow[] {
-  const { employee, payrolls, transactions } = params;
+  const { employee, payrolls, transactions, expenses } = params;
   const opening = Math.max(0, Number(employee?.opening_balance) || 0);
   const balType: "dr" | "cr" = employee?.balance_type === "dr" ? "dr" : "cr";
   // Only this employee's payroll rows belong in their ledger — callers may
@@ -918,6 +923,34 @@ export function buildEmployeeLedger(params: {
     });
   }
 
+  // Reimbursement bills: payable goes to the employee, not the vendor
+  const reimbursed = (expenses || []).filter(
+    (e) =>
+      e.employee_reimbursed === true &&
+      employee?.id &&
+      e.linked_employee_id === employee.id,
+  );
+  for (const e of reimbursed) {
+    const amount = Math.max(0, Number(e.final_amount) || 0);
+    if (amount <= 0) continue;
+    const date = (e.date_bs ?? "").trim();
+    const bill = (e.bill_number ?? "").trim();
+    drafts.push({
+      id: `reimb-${e.id ?? `${e.date_bs}-${e.expense_type}`}`,
+      date_bs: date || "-",
+      particulars:
+        (e.vendor_name ?? "").trim()
+          ? `कर्मचारी भार (Reimbursement) — भेन्डर: ${(e.vendor_name ?? "").trim()}${bill ? ` / बिल नं. ${bill}` : ""}`
+          : `कर्मचारी भार (Reimbursement)${bill ? ` — बिल नं. ${bill}` : ""}`,
+      source: "reimbursement",
+      ref: bill,
+      dr: amount,
+      cr: 0,
+      sortKey: date ? date.slice(0, 7).replace("/", "-") : "9999-99",
+      rank: 3,
+    });
+  }
+
   drafts.sort((a, b) => {
     if (a.sortKey !== b.sortKey) return a.sortKey < b.sortKey ? -1 : 1;
     return a.rank - b.rank;
@@ -957,8 +990,9 @@ export function employeeOutstandingDr(
   employee: Pick<Employee, "id" | "opening_balance" | "balance_type"> | null | undefined,
   payrolls: PayrollRecord[],
   transactions: EmployeeLedgerTxn[],
+  expenses?: ExpenseRecord[],
 ): number {
-  const rows = buildEmployeeLedger({ employee: employee ?? null, payrolls, transactions });
+  const rows = buildEmployeeLedger({ employee: employee ?? null, payrolls, transactions, expenses });
   const last = rows[rows.length - 1];
   if (!last || last.runType !== "dr") return 0;
   return Math.max(0, last.running);
@@ -1036,6 +1070,9 @@ export type ExpenseRecord = {
   vendor_name?: string;
   linked_member_id?: string;
   linked_employee_id?: string;
+  /** True when the bill is reimbursed by the linked employee: payable sits on the
+   *  employee's ledger (Dr), not on the vendor. */
+  employee_reimbursed?: boolean;
   linked_event_id?: string;
   line_items: AssetLineItem[] | ExpenseLineItem[];
   other_charges?: number;

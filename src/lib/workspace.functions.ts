@@ -526,6 +526,24 @@ export const getMembersData = createServerFn({ method: "GET" })
       // Table may not be migrated yet
     }
 
+    // Employee-reimbursement bills: payable on the employee's ledger
+    let employeeReimbursements: ExpenseRecord[] = [];
+    try {
+      const reimbRes = await context.supabase
+        .from("expense_records")
+        .select(
+          "id,expense_type,date_bs,bill_number,vendor_id,vendor_name,linked_employee_id,line_items,final_amount,employee_reimbursed,remarks,status",
+        )
+        .eq("owner_id", context.userId)
+        .neq("linked_employee_id", "")
+        .eq("employee_reimbursed", true);
+      if (!reimbRes.error && reimbRes.data) {
+        employeeReimbursements = reimbRes.data as unknown as ExpenseRecord[];
+      }
+    } catch {
+      // Column may not be migrated yet
+    }
+
     return {
       members,
       bodMembers: members,
@@ -533,6 +551,7 @@ export const getMembersData = createServerFn({ method: "GET" })
       payrollRecords,
       accounts,
       employeeTransactions,
+      employeeReimbursements,
     };
   });
 
@@ -1869,6 +1888,7 @@ export const saveExpenseRecord = createServerFn({ method: "POST" })
       vendor_name: z.string().optional(),
       linked_member_id: z.string().optional(),
       linked_employee_id: z.string().optional(),
+      employee_reimbursed: z.boolean().optional(),
       linked_event_id: z.string().optional(),
       line_items: z.array(z.any()),
       other_charges: z.number().optional(),
@@ -1915,6 +1935,7 @@ export const saveExpenseRecord = createServerFn({ method: "POST" })
       vendor_name: data.vendor_name ?? "",
       linked_member_id: data.linked_member_id ?? "",
       linked_employee_id: data.linked_employee_id ?? "",
+      employee_reimbursed: data.employee_reimbursed === true,
       linked_event_id: data.linked_event_id ?? "",
       line_items: data.line_items,
       other_charges: data.other_charges ?? 0,
@@ -1930,22 +1951,41 @@ export const saveExpenseRecord = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     };
     if (data.id && !data.id.startsWith("local-")) {
-      const res = await context.supabase
+      let res = await context.supabase
         .from("expense_records")
         .update(payload)
         .eq("id", data.id)
         .eq("owner_id", context.userId)
         .select("*")
         .single();
+      // Older DBs may not have the employee_reimbursed column yet — retry without it
+      if (res.error && `${res.error.message}`.includes("employee_reimbursed")) {
+        const { employee_reimbursed: _skip, ...rest } = payload as Record<string, unknown>;
+        res = await context.supabase
+          .from("expense_records")
+          .update(rest)
+          .eq("id", data.id)
+          .eq("owner_id", context.userId)
+          .select("*")
+          .single();
+      }
       if (res.error) throw new Error(res.error.message);
       return res.data as ExpenseRecord;
     } else {
       const newId = `exp-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-      const res = await context.supabase
+      let res = await context.supabase
         .from("expense_records")
         .insert({ id: newId, owner_id: context.userId, ...payload })
         .select("*")
         .single();
+      if (res.error && `${res.error.message}`.includes("employee_reimbursed")) {
+        const { employee_reimbursed: _skip, ...rest } = payload as Record<string, unknown>;
+        res = await context.supabase
+          .from("expense_records")
+          .insert({ id: newId, owner_id: context.userId, ...rest })
+          .select("*")
+          .single();
+      }
       if (res.error) throw new Error(res.error.message);
       return res.data as ExpenseRecord;
     }

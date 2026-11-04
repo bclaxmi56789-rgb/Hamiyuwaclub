@@ -24,6 +24,16 @@ import {
   UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import { WorkspacePage, money, useWorkspace } from "@/components/workspace";
 import {
@@ -56,6 +66,7 @@ import {
   deleteTheliStockBatch,
   clearAllTheliData,
 } from "@/lib/workspace.functions";
+import { convertTheliBalanceToReceipt } from "@/lib/receipts.functions";
 
 export const Route = createFileRoute("/assets")({
   head: () => ({
@@ -192,7 +203,64 @@ function AssetsPage() {
   const saveLegacyTheliFn = useServerFn(saveTheliLog);
   const deleteLegacyTheliFn = useServerFn(deleteTheliLog);
   const clearAllTheliFn = useServerFn(clearAllTheliData);
+  const convertBalanceFn = useServerFn(convertTheliBalanceToReceipt);
   const [clearingData, setClearingData] = useState(false);
+  const [convertTarget, setConvertTarget] = useState<TheliStockItem | null>(null);
+  const [converting, setConverting] = useState(false);
+
+  const handleConfirmConvertToReceipt = async () => {
+    if (!convertTarget) return;
+    const balance = convertTarget.balance || 0;
+    if (balance <= 0) {
+      setConvertTarget(null);
+      return;
+    }
+    setConverting(true);
+    try {
+      await convertBalanceFn({
+        data: {
+          item_id: convertTarget.id,
+          ward: convertTarget.ward,
+          fiscal_year: convertTarget.fiscal_year,
+          theli_no: convertTarget.theli_no || 0,
+          range_from: convertTarget.range_from || "",
+          range_to: convertTarget.range_to || "",
+          last_voucher_booked: convertTarget.last_voucher_booked || "",
+          issued_to_name: convertTarget.issued_to_name || "",
+          municipality: convertTarget.municipality || "",
+          amount: balance,
+          date:
+            convertTarget.issued_date ||
+            `${convertTarget.fiscal_year.split("/")[0] || "2083"}/01/01`,
+        },
+      });
+
+      const updatedItems = stockItems.map((it) =>
+        it.id === convertTarget.id
+          ? {
+              ...it,
+              amount_obtained: Number(it.amount_booked) || 0,
+              balance: 0,
+            }
+          : it,
+      );
+      setStockItems(updatedItems);
+      try {
+        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+      } catch {}
+
+      setConvertTarget(null);
+      setNotice({
+        type: "success",
+        text: `काटिएको रकम रु. ${balance.toLocaleString("en-IN")} रसिदमा रूपान्तरण भयो!`,
+      });
+      refreshAll();
+    } catch (e: any) {
+      alert("त्रुटि भयो: " + (e?.message || "रसिदमा रूपान्तरण भएन"));
+    } finally {
+      setConverting(false);
+    }
+  };
 
   // Queries
   const theliStockQuery = useQuery({
@@ -1200,6 +1268,17 @@ function AssetsPage() {
                                   रिपोर्टिङ
                                 </Button>
                               )}
+                              {item.status === "completed" && (item.amount_booked || 0) > 0 && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={converting}
+                                  className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10"
+                                  onClick={() => setConvertTarget(item)}
+                                >
+                                  रसिदमा रूपान्तरण
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1968,6 +2047,47 @@ function AssetsPage() {
           </div>
         )}
       </div>
+
+      {/* Convert remaining balance (बाँकी अन्तर) to receipt confirmation */}
+      <AlertDialog
+        open={!!convertTarget}
+        onOpenChange={(o) => {
+          if (!o) setConvertTarget(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md text-xs">
+          <AlertDialogHeader>
+            <AlertDialogTitle>रसिदमा रूपान्तरण गर्ने निश्चित हुनुहुन्छ?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-[11px] leading-relaxed">
+                <p>
+                  थेली <strong className="font-mono">
+                    {convertTarget?.range_from} – {convertTarget?.range_to}
+                  </strong>{" "}
+                  (वडा {convertTarget?.ward}, आ.व. {convertTarget?.fiscal_year}) को काटिएको रकम{" "}
+                  <strong className="text-emerald-700">
+                    रु. {(convertTarget?.amount_booked || 0).toLocaleString("en-IN")}
+                  </strong>{" "}
+                  एउटा रसिद (receipt) मा रूपान्तरण गरिनेछ र बाँकी अन्तर शून्य हुनेछ।
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={converting}>रद्द</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={converting}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmConvertToReceipt();
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {converting ? "रूपान्तरण हुँदै…" : "हो, रसिदमा रूपान्तरण गर्नुहोस्"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </WorkspacePage>
   );
 }

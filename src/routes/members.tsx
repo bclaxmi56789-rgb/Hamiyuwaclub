@@ -26,6 +26,7 @@ import {
   type Member,
   type Employee,
   type PayrollRecord,
+  type ExpenseRecord,
 } from "@/lib/receipt-rules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -312,6 +313,15 @@ function MembersPage() {
       if ((query.data as any).employeeTransactions) {
         setEmpTransactions((query.data as any).employeeTransactions);
       }
+      if ((query.data as any).employeeReimbursements) {
+        setEmpReimbursements((query.data as any).employeeReimbursements);
+        try {
+          localStorage.setItem(
+            "hami_emp_reimbursement_cache",
+            JSON.stringify((query.data as any).employeeReimbursements),
+          );
+        } catch {}
+      }
     }
   }, [query.data]);
 
@@ -329,6 +339,15 @@ function MembersPage() {
       remarks: string;
     }>
   >([]);
+
+  // Employee-reimbursement bills from the expenses module
+  const [empReimbursements, setEmpReimbursements] = useState<ExpenseRecord[]>(() => {
+    try {
+      const stored = localStorage.getItem("hami_emp_reimbursement_cache");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [];
+  });
 
   // Search states
   const [searchMember, setSearchMember] = useState("");
@@ -425,7 +444,7 @@ function MembersPage() {
 
     const rows: PayrollRecord[] = activeEmps.map((emp) => {
       const savedRow = existing.find((r) => r.employee_id === emp.id);
-      const outstandingDr = employeeOutstandingDr(emp, payrollHistory, empTransactions);
+      const outstandingDr = employeeOutstandingDr(emp, payrollHistory, empTransactions, empReimbursements);
 
       if (savedRow) {
         // Pre-fill advance katti on editable drafts that don't have one yet
@@ -1272,8 +1291,9 @@ function MembersPage() {
         employee: currentLedgerEmp,
         payrolls: currentEmpPayrolls,
         transactions: empTransactions,
+        expenses: empReimbursements,
       }),
-    [currentLedgerEmp, currentEmpPayrolls, empTransactions],
+    [currentLedgerEmp, currentEmpPayrolls, empTransactions, empReimbursements],
   );
 
   // Advance payments only — salary-payment vouchers are excluded

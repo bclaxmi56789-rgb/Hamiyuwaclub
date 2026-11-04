@@ -156,3 +156,129 @@ export const saveReceipt = createServerFn({ method: "POST" })
     }
     return result.data as unknown as Receipt;
   });
+
+/** Convert a theli's full booked amount (काटिएको रकम) into a real ward receipt. */
+export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      item_id: z.string().trim().min(1),
+      ward: z.string().regex(/^[1-9]\d?$/),
+      fiscal_year: z.string().trim().min(1),
+      theli_no: z.number().int().optional().default(0),
+      range_from: z.string().trim().default(""),
+      range_to: z.string().trim().default(""),
+      last_voucher_booked: z.string().trim().default(""),
+      issued_to_name: z.string().trim().default(""),
+      municipality: z.string().trim().default(""),
+      amount: z.number().positive("रकम शून्य वा कम हुन सक्दैन"),
+      date: z.string().trim().min(1, "मिति आवश्यक छ"),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const fy = Number(data.fiscal_year.split("/")[0]);
+    if (!fy) throw new Error("आर्थिक वर्ष पढ्न सकिएन।");
+
+    // The full booked amount (काटिएको रकम) becomes the receipt
+    let balance = Math.round(data.amount * 100) / 100;
+    try {
+      const res = await supabase
+        .from("theli_stock_items")
+        .select("amount_booked,amount_obtained,issued_to_name,last_voucher_booked")
+        .eq("id", data.item_id)
+        .eq("owner_id", context.userId)
+        .maybeSingle();
+      if (!res.error && res.data) {
+        balance = Math.round(Number(res.data.amount_booked) * 100) / 100;
+        if (balance <= 0) throw new Error("यो थेलीमा काटिएको रकम छैन। केही गर्नु पर्दैन।");
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("काटिएको रकम")) throw e;
+    }
+
+    // Allocate the next receipt number under an owner-scoped lock-free upsert
+    const counter = await supabase
+      .from("receipt_counters")
+      .upsert(
+        { owner_id: context.userId, ward: data.ward, fiscal_year: fy, last_number: 0 },
+        { onConflict: "owner_id,ward,fiscal_year", ignoreDuplicates: true },
+      )
+      .select("last_number")
+      .single();
+    if (counter.error) throw new Error(counter.error.message);
+    const prev = Number(counter.data?.last_number) || 0;
+    const no = prev + 1;
+
+    const ref = `${data.last_voucher_booked || data.range_to || data.range_from}-आ${
+      data.ward
+    }-${data.fiscal_year}`;
+    const card = `TH${String(data.theli_no || 0).padStart(4, "0")}`;
+    const payerName = data.issued_to_name || "थेली संकलन (लेजर रूपान्तरण)";
+    const payload = {
+      card,
+      name: payerName,
+      ward: data.ward,
+      tole: data.municipality,
+      phone: "",
+      date: data.date,
+      year: String(fy),
+      mode: "नगद (Cash)",
+      months: [{ m: 0, amt: balance }],
+      no,
+      ref,
+      total: balance,
+    } satisfies Receipt;
+
+    // Theli conversion cards are not People-Master customers, so bypass the
+    // customer-card RPC and insert the owner-scoped ward receipt directly.
+    // Nothing is written to receipt_month_payments — no member month is marked paid.
+    const inserted = await supabase.from("ward_receipts").insert({
+      owner_id: context.userId,
+      ward: data.ward,
+      fiscal_year: fy,
+      no,
+      card,
+      receipt_date: data.date,
+      ref,
+      payload,
+    });
+    if (inserted.error) {
+      if (inserted.error.code === "23505" && inserted.error.message.includes("ref"))
+        throw new Error("यो सिरियल पहिले नै रसिदमा प्रयोग भइसकेको छ।");
+      throw new Error(inserted.error.message || "रसिद सुरक्षित भएन।");
+    }
+    // Confirm final counter state
+    await supabase
+      .from("receipt_counters")
+      .update({ last_number: no })
+      .eq("owner_id", context.userId)
+      .eq("ward", data.ward)
+      .eq("fiscal_year", fy)
+      .eq("last_number", prev);
+    const receipt = { ...payload, id: inserted.data?.[0]?.id } as unknown as Receipt;
+
+    // Mark the full booked amount as converted: बुझाएको = काटिएको, बाँकी अन्तर = 0
+    try {
+      const current = await supabase
+        .from("theli_stock_items")
+        .select("amount_booked,amount_obtained")
+        .eq("id", data.item_id)
+        .eq("owner_id", context.userId)
+        .maybeSingle();
+      if (!current.error && current.data) {
+        const booked = Math.round(Number(current.data.amount_booked) * 100) / 100;
+        await supabase
+          .from("theli_stock_items")
+          .update({
+            amount_obtained: booked,
+            balance: 0,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.item_id)
+          .eq("owner_id", context.userId);
+      }
+    } catch {}
+
+    return { success: true, receipt, amount: balance };
+  });
