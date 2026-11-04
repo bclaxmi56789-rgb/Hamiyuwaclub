@@ -29,13 +29,13 @@ import {
   PieChart as PieChartIcon,
   BarChart3,
   ArrowUpRight,
-  ArrowDownRight,
   Sparkles,
   Banknote,
   Building2,
   Calendar,
 } from "lucide-react";
 import { DashboardAIChatbot } from "@/components/dashboard-ai-chatbot";
+import { DashboardLiveMap } from "@/components/dashboard-live-map";
 import { SummaryTable } from "@/components/summary-table";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -51,7 +51,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
   AreaChart,
   Area,
 } from "recharts";
@@ -81,6 +80,7 @@ function Dashboard() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [tole, setTole] = useState("");
+  const [myName, setMyName] = useState("");
 
   // Fetch expenses to calculate net surplus/deficit
   const fetchExpensesFn = useServerFn(getExpensesData);
@@ -375,6 +375,30 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ─── LIVE TEAM LOCATION MAP ─── */}
+      {signedIn && userId && (
+        <div className="mt-6">
+          {/* Name input so team members can identify themselves on the map */}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <label className="text-xs font-semibold text-muted-foreground">
+              नक्सामा मेरो नाम:
+            </label>
+            <input
+              type="text"
+              placeholder="जस्तै: राम बहादुर, Collector 1 …"
+              value={myName}
+              onChange={(e) => setMyName(e.target.value)}
+              className="h-7 rounded-md border bg-background px-2.5 text-xs font-semibold text-foreground placeholder:text-muted-foreground/50 w-48 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <DashboardLiveMap
+            userId={userId}
+            userName={myName || `सदस्य-${userId.slice(0, 6)}`}
+            accountId="tjawgszwbozvxqugdnva"
+          />
+        </div>
+      )}
 
       {/* ─── INSTITUTIONAL AI CHATBOT COPILOT ─── */}
       <div className="my-6">
