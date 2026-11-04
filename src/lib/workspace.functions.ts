@@ -2231,11 +2231,34 @@ export const getRpData = createServerFn({ method: "GET" })
         opening_balance: Number(a.opening_balance) || 0,
       }));
       const accountsById = new Map(accounts.map((a) => [a.id as string, a]));
-      const transactions = (txRes.data ?? []).map((t) => ({
-        ...t,
-        account_name: (accountsById.get(String((t as { account_id?: string }).account_id ?? ""))
-          ?.name ?? null) as string | null,
-      }));
+
+      // Events / Programmes list for donation linking
+      let events: Array<{ id: string; title: string; locality?: string; status?: string }> = [];
+      try {
+        const evtRes = await context.supabase
+          .from("club_events")
+          .select("id, title, locality, status")
+          .eq("owner_id", context.userId)
+          .order("created_at", { ascending: false });
+        if (evtRes.data) events = evtRes.data;
+      } catch {}
+      const eventsById = new Map(events.map((e) => [e.id, e]));
+
+      const transactions = (txRes.data ?? []).map((t: Record<string, unknown>) => {
+        const pType = String(t.party_type || "");
+        const rawRemarks = String(t.remarks || "");
+        const progFromRemarks = rawRemarks.match(/\[कार्यक्रम:\s*([^\]]+)\]/)?.[1] || "";
+        const evTitle =
+          String(t.linked_event_title || "") ||
+          (pType === "donation" && t.party_id && eventsById.get(String(t.party_id))?.title) ||
+          progFromRemarks;
+        return {
+          ...t,
+          account_name: (accountsById.get(String(t.account_id ?? ""))?.name ?? null) as string | null,
+          linked_event_title: evTitle || undefined,
+          company_name: String(t.company_name || "") || (pType === "donation" ? String(t.party_name || "") : undefined),
+        };
+      });
 
       // TDS/SST accumulation from payroll records
       let tds_sst_accrued = 0;
@@ -2283,6 +2306,7 @@ export const getRpData = createServerFn({ method: "GET" })
         customers: custRes.data ?? [],
         vendors: vendRes.data ?? [],
         employees: empRes.data ?? [],
+        events,
         tds_sst,
       };
     } catch {
@@ -2292,6 +2316,7 @@ export const getRpData = createServerFn({ method: "GET" })
         customers: [] as unknown[],
         vendors: [] as unknown[],
         employees: [] as unknown[],
+        events: [] as unknown[],
         tds_sst: { accrued: 0, paid: 0, balance: 0 },
       };
     }
@@ -2368,9 +2393,26 @@ export const saveRpTransaction = createServerFn({ method: "POST" })
       amount: z.number().positive(),
       remarks: z.string().optional(),
       manual_ref: z.string().max(40).optional(),
+      company_name: z.string().optional(),
+      linked_event_id: z.string().optional(),
+      linked_event_title: z.string().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
+    const isDonation = data.party_type === "donation";
+    const partyName = isDonation && data.company_name?.trim()
+      ? data.company_name.trim()
+      : (data.party_name ?? "").trim();
+
+    // Include linked programme in remarks if not already present
+    let finalRemarks = (data.remarks ?? "").trim();
+    if (isDonation && data.linked_event_title?.trim()) {
+      const progTag = `[कार्यक्रम: ${data.linked_event_title.trim()}]`;
+      if (!finalRemarks.includes(progTag)) {
+        finalRemarks = finalRemarks ? `${progTag} ${finalRemarks}` : progTag;
+      }
+    }
+
     const res = await context.supabase.rpc("save_rp_transaction", {
       p: {
         txn_type: data.txn_type,
@@ -2378,10 +2420,10 @@ export const saveRpTransaction = createServerFn({ method: "POST" })
         account_id: data.account_id,
         to_account_id: data.to_account_id ?? "",
         party_type: data.party_type ?? "",
-        party_id: data.party_id ?? "",
-        party_name: data.party_name ?? "",
+        party_id: isDonation && data.linked_event_id ? data.linked_event_id : (data.party_id ?? ""),
+        party_name: partyName,
         amount: data.amount,
-        remarks: data.remarks ?? "",
+        remarks: finalRemarks,
         manual_ref: data.manual_ref ?? "",
       },
     });
@@ -2390,7 +2432,29 @@ export const saveRpTransaction = createServerFn({ method: "POST" })
     if (!row || typeof row["ref_no"] !== "string") {
       throw new Error("रसिद नम्बर तालयो गर्न सकिएन (RPC result खाली छ)।");
     }
-    return row as unknown as RPTransactionRow;
+
+    const rid = String(row["id"] || "");
+    if (rid && (data.company_name || data.linked_event_id || data.linked_event_title)) {
+      try {
+        await context.supabase
+          .from("rp_transactions")
+          .update({
+            company_name: data.company_name || "",
+            linked_event_id: data.linked_event_id || "",
+            linked_event_title: data.linked_event_title || "",
+          })
+          .eq("id", rid);
+      } catch {
+        // Optional columns
+      }
+    }
+
+    return {
+      ...(row as unknown as RPTransactionRow),
+      company_name: data.company_name || undefined,
+      linked_event_id: data.linked_event_id || undefined,
+      linked_event_title: data.linked_event_title || undefined,
+    };
   });
 
 export const deleteRpTransaction = createServerFn({ method: "POST" })

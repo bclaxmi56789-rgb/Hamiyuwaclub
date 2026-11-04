@@ -15,7 +15,9 @@ const money = (n: number) =>
 
 const partyLabel = (t: RPTransaction) =>
   t.txn_type === "receipt"
-    ? "जना ग्राहक"
+    ? t.party_type === "donation"
+      ? "सहयोगदाता / कम्पनी"
+      : "जना ग्राहक"
     : t.party_type === "vendor"
       ? "विक्रेता"
       : t.party_type === "employee"
@@ -48,11 +50,17 @@ export function RPTransactionVoucher({
       : "";
   const fromText = accountText(fromAcc);
   const toText = accountText(toAcc);
-  const party = t.party_name || "";
+  const party = t.company_name || t.party_name || "";
+  const linkedProg =
+    t.linked_event_title ||
+    (t.remarks ? t.remarks.match(/\[कार्यक्रम:\s*([^\]]+)\]/)?.[1] : "") ||
+    "";
 
   const narration =
     t.txn_type === "receipt"
-      ? `${party ? `श्री ${party} (${partyLabel(t)}) बाट ` : ""}${fromText} खातामा रु. ${money(amount)} प्राप्त भयो।`
+      ? t.party_type === "donation"
+        ? `${party ? `श्री ${party} (सहयोगदाता/कम्पनी) बाट ` : ""}${linkedProg ? `"${linkedProg}" कार्यक्रमका लागि ` : ""}${fromText} खातामा रु. ${money(amount)} दान/सहयोग प्राप्त भयो।`
+        : `${party ? `श्री ${party} (${partyLabel(t)}) बाट ` : ""}${fromText} खातामा रु. ${money(amount)} प्राप्त भयो।`
       : t.txn_type === "payment"
         ? `${party ? `श्री ${party} (${partyLabel(t)}) लाई` : ""} ${fromText} खाताबाट रु. ${money(amount)} भुक्तानी गरियो।`
         : `${fromText} खाताबाट ${toText} खातामा रु. ${money(amount)} सारसम्पर्क गरियो।`;
@@ -72,7 +80,9 @@ export function RPTransactionVoucher({
 
   const title =
     t.txn_type === "receipt"
-      ? "आम्दानी रसिद प्रमाण"
+      ? t.party_type === "donation"
+        ? "दान तथा सहयोग रसिद (Donation Receipt)"
+        : "आम्दानी रसिद प्रमाण"
       : t.txn_type === "payment"
         ? "भुक्तानी (खर्च) प्रमाण"
         : "खाता हस्तान्तरण प्रमाण";
@@ -87,10 +97,10 @@ export function RPTransactionVoucher({
             )}
             <div>
               <h3 className="text-base font-bold text-foreground">
-                {config.entity_name || "हामी युवा क्लब"}
+                {config.entity_name || ""}
               </h3>
               <div className="text-xs text-muted-foreground">
-                {config.address || "वीरेन्द्रनगर, सुर्खेत"}
+                {config.address || ""}
               </div>
               {config.pan_vat && (
                 <div className="font-mono text-xs text-muted-foreground">PAN: {config.pan_vat}</div>
@@ -113,6 +123,13 @@ export function RPTransactionVoucher({
             आ.व.: <b>{fiscalLabel(fy)}</b>
           </span>
         </div>
+
+        {linkedProg && (
+          <div className="mt-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-900 dark:text-emerald-300">
+            <span className="font-semibold text-muted-foreground">सम्बन्धित कार्यक्रम (Linked Programme): </span>
+            <span className="font-extrabold">{linkedProg}</span>
+          </div>
+        )}
 
         <table className="mt-4 w-full text-sm">
           <thead>

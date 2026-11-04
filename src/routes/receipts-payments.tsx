@@ -72,12 +72,15 @@ type TxnForm = {
   txn_date: string;
   account_id: string;
   to_account_id: string;
-  party_type: "" | "customer" | "vendor" | "employee" | "tax";
+  party_type: "" | "customer" | "donation" | "vendor" | "employee" | "tax";
   party_id: string;
   party_name: string;
   amount: string;
   remarks: string;
   manual_ref: string;
+  company_name?: string;
+  linked_event_id?: string;
+  linked_event_title?: string;
 };
 
 const money = (v: number) => np((v || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 }));
@@ -102,6 +105,10 @@ function RPPage() {
   const customers = useMemo(() => dataQuery.data?.customers || [], [dataQuery.data]);
   const vendors = useMemo(() => dataQuery.data?.vendors || [], [dataQuery.data]);
   const employees = useMemo(() => dataQuery.data?.employees || [], [dataQuery.data]);
+  const events = useMemo(
+    () => ((dataQuery.data as any)?.events as Array<{ id: string; title: string; locality?: string; status?: string }>) || [],
+    [dataQuery.data],
+  );
   const tds_sst = useMemo(
     () => (dataQuery.data as any)?.tds_sst || { accrued: 0, paid: 0, balance: 0 },
     [dataQuery.data],
@@ -121,9 +128,12 @@ function RPPage() {
     txn_date: todayBS(),
     account_id: "",
     to_account_id: "",
-    party_type: "",
+    party_type: "customer",
     party_id: "",
     party_name: "",
+    company_name: "",
+    linked_event_id: "",
+    linked_event_title: "",
     amount: "",
     remarks: "",
     manual_ref: "",
@@ -302,9 +312,15 @@ function RPPage() {
       if (!txnForm.party_name.trim()) {
         setErr(
           tab === "receipt"
-            ? "जना थिचेर ग्राहक छान्नुहोस्।"
+            ? txnForm.party_type === "donation"
+              ? "कम्पनी वा दाताको नाम भर्नुहोस्।"
+              : "जना थिचेर ग्राहक छान्नुहोस्।"
             : "जना थिचेर विक्रेता वा कर्मचारी छान्नुहोस्।",
         );
+        return;
+      }
+      if (tab === "receipt" && txnForm.party_type === "donation" && !txnForm.linked_event_id) {
+        setErr("कृपया दान/सहयोगसँग सम्बन्धित कार्यक्रम वा कोष छान्नुहोस्।");
         return;
       }
     }
@@ -317,12 +333,15 @@ function RPPage() {
           txn_date: txnForm.txn_date,
           account_id: txnForm.account_id,
           to_account_id: tab === "transfer" ? txnForm.to_account_id : "",
-          party_type: tab === "receipt" ? "customer" : txnForm.party_type,
+          party_type: tab === "receipt" ? (txnForm.party_type === "donation" ? "donation" : "customer") : txnForm.party_type,
           party_id: txnForm.party_id,
           party_name: txnForm.party_name.trim(),
           amount: amt,
           remarks: txnForm.remarks.trim(),
           manual_ref: tab === "payment" ? txnForm.manual_ref.trim() : "",
+          company_name: txnForm.party_type === "donation" ? txnForm.company_name?.trim() || txnForm.party_name.trim() : undefined,
+          linked_event_id: txnForm.party_type === "donation" ? txnForm.linked_event_id : undefined,
+          linked_event_title: txnForm.party_type === "donation" ? txnForm.linked_event_title : undefined,
         },
       });
       const prefix = saved.ref_no.split("-")[0];
@@ -331,6 +350,9 @@ function RPPage() {
         ...prev,
         party_id: "",
         party_name: "",
+        company_name: "",
+        linked_event_id: "",
+        linked_event_title: "",
         amount: "",
         remarks: "",
         to_account_id: "",
@@ -684,28 +706,160 @@ function RPPage() {
             </div>
 
             {tab === "receipt" && (
-              <div>
-                <Label className="text-xs font-semibold">जना (ग्राहक) *</Label>
-                <select
-                  value={txnForm.party_id}
-                  onChange={(e) => {
-                    const sel = customers.find((c) => c.id === e.target.value);
-                    setTxnForm((p) => ({
-                      ...p,
-                      party_id: e.target.value,
-                      party_name: sel?.name || "",
-                    }));
-                  }}
-                  className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
-                >
-                  <option value="">ग्राहक छान्नुहोस्…</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id || ""}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="sm:col-span-2 lg:col-span-3 pb-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">
+                      रसिदको प्रकार (Receipt / Income Type)
+                    </Label>
+                    <span className="text-[10px] text-muted-foreground">
+                      {txnForm.party_type === "donation"
+                        ? "🎁 संस्था/कम्पनीबाट प्राप्त हुने दान तथा कार्यक्रम सहयोग"
+                        : "👤 नियमित ग्राहकको मासिक शुल्क तथा संकलन"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 inline-flex rounded-lg border bg-muted/40 p-1 gap-1 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTxnForm((p) => ({
+                          ...p,
+                          party_type: "customer",
+                          party_id: "",
+                          party_name: "",
+                          company_name: "",
+                          linked_event_id: "",
+                          linked_event_title: "",
+                        }));
+                      }}
+                      className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                        txnForm.party_type !== "donation"
+                          ? "bg-card text-foreground shadow-2xs font-extrabold text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <UserCheck className="size-3.5" />
+                      <span>ग्राहक शुल्क (Customer Fee)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTxnForm((p) => ({
+                          ...p,
+                          party_type: "donation",
+                          party_id: "",
+                          party_name: "",
+                          company_name: "",
+                          linked_event_id: "",
+                          linked_event_title: "",
+                        }));
+                      }}
+                      className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
+                        txnForm.party_type === "donation"
+                          ? "bg-emerald-600 text-white shadow-2xs font-extrabold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span>🎁 दान / सहयोग (Donation & Sponsorship)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {txnForm.party_type !== "donation" ? (
+                  <div>
+                    <Label className="text-xs font-semibold">जना (ग्राहक) *</Label>
+                    <select
+                      value={txnForm.party_id}
+                      onChange={(e) => {
+                        const sel = customers.find((c) => c.id === e.target.value);
+                        setTxnForm((p) => ({
+                          ...p,
+                          party_id: e.target.value,
+                          party_name: sel?.name || "",
+                        }));
+                      }}
+                      className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
+                    >
+                      <option value="">ग्राहक छान्नुहोस्…</option>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id || ""}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label className="text-xs font-semibold text-emerald-800 dark:text-emerald-400">
+                        कम्पनी वा दाताको नाम (Company / Donor Name) *
+                      </Label>
+                      <Input
+                        value={txnForm.company_name ?? txnForm.party_name}
+                        onChange={(e) =>
+                          setTxnForm((p) => ({
+                            ...p,
+                            company_name: e.target.value,
+                            party_name: e.target.value,
+                          }))
+                        }
+                        list="donation-company-suggestions"
+                        placeholder="जस्तै: सूर्य नेपाल / चौधरी ग्रुप / दाताको नाम"
+                        className="mt-1 h-9 text-xs font-semibold bg-background border-emerald-500/40"
+                      />
+                      <datalist id="donation-company-suggestions">
+                        {vendors.map((v) => (
+                          <option key={v.id} value={v.name} />
+                        ))}
+                        {customers.map((c) => (
+                          <option key={c.id} value={c.name} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-emerald-800 dark:text-emerald-400">
+                          सम्बन्धित कार्यक्रम (Link to Programme) *
+                        </Label>
+                        <Link
+                          to="/events"
+                          className="text-[10px] text-primary hover:underline"
+                          target="_blank"
+                        >
+                          + कार्यक्रमहरू
+                        </Link>
+                      </div>
+                      <select
+                        value={txnForm.linked_event_id || ""}
+                        onChange={(e) => {
+                          const evId = e.target.value;
+                          const ev = events.find((x) => x.id === evId);
+                          const evTitle =
+                            evId === "general"
+                              ? "साधारण / संस्थागत कोष"
+                              : ev?.title || "";
+                          setTxnForm((p) => ({
+                            ...p,
+                            linked_event_id: evId,
+                            linked_event_title: evTitle,
+                            party_id: evId,
+                          }));
+                        }}
+                        className="mt-1 h-9 w-full rounded-md border border-emerald-500/40 bg-background px-3 text-xs font-semibold"
+                      >
+                        <option value="">— कार्यक्रम छान्नुहोस् —</option>
+                        <option value="general">🏛️ साधारण / संस्थागत कोष (General Club Fund)</option>
+                        {events.map((ev) => (
+                          <option key={ev.id} value={ev.id || ""}>
+                            📌 {ev.title} {ev.locality ? `(${ev.locality})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+              </>
             )}
 
             {tab === "payment" && (
@@ -952,10 +1106,20 @@ function RPPage() {
                       {t.txn_type === "transfer"
                         ? " खाताबीच सारियो"
                         : t.party_name
-                          ? ` · ${t.party_name}`
+                          ? ` · ${t.company_name || t.party_name}`
                           : ""}
                     </span>
-                    {t.remarks && (
+                    {t.party_type === "donation" && (
+                      <span className="ml-1.5 inline-flex items-center rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
+                        🎁 दान / सहयोग
+                      </span>
+                    )}
+                    {t.linked_event_title && (
+                      <span className="block text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        📌 कार्यक्रम: {t.linked_event_title}
+                      </span>
+                    )}
+                    {t.remarks && !t.remarks.includes(t.linked_event_title || "___NONE___") && (
                       <span className="block text-[11px] italic text-muted-foreground">
                         {t.remarks}
                       </span>

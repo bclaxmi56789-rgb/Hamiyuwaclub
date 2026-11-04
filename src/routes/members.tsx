@@ -83,127 +83,7 @@ export const Route = createFileRoute("/members")({
 
 const money = (n: number) => "रु. " + (n || 0).toLocaleString("en-IN");
 
-// Starter fallback seed data if tables are empty
-const SEED_MEMBERS: Member[] = [
-  {
-    id: "mem-seed-1",
-    name: "नवीन गिरी",
-    designation: "अध्यक्ष",
-    occupation: "सामाजिक सेवा / व्यवसाय",
-    dob: "२०४५-०२-१२",
-    membership_fee: 1200,
-    phone: "९८५८०१११११",
-    address: "वीरेन्द्रनगर-४, सुर्खेत",
-    status: "active",
-  },
-  {
-    id: "mem-seed-2",
-    name: "कमल बहादुर शाही",
-    designation: "उपाध्यक्ष",
-    occupation: "कृषि तथा व्यवसाय",
-    dob: "२०४२-०६-१५",
-    membership_fee: 1000,
-    phone: "९८५८०२२२२२",
-    address: "वीरेन्द्रनगर-६, सुर्खेत",
-    status: "active",
-  },
-  {
-    id: "mem-seed-3",
-    name: "रमेश अधिकारी",
-    designation: "सचिव",
-    occupation: "शिक्षण तथा समाजसेवा",
-    dob: "२०४८-०४-२२",
-    membership_fee: 1000,
-    phone: "९८४८०३३३३३",
-    address: "वीरेन्द्रनगर-८, सुर्खेत",
-    status: "active",
-  },
-  {
-    id: "mem-seed-4",
-    name: "सुनिता थापा",
-    designation: "कोषाध्यक्ष",
-    occupation: "लेखा तथा व्यापार",
-    dob: "२०५०-०८-१०",
-    membership_fee: 1000,
-    phone: "९८४८०४४४४४",
-    address: "वीरेन्द्रनगर-३, सुर्खेत",
-    status: "active",
-  },
-  {
-    id: "mem-seed-5",
-    name: "सुरेश सुनार",
-    designation: "सदस्य",
-    occupation: "स्वास्थ्य सेवा",
-    dob: "२०५२-०१-०५",
-    membership_fee: 500,
-    phone: "९८१२३५५५५५",
-    address: "वीरेन्द्रनगर-५, सुर्खेत",
-    status: "active",
-  },
-];
 
-const SEED_EMPLOYEES: Employee[] = [
-  {
-    id: "emp-seed-1",
-    name: "दिपक गुरुङ",
-    age: 32,
-    dob: "२०४९-०३-१२",
-    designation: "सवारी चालक (Driver)",
-    qualification: "८ कक्षा उतीर्ण (सवारी चालक अनुमतिपत्र)",
-    basic_salary: 18000,
-    allowance_type: "trip",
-    allowance_rate: 150,
-    phone: "९८४८१२३४५६",
-    pan: "६०१२३४५६७",
-    status: "active",
-    joining_date: "२०८०-०४-०१",
-  },
-  {
-    id: "emp-seed-2",
-    name: "प्रकाश परियार",
-    age: 26,
-    dob: "२०५५-०७-२०",
-    designation: "फोहोर संकलक (Collector)",
-    qualification: "साक्षर",
-    basic_salary: 15000,
-    allowance_type: "day",
-    allowance_rate: 250,
-    phone: "९८१२३४५६७८",
-    pan: "६०२३४५६७८",
-    status: "active",
-    joining_date: "२०८०-०५-१५",
-  },
-  {
-    id: "emp-seed-3",
-    name: "सन्तोष श्रेष्ठ",
-    age: 29,
-    dob: "२०५२-११-०५",
-    designation: "फोहोर संकलक तथा लोडर",
-    qualification: "SEE उतीर्ण",
-    basic_salary: 15000,
-    allowance_type: "day",
-    allowance_rate: 250,
-    phone: "९८०१२३४५६७",
-    pan: "",
-    status: "active",
-    joining_date: "२०८०-०६-०१",
-  },
-  {
-    id: "emp-seed-4",
-    name: "अनिल चौधरी",
-    age: 35,
-    dob: "२०४६-०९-१८",
-    designation: "क्षेत्र सुपरभाइजर (Supervisor)",
-    qualification: "+२ (व्यवस्थापन)",
-    basic_salary: 22000,
-    allowance_type: "fixed",
-    allowance_rate: 2500,
-    phone: "९८५८०१२३४५",
-    pan: "६००३४५६७९",
-    status: "active",
-    joining_date: "२०७९-०४-०१",
-  },
-];
 
 type ActiveTab = "members" | "employees" | "payroll";
 
@@ -240,7 +120,7 @@ function MembersPage() {
       const stored = localStorage.getItem("hami_members_cache");
       if (stored) return JSON.parse(stored);
     } catch {}
-    return SEED_MEMBERS;
+    return [];
   });
 
   const [empList, setEmpList] = useState<Employee[]>(() => {
@@ -248,7 +128,7 @@ function MembersPage() {
       const stored = localStorage.getItem("hami_emp_cache");
       if (stored) return JSON.parse(stored);
     } catch {}
-    return SEED_EMPLOYEES;
+    return [];
   });
 
   const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>(() => {
@@ -2079,8 +1959,8 @@ function MembersPage() {
 
               {/* Payroll Print Header */}
               <div className="hidden print:block mb-4 text-center">
-                <h2 className="text-xl font-extrabold">हामी युवा क्लब - कर्मचारी पेरोल रजिस्टर</h2>
-                <p className="text-xs">वीरेन्द्रनगर, सुर्खेत | फोहोरमैला व्यवस्थापन</p>
+                <h2 className="text-xl font-extrabold">कर्मचारी पेरोल रजिस्टर</h2>
+                <p className="text-xs"></p>
                 <p className="text-sm font-bold mt-1">
                   साल: {np(payrollYear)} महिना: {MONTHS[payrollMonth]}
                 </p>
@@ -3010,8 +2890,8 @@ function MembersPage() {
                 <>
                   {/* Printable Header for Statement */}
                   <div className="hidden print:block mb-4 text-center">
-                    <h2 className="text-xl font-extrabold">हामी युवा क्लब - व्यक्तिगत कर्मचारी खाता / लेजर</h2>
-                    <p className="text-xs">वीरेन्द्रनगर, सुर्खेत | फोहोरमैला व्यवस्थापन</p>
+                    <h2 className="text-xl font-extrabold">व्यक्तिगत कर्मचारी खाता / लेजर</h2>
+                    <p className="text-xs"></p>
                     <p className="text-sm font-bold mt-1">
                       कर्मचारी: {currentLedgerEmp.name} ({currentLedgerEmp.designation}) | जारी मिति: {np(todayBS())}
                     </p>

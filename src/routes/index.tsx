@@ -5,7 +5,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useAppState, SignInPanel } from "@/components/app-shell";
 import { BSDatePicker } from "@/components/bs-date-picker";
-import logo from "@/assets/club-logo.asset.json";
 import { ReceiptVoucher } from "@/components/receipt-voucher";
 import { getReceiptData, saveReceipt } from "@/lib/receipts.functions";
 import { getRpAccounts } from "@/lib/workspace.functions";

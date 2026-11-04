@@ -169,29 +169,29 @@ export function SignInPanel() {
         {/* Brand identity */}
         <div className="text-center space-y-2 mb-6">
           <div className="mx-auto size-16 rounded-2xl bg-primary/10 border border-primary/20 p-2 flex items-center justify-center shadow-xs">
-            {!logoErr && (appConfig.logo_url || "/favicon.png") ? (
+            {!logoErr && appConfig.logo_url ? (
               <img
-                src={appConfig.logo_url || "/favicon.png"}
+                src={appConfig.logo_url}
                 alt="Club Logo"
                 className="w-full h-full object-contain"
                 onError={() => setLogoErr(true)}
               />
             ) : (
               <div className="font-extrabold text-primary text-xl tracking-tighter">
-                HYC
+                {appConfig.entity_name ? appConfig.entity_name.slice(0, 3) : "—"}
               </div>
             )}
           </div>
 
           <div>
             <h1 className="text-2xl font-black tracking-tight text-foreground">
-              {appConfig.entity_name || "हामी युवा क्लब"}
+              {appConfig.entity_name || ""}
             </h1>
             <p className="text-xs font-bold text-primary tracking-wide uppercase mt-0.5">
-              {appConfig.entity_sub_name || "HAMI YUWA CLUB"}
+              {appConfig.entity_sub_name || ""}
             </p>
             <p className="text-[11px] text-muted-foreground font-medium mt-1">
-              बीरेन्द्रनगर, सुर्खेत · कर्णाली प्रदेश
+              {appConfig.address || ""}
             </p>
           </div>
         </div>

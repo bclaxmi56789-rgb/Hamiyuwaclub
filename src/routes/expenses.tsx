@@ -308,6 +308,9 @@ function AssetItemForm({
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [savingVendor, setSavingVendor] = useState(false);
   const [vendorSaved, setVendorSaved] = useState(false);
+  const [isReimbursement, setIsReimbursement] = useState<boolean>(
+    initial?.employee_reimbursed ?? false,
+  );
 
   const [masterItems, setMasterItems] = useState<ItemMaster[]>([]);
   const [masterAssets, setMasterAssets] = useState<FixedAssetMaster[]>([]);
@@ -602,6 +605,7 @@ function AssetItemForm({
         vendor_name: vendorName.trim(),
         linked_member_id: cleanMember,
         linked_employee_id: cleanEmployee,
+        employee_reimbursed: cleanEmployee ? isReimbursement : false,
         linked_event_id: cleanEvent,
         line_items: finalRows,
         other_charges: Number(otherCharges) || 0,
@@ -893,7 +897,10 @@ function AssetItemForm({
           </Label>
           <Select
             value={linkedEmployee || "none"}
-            onValueChange={(v) => setLinkedEmployee(v === "none" ? "" : v)}
+            onValueChange={(v) => {
+              setLinkedEmployee(v === "none" ? "" : v);
+              setIsReimbursement(false);
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder="कर्मचारी छान्नुहोस्..." />
@@ -908,6 +915,37 @@ function AssetItemForm({
             </SelectContent>
           </Select>
         </div>
+
+        {/* ─── REIMBURSEMENT QUESTION ─── */}
+        {linkedEmployee && linkedEmployee !== "none" && (
+          <div className="col-span-1 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs space-y-1.5">
+            <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
+              के यो बिल कर्मचारी रिइम्बर्समेन्ट (Reimbursement) हो?
+            </p>
+            <p className="text-muted-foreground text-[11px]">
+              "हो" छाने बिल रकम भेन्डरको बाहक (Payable) मा जाँदैन — यो सिधा उक्त कर्मचारीको लेजरमा बाहक (Dr) भनी अंकित हुन्छ।
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={isReimbursement ? "default" : "outline"}
+                onClick={() => setIsReimbursement(true)}
+              >
+                हो — कर्मचारीको बाहक भार
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={!isReimbursement ? "default" : "outline"}
+                onClick={() => setIsReimbursement(false)}
+              >
+                होइन — सामान्य भेन्डर बिल
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-1.5">
           <Label className="flex items-center gap-1.5">
@@ -1399,6 +1437,9 @@ function OpExForm({
   const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [savingVendor, setSavingVendor] = useState(false);
   const [vendorSaved, setVendorSaved] = useState(false);
+  const [isReimbursement, setIsReimbursement] = useState<boolean>(
+    initial?.employee_reimbursed ?? false,
+  );
 
   const [masterItems, setMasterItems] = useState<ItemMaster[]>([]);
   const [masterAssets, setMasterAssets] = useState<FixedAssetMaster[]>([]);
@@ -1595,6 +1636,7 @@ function OpExForm({
         vendor_name: vendorName.trim(),
         linked_member_id: cleanMember,
         linked_employee_id: cleanEmployee,
+        employee_reimbursed: cleanEmployee ? isReimbursement : false,
         linked_event_id: cleanEvent,
         line_items: rows,
         subtotal: total,
@@ -1810,7 +1852,10 @@ function OpExForm({
           </Label>
           <Select
             value={linkedEmployee || "none"}
-            onValueChange={(v) => setLinkedEmployee(v === "none" ? "" : v)}
+            onValueChange={(v) => {
+              setLinkedEmployee(v === "none" ? "" : v);
+              setIsReimbursement(false);
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder="कर्मचारी..." />
@@ -1825,6 +1870,37 @@ function OpExForm({
             </SelectContent>
           </Select>
         </div>
+
+        {/* ─── REIMBURSEMENT QUESTION ─── */}
+        {linkedEmployee && linkedEmployee !== "none" && (
+          <div className="col-span-1 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs space-y-1.5">
+            <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
+              के यो बिल कर्मचारी रिइम्बर्समेन्ट (Reimbursement) हो?
+            </p>
+            <p className="text-muted-foreground text-[11px]">
+              "हो" छाने बिल रकम भेन्डरको बाहक (Payable) मा जाँदैन — यो सिधा उक्त कर्मचारीको लेजरमा बाहक (Dr) भनी अंकित हुन्छ।
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                variant={isReimbursement ? "default" : "outline"}
+                onClick={() => setIsReimbursement(true)}
+              >
+                हो — कर्मचारीको बाहक भार
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={!isReimbursement ? "default" : "outline"}
+                onClick={() => setIsReimbursement(false)}
+              >
+                होइन — सामान्य भेन्डर बिल
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-1.5">
           <Label className="flex items-center gap-1.5">

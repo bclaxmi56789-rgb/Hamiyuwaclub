@@ -72,7 +72,6 @@ import {
   type AccessLevel,
 } from "@/lib/permissions";
 import type { Employee } from "@/lib/receipt-rules";
-import logo from "@/assets/club-logo.asset.json";
 import { SignInPanel } from "@/components/email-sign-in";
 import { ScrollNavigationButtons } from "@/components/scroll-nav-buttons";
 export { SignInPanel };
@@ -784,19 +783,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex items-start justify-between gap-1 border-b border-sidebar-border px-3 py-4">
               <Link to="/dashboard" className="flex min-w-0 flex-1 items-center gap-3">
                 <img
-                  src={appConfig.logo_url || logo.url}
+                  src={appConfig.logo_url || ""}
                   alt={appConfig.entity_name || "Logo"}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = "/favicon.png";
+                    (e.target as HTMLImageElement).removeAttribute("src");
                   }}
                   className="size-11 shrink-0 rounded-sm bg-card object-contain"
                 />
                 <div className="min-w-0">
                   <div className="text-base font-extrabold truncate">
-                    {appConfig.entity_sub_name || "HAMI YUWA CLUB"}
+                    {appConfig.entity_sub_name || ""}
                   </div>
                   <div className="text-sm font-bold truncate">
-                    {appConfig.entity_name || "हामी युवा क्लब"}
+                    {appConfig.entity_name || ""}
                   </div>
                   <div className="text-xs opacity-70 truncate">
                     {appConfig.tagline || "for the society"}

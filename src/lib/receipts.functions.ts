@@ -172,7 +172,18 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
       issued_to_name: z.string().trim().default(""),
       municipality: z.string().trim().default(""),
       amount: z.number().positive("रकम शून्य वा कम हुन सक्दैन"),
-      date: z.string().trim().min(1, "मिति आवश्यक छ"),
+      date: z.string().regex(/^\d{4}\/\d{2}\/\d{2}$/, "मिति आवश्यक छ"),
+      /** Split of the amount into cash/bank accounts */
+      allocations: z
+        .array(
+          z.object({
+            account_id: z.string().trim().min(1, "नगद वा बैंक खाता छान्नुहोस्"),
+            account_name: z.string().trim().default(""),
+            mode: z.string().trim().default("नगद (Cash)"),
+            amount: z.number().positive("रकम शून्य वा कम हुन सक्दैन"),
+          }),
+        )
+        .min(1, "कम्तिमा एउटा खाता छान्नुहोस्"),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -182,33 +193,45 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
 
     // The full booked amount (काटिएको रकम) becomes the receipt
     let balance = Math.round(data.amount * 100) / 100;
+    let alreadyConverted = false;
     try {
       const res = await supabase
         .from("theli_stock_items")
-        .select("amount_booked,amount_obtained,issued_to_name,last_voucher_booked")
+        .select("amount_booked,amount_obtained,issued_to_name,last_voucher_booked,converted_to_receipt")
         .eq("id", data.item_id)
         .eq("owner_id", context.userId)
         .maybeSingle();
       if (!res.error && res.data) {
+        alreadyConverted = (res.data as { converted_to_receipt?: boolean }).converted_to_receipt === true;
+        if (alreadyConverted)
+          throw new Error("यो थेली पहिले नै रूपान्तरित भइसकेको छ (रूपान्तरित)। दोब्बा रूपान्तरण गर्न सकिँदैन।");
         balance = Math.round(Number(res.data.amount_booked) * 100) / 100;
         if (balance <= 0) throw new Error("यो थेलीमा काटिएको रकम छैन। केही गर्नु पर्दैन।");
       }
     } catch (e) {
-      if (e instanceof Error && e.message.includes("काटिएको रकम")) throw e;
+      if (e instanceof Error && (e.message.includes("काटिएको रकम") || e.message.includes("रूपान्तरित")))
+        throw e;
     }
 
-    // Allocate the next receipt number under an owner-scoped lock-free upsert
-    const counter = await supabase
+    // Allocation split must cover the whole booked amount
+    const allocatedTotal =
+      Math.round(data.allocations.reduce((s, a) => s + Number(a.amount || 0), 0) * 100) / 100;
+    if (allocatedTotal !== balance) {
+      throw new Error(
+        `खाता बाँडफाँड (रु. ${allocatedTotal.toLocaleString("en-IN")}) र काटिएको रकम (रु. ${balance.toLocaleString("en-IN")}) बराबर हुनुपर्छ।`,
+      );
+    }
+
+    // Allocate the next receipt number: read, insert receipt, then advance the counter
+    const counterRes = await supabase
       .from("receipt_counters")
-      .upsert(
-        { owner_id: context.userId, ward: data.ward, fiscal_year: fy, last_number: 0 },
-        { onConflict: "owner_id,ward,fiscal_year", ignoreDuplicates: true },
-      )
       .select("last_number")
-      .single();
-    if (counter.error) throw new Error(counter.error.message);
-    const prev = Number(counter.data?.last_number) || 0;
-    const no = prev + 1;
+      .eq("owner_id", context.userId)
+      .eq("ward", data.ward)
+      .eq("fiscal_year", fy)
+      .maybeSingle();
+    if (counterRes.error) throw new Error(counterRes.error.message);
+    const no = (Number(counterRes.data?.last_number) || 0) + 1;
 
     const ref = `${data.last_voucher_booked || data.range_to || data.range_from}-आ${
       data.ward
@@ -223,8 +246,14 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
       phone: "",
       date: data.date,
       year: String(fy),
-      mode: "नगद (Cash)",
+      mode: data.allocations.length === 1 ? data.allocations[0]!.mode || "नगद (Cash)" : "",
       months: [{ m: 0, amt: balance }],
+      ...(data.allocations.length === 1
+        ? {
+            accountId: data.allocations[0]!.account_id,
+            accountName: data.allocations[0]!.account_name,
+          }
+        : {}),
       no,
       ref,
       total: balance,
@@ -251,12 +280,46 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
     // Confirm final counter state
     await supabase
       .from("receipt_counters")
-      .update({ last_number: no })
-      .eq("owner_id", context.userId)
-      .eq("ward", data.ward)
-      .eq("fiscal_year", fy)
-      .eq("last_number", prev);
-    const receipt = { ...payload, id: inserted.data?.[0]?.id } as unknown as Receipt;
+      .upsert(
+        { owner_id: context.userId, ward: data.ward, fiscal_year: fy, last_number: no },
+        { onConflict: "owner_id,ward,fiscal_year" },
+      );
+    const receipt = {
+      ...(inserted.data?.[0]?.id ? { id: inserted.data[0].id } : {}),
+      ...payload,
+    } as unknown as Receipt;
+
+    // Post each allocation into its cash/bank account (Receipts & Payments)
+    const postedRefs: string[] = [];
+    for (const alloc of data.allocations) {
+      try {
+        const rpc = await context.supabase.rpc("save_rp_transaction", {
+          p: {
+            txn_type: "receipt",
+            txn_date: data.date,
+            account_id: alloc.account_id,
+            to_account_id: "",
+            party_type: "",
+            party_id: "",
+            party_name: payerName,
+            amount: Math.round(Number(alloc.amount) * 100) / 100,
+            remarks: `थेली रूपान्तरण — ${data.range_from || ""}–${data.range_to || ""}${
+              data.fiscal_year ? ` (आ.व. ${data.fiscal_year})` : ""
+            }`,
+            manual_ref: "",
+          },
+        });
+        if (
+          !rpc.error &&
+          rpc.data &&
+          typeof (rpc.data as Record<string, unknown>)?.["ref_no"] === "string"
+        ) {
+          postedRefs.push(String((rpc.data as Record<string, unknown>)["ref_no"]));
+        }
+      } catch {
+        // RP module may not be migrated — the receipt itself is still saved
+      }
+    }
 
     // Mark the full booked amount as converted: बुझाएको = काटिएको, बाँकी अन्तर = 0
     try {
@@ -273,6 +336,7 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
           .update({
             amount_obtained: booked,
             balance: 0,
+            converted_to_receipt: true,
             updated_at: new Date().toISOString(),
           })
           .eq("id", data.item_id)
@@ -280,5 +344,11 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
       }
     } catch {}
 
-    return { success: true, receipt, amount: balance };
+    return {
+      success: true,
+      receipt,
+      amount: balance,
+      rp_refs: postedRefs,
+      allocations: data.allocations,
+    };
   });

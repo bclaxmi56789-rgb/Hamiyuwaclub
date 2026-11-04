@@ -26,7 +26,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAppConfig, buildMinutesFallbackText, draftMinutesWithAI } from "@/lib/app-config";
-import logo from "@/assets/club-logo.asset.json";
 import { Textarea } from "@/components/ui/textarea";
 
 /** Textarea that grows automatically as text becomes longer */
@@ -340,7 +339,7 @@ function MinutesPage() {
     setAiBusy(true);
     setAiErr("");
     const input = {
-      organization_name: config.entity_name || "हामी युवा क्लब",
+      organization_name: config.entity_name || "",
       event_title: selectedEvent?.title || "",
       event_locality: selectedEvent?.locality || "",
       meeting_date: np(form.meeting_date),
@@ -1080,13 +1079,13 @@ function MinutesPage() {
               <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-3">
                   <img
-                    src={config.logo_url || logo.url}
+                    src={config.logo_url || ""}
                     alt={config.entity_name || "Logo"}
                     className="size-14 rounded-sm object-contain"
                   />
                   <div>
                     <h2 className="text-lg font-extrabold tracking-tight">
-                      {config.entity_name || "हामी युवा क्लब"}
+                      {config.entity_name || ""}
                     </h2>
                     {config.entity_sub_name && (
                       <div className="text-xs font-semibold text-muted-foreground">
@@ -1094,7 +1093,7 @@ function MinutesPage() {
                       </div>
                     )}
                     <div className="text-xs">
-                      {config.address || "वीरेन्द्रनगर, सुर्खेत, कर्णाली प्रदेश"}
+                      {config.address || ""}
                     </div>
                   </div>
                 </div>

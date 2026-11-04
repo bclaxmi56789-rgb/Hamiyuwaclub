@@ -47,6 +47,7 @@ import {
   generateTheliRanges,
   sortTheliAvailableRanges,
   calculateTheliBooking,
+  todayBS,
   validateDateInFiscalYear,
   type Employee,
   type Member,
@@ -67,6 +68,7 @@ import {
   clearAllTheliData,
 } from "@/lib/workspace.functions";
 import { convertTheliBalanceToReceipt } from "@/lib/receipts.functions";
+import { getRpAccounts } from "@/lib/workspace.functions";
 
 export const Route = createFileRoute("/assets")({
   head: () => ({
@@ -204,15 +206,53 @@ function AssetsPage() {
   const deleteLegacyTheliFn = useServerFn(deleteTheliLog);
   const clearAllTheliFn = useServerFn(clearAllTheliData);
   const convertBalanceFn = useServerFn(convertTheliBalanceToReceipt);
+  const fetchRpAccountsFn = useServerFn(getRpAccounts);
   const [clearingData, setClearingData] = useState(false);
   const [convertTarget, setConvertTarget] = useState<TheliStockItem | null>(null);
   const [converting, setConverting] = useState(false);
+  const [convertAllocations, setConvertAllocations] = useState<
+    Array<{ account_id: string; amount: number }>
+  >([]);
+  const [convertDate, setConvertDate] = useState(todayBS ? todayBS() : "2083/07/15");
+
+  // Cash & bank accounts for the कुन खातामा भित्रियो picker
+  const rpAccountsQuery = useQuery({
+    queryKey: ["rp_accounts", userId],
+    queryFn: () => fetchRpAccountsFn(),
+    enabled: signedIn && !!convertTarget,
+  });
+  const rpAccounts: Array<{
+    id: string;
+    name: string;
+    account_type: "cash" | "bank";
+  }> = rpAccountsQuery.data || [];
+
+  // Amount still unallocated across accounts
+  const convertRemaining = convertTarget
+    ? Math.round(
+        ((convertTarget.amount_booked || 0) -
+          convertAllocations.reduce((s, a) => s + (Number(a.amount) || 0), 0)) *
+          100,
+      ) / 100
+    : 0;
+
+  const openConvertDialog = (item: TheliStockItem) => {
+    setConvertTarget(item);
+    setConvertAllocations([{ account_id: "", amount: Number(item.amount_booked) || 0 }]);
+    setConvertDate(item.issued_date || (todayBS ? todayBS() : ""));
+  };
 
   const handleConfirmConvertToReceipt = async () => {
     if (!convertTarget) return;
-    const balance = convertTarget.balance || 0;
-    if (balance <= 0) {
+    const booked = Number(convertTarget.amount_booked) || 0;
+    if (booked <= 0) {
       setConvertTarget(null);
+      return;
+    }
+    if (convertRemaining !== 0) {
+      alert(
+        "खाता बाँडफाँड (नगद र बैंक) जम्मा रकम काटिएको रकम बराबर हुनुपर्छ। बाँकी राख्न सकिँदैन।",
+      );
       return;
     }
     setConverting(true);
@@ -228,10 +268,17 @@ function AssetsPage() {
           last_voucher_booked: convertTarget.last_voucher_booked || "",
           issued_to_name: convertTarget.issued_to_name || "",
           municipality: convertTarget.municipality || "",
-          amount: balance,
-          date:
-            convertTarget.issued_date ||
-            `${convertTarget.fiscal_year.split("/")[0] || "2083"}/01/01`,
+          amount: booked,
+          date: convertDate,
+          allocations: convertAllocations.map((a) => {
+            const account = rpAccounts.find((x) => x.id === a.account_id);
+            return {
+              account_id: a.account_id,
+              account_name: account?.name || "",
+              mode: account?.account_type === "bank" ? "बैंक (Bank)" : "नगद (Cash)",
+              amount: Number(a.amount) || 0,
+            };
+          }),
         },
       });
 
@@ -241,6 +288,7 @@ function AssetsPage() {
               ...it,
               amount_obtained: Number(it.amount_booked) || 0,
               balance: 0,
+              converted_to_receipt: true,
             }
           : it,
       );
@@ -252,7 +300,7 @@ function AssetsPage() {
       setConvertTarget(null);
       setNotice({
         type: "success",
-        text: `काटिएको रकम रु. ${balance.toLocaleString("en-IN")} रसिदमा रूपान्तरण भयो!`,
+        text: `काटिएको रकम रु. ${booked.toLocaleString("en-IN")} रसिदमा रूपान्तरण भयो!`,
       });
       refreshAll();
     } catch (e: any) {
@@ -376,7 +424,7 @@ function AssetsPage() {
   /* ─────────────────────────────────────────────────────────────
      TAB 1: STOCK MASTER FORM STATE
      ───────────────────────────────────────────────────────────── */
-  const [newBatchMunicipality, setNewBatchMunicipality] = useState("वीरेन्द्रनगर नगरपालिका");
+  const [newBatchMunicipality, setNewBatchMunicipality] = useState("");
   const [newBatchWard, setNewBatchWard] = useState(ward || "4");
   const [newBatchFY, setNewBatchFY] = useState(year || "2081/82");
   const [newBatchStart, setNewBatchStart] = useState("GT-0001");
@@ -484,7 +532,7 @@ function AssetsPage() {
   const [issueEmployeeId, setIssueEmployeeId] = useState("");
   const [issueSupervisorName, setIssueSupervisorName] = useState("");
   const [issueWard, setIssueWard] = useState(ward || "4");
-  const [issueMunicipality, setIssueMunicipality] = useState("वीरेन्द्रनगर नगरपालिका");
+  const [issueMunicipality, setIssueMunicipality] = useState("");
   const [issueDate, setIssueDate] = useState("2083/07/15");
   const [selectedStockItemIds, setSelectedStockItemIds] = useState<string[]>([]);
   const [issuing, setIssuing] = useState(false);
@@ -1269,15 +1317,23 @@ function AssetsPage() {
                                 </Button>
                               )}
                               {item.status === "completed" && (item.amount_booked || 0) > 0 && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={converting}
-                                  className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10"
-                                  onClick={() => setConvertTarget(item)}
-                                >
-                                  रसिदमा रूपान्तरण
-                                </Button>
+                                <>
+                                  {item.converted_to_receipt ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                                      ✓ रूपान्तरित
+                                    </span>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={converting}
+                                      className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10"
+                                      onClick={() => openConvertDialog(item)}
+                                    >
+                                      रसिदमा रूपान्तरण
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
@@ -2055,7 +2111,7 @@ function AssetsPage() {
           if (!o) setConvertTarget(null);
         }}
       >
-        <AlertDialogContent className="max-w-md text-xs">
+        <AlertDialogContent className="max-w-lg text-xs">
           <AlertDialogHeader>
             <AlertDialogTitle>रसिदमा रूपान्तरण गर्ने निश्चित हुनुहुन्छ?</AlertDialogTitle>
             <AlertDialogDescription asChild>
@@ -2073,10 +2129,127 @@ function AssetsPage() {
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                कुन खातामा भित्रियो? * (नगद र बैंकमा बाँड्न मिल्छ)
+              </label>
+              <div className="space-y-1.5">
+                {convertAllocations.map((row, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_auto_7.5rem] items-center gap-1.5"
+                  >
+                    <select
+                      value={row.account_id}
+                      onChange={(e) =>
+                        setConvertAllocations((prev) =>
+                          prev.map((r, idx) =>
+                            idx === i ? { ...r, account_id: e.target.value } : r,
+                          ),
+                        )
+                      }
+                      className="h-9 w-full rounded-md border bg-background px-2.5 text-sm font-semibold text-foreground focus:outline-none focus:border-primary shadow-2xs"
+                    >
+                      <option value="">— नगद / बैंक खाता छान्नुहोस् —</option>
+                      {rpAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.account_type === "bank" ? "🏦 बैंक" : "💵 नगद"} — {a.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={row.amount}
+                      min={0}
+                      onChange={(e) =>
+                        setConvertAllocations((prev) =>
+                          prev.map((r, idx) =>
+                            idx === i ? { ...r, amount: Number(e.target.value) || 0 } : r,
+                          ),
+                        )
+                      }
+                      className="col-start-3 h-9 w-full rounded-md border bg-background px-2.5 text-right font-mono text-sm font-semibold text-foreground focus:outline-none focus:border-primary shadow-2xs"
+                    />
+                    {convertAllocations.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-1.5 text-rose-600 border-rose-500/30 hover:bg-rose-500/10"
+                        onClick={() =>
+                          setConvertAllocations((prev) => prev.filter((_, idx) => idx !== i))
+                        }
+                      >
+                        ✕
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <div className="flex items-center justify-between">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={convertRemaining <= 0}
+                    className="h-7 px-2 text-[11px] font-bold"
+                    onClick={() =>
+                      setConvertAllocations((prev) => [
+                        ...prev,
+                        { account_id: "", amount: convertRemaining },
+                      ])
+                    }
+                  >
+                    + खाता थप्नुहोस्
+                  </Button>
+                  <span
+                    className={`font-mono font-bold text-[11px] ${
+                      convertRemaining < 0
+                        ? "text-rose-600"
+                        : convertRemaining > 0
+                          ? "text-amber-700"
+                          : "text-emerald-700"
+                    }`}
+                  >
+                    बाँकी: रु. {convertRemaining.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+              {rpAccounts.length === 0 && !rpAccountsQuery.isLoading && (
+                <p className="mt-1 text-[10px] text-rose-600">
+                  कुनै नगद/बैंक खाता फेला परेन। कृपया नगद तथा बैंक मास्टर (Receipts & Payments) मा खाता थप्नुहोस्।
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                रूपान्तरण मिति (Date)
+              </label>
+              <BSDatePicker value={convertDate} onChange={setConvertDate} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                प्रयोग भएको दायरा (Used in)
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={`${convertTarget?.range_from || ""} – ${convertTarget?.range_to || ""} (थेली नं. ${
+                  convertTarget?.theli_no ?? "-"
+                }, आ.व. ${convertTarget?.fiscal_year || ""})`}
+                className={`${inputCls} bg-muted/40 font-mono`}
+              />
+            </div>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={converting}>रद्द</AlertDialogCancel>
             <AlertDialogAction
-              disabled={converting}
+              disabled={
+                converting ||
+                convertRemaining !== 0 ||
+                convertAllocations.length === 0 ||
+                convertAllocations.some((a) => !a.account_id || (Number(a.amount) || 0) <= 0)
+              }
               onClick={(e) => {
                 e.preventDefault();
                 void handleConfirmConvertToReceipt();

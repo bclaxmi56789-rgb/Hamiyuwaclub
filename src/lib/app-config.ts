@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import defaultLogo from "@/assets/club-logo.asset.json";
+
 
 export interface AppConfig {
   entity_name: string;
@@ -31,10 +31,7 @@ export interface AppConfig {
   admin_pin?: string;
 }
 
-export const USER_OPENROUTER_KEY =
-  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_OPENROUTER_API_KEY) ||
-  (typeof process !== "undefined" && process.env?.OPENROUTER_API_KEY) ||
-  "";
+export const USER_OPENROUTER_KEY = "";
 
 const DEAD_OPENROUTER_MODELS = [
   "qwen/qwen-2.5-vl-72b-instruct:free",
@@ -64,30 +61,27 @@ export const OPENROUTER_FREE_TEXT_MODELS = [
 ];
 
 export const DEFAULT_CONFIG: AppConfig = {
-  entity_name: "हामी युवा क्लब",
-  entity_sub_name: "HAMI YUWA CLUB",
-  tagline: "फोहोरमैला व्यवस्थापन तथा सामाजिक सेवा",
-  address: "वीरेन्द्रनगर, सुर्खेत, कर्णाली प्रदेश",
+  entity_name: "",
+  entity_sub_name: "",
+  tagline: "",
+  address: "",
   pan_vat: "",
   phone: "",
   email: "",
-  logo_url: defaultLogo?.url || "",
+  logo_url: "",
 
   fiscal_year_start: "",
   fiscal_year_end: "",
 
   ai_provider: "openrouter",
-  // Latest Google Gemini model (gemini-3.8-flash / latest free tier)
   gemini_api_key: "",
-  gemini_model: "gemini-3.8-flash",
+  gemini_model: "",
 
-  // Latest OpenRouter free models
   openrouter_api_key: USER_OPENROUTER_KEY,
-  openrouter_model: "google/gemma-4-31b-it:free",
+  openrouter_model: "",
 
-  // OpenAI
   openai_api_key: "",
-  openai_model: "gpt-4o-mini",
+  openai_model: "",
 
   custom_ai_endpoint: "",
   custom_ai_key: "",
@@ -114,11 +108,11 @@ export interface AIVaultData {
 
 export const DEFAULT_AI_VAULT: AIVaultData = {
   openrouter_api_key: USER_OPENROUTER_KEY,
-  openrouter_model: "google/gemma-4-31b-it:free",
+  openrouter_model: "",
   gemini_api_key: "",
-  gemini_model: "gemini-3.8-flash",
+  gemini_model: "",
   openai_api_key: "",
-  openai_model: "gpt-4o-mini",
+  openai_model: "",
   custom_ai_endpoint: "",
   custom_ai_key: "",
   custom_ai_model: "",
@@ -143,9 +137,7 @@ export function getAIVault(): AIVaultData {
           : parsed.openrouter_model,
       gemini_api_key: parsed.gemini_api_key || "",
       gemini_model:
-        parsed.gemini_model === "gemini-2.0-flash"
-          ? "gemini-3.8-flash"
-          : parsed.gemini_model || "gemini-3.8-flash",
+        parsed.gemini_model === "gemini-2.0-flash" ? "" : parsed.gemini_model || "",
       openai_api_key: parsed.openai_api_key || "",
       openai_model: parsed.openai_model || "gpt-4o-mini",
       custom_ai_endpoint: parsed.custom_ai_endpoint || "",

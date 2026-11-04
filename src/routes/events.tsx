@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppConfig } from "@/lib/app-config";
-import logo from "@/assets/club-logo.asset.json";
 import {
   CalendarDays,
   Plus,
@@ -57,112 +56,6 @@ export const Route = createFileRoute("/events")({
 
 const money = (n: number) => "रु. " + (n || 0).toLocaleString("en-IN");
 
-const SEED_EVENTS: ClubEvent[] = [
-  {
-    id: "evt-seed-1",
-    title: "वडा नं. ४ बृहत् सरसफाइ तथा डस्टबिन वितरण अभियान",
-    locality: "वीरेन्द्रनगर-४, भैरवस्थान तथा पिपलबोट टोल",
-    budget_required: 85000,
-    budget_allocated: 85000,
-    commencing_date: "२०८१-०८-१५",
-    end_date: "२०८१-०८-१६",
-    status: "ongoing",
-    authorized_persons: [
-      {
-        name: "अनिल चौधरी",
-        designation: "क्षेत्र सुपरभाइजर",
-        role: "कार्यक्रम संयोजक",
-        phone: "९८५८०१२३४५",
-        type: "employee",
-      },
-      {
-        name: "दिपक गुरुङ",
-        designation: "सवारी चालक",
-        role: "यातायात तथा ढुवानी",
-        phone: "९८४८१२३४५६",
-        type: "employee",
-      },
-      {
-        name: "नवीन गिरी",
-        designation: "अध्यक्ष",
-        role: "प्रमुख अनुगमनकर्ता",
-        phone: "९८५८०१११११",
-        type: "member",
-      },
-      {
-        name: "टेक बहादुर बुढा",
-        designation: "टोल विकास समिति अध्यक्ष",
-        role: "स्थानिय समन्वयकर्ता",
-        phone: "९८४८००००००",
-        type: "other",
-      },
-    ],
-    remarks:
-      "स्थानिय घरधुरीहरूलाई सुक्खा र भिजेको फोहोर वर्गीकरणका लागि २ रङका डस्टबिन वितरण तथा सडक सरसफाइ गर्ने।",
-  },
-  {
-    id: "evt-seed-2",
-    title: "प्लास्टिक न्यूनीकरण तथा जनचेतना घरदैलो कार्यक्रम",
-    locality: "वीरेन्द्रनगर-६, मुख्य बजार तथा बुद्धचोक क्षेत्र",
-    budget_required: 45000,
-    budget_allocated: 40000,
-    commencing_date: "२०८१-०९-०१",
-    end_date: "२०८१-०९-०३",
-    status: "planned",
-    authorized_persons: [
-      {
-        name: "प्रकाश परियार",
-        designation: "फोहोर संकलक",
-        role: "फिल्ड परिचालन",
-        phone: "९८१२३४५६७८",
-        type: "employee",
-      },
-      {
-        name: "रमेश अधिकारी",
-        designation: "सचिव",
-        role: "प्रशिक्षक तथा वक्ता",
-        phone: "९८४८०३३३३३",
-        type: "member",
-      },
-      {
-        name: "सुनिता वि.क.",
-        designation: "महिला समूह प्रतिनिधि",
-        role: "घरदैलो टोली प्रमुख",
-        phone: "९८१२३०००००",
-        type: "other",
-      },
-    ],
-    remarks:
-      "एकल प्रयोग प्लास्टिक प्रतिबन्ध सम्बन्धी माइकिङ, पम्प्लेटिङ तथा कपडाको झोला वितरण गर्ने।",
-  },
-  {
-    id: "evt-seed-3",
-    title: "सामुदायिक वृक्षारोपण तथा डम्पिङ क्षेत्र सौन्दर्यीकरण",
-    locality: "वीरेन्द्रनगर-११, फोहोर प्रशोधन केन्द्र परिसर",
-    budget_required: 120000,
-    budget_allocated: 120000,
-    commencing_date: "२०८१-०४-२५",
-    end_date: "२०८१-०४-२६",
-    status: "completed",
-    authorized_persons: [
-      {
-        name: "कमल बहादुर शाही",
-        designation: "उपाध्यक्ष",
-        role: "कार्यक्रम संयोजक",
-        phone: "९८५८०२२२२२",
-        type: "member",
-      },
-      {
-        name: "सन्तोष श्रेष्ठ",
-        designation: "संकलक तथा लोडर",
-        role: "बिरुवा रोपण व्यवस्थापन",
-        phone: "९८०१२३४५६७",
-        type: "employee",
-      },
-    ],
-    remarks: "वातावरण संरक्षणका लागि ५०० वटा नीम, कपुर र अशोकका बिरुवा रोपण सम्पन्न भयो।",
-  },
-];
 
 const emptyEvent = (): ClubEvent => ({
   title: "",
@@ -213,7 +106,7 @@ function EventsPage() {
     } catch {
       // cache unavailable — fall back to seed data
     }
-    return SEED_EVENTS;
+    return [];
   });
 
   useEffect(() => {
@@ -1083,13 +976,13 @@ function EventsPage() {
               <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-3">
                   <img
-                    src={config.logo_url || logo.url}
+                    src={config.logo_url || ""}
                     alt={config.entity_name || "Logo"}
                     className="size-14 rounded-sm object-contain"
                   />
                   <div>
                     <h2 className="text-lg font-extrabold tracking-tight">
-                      {config.entity_name || "हामी युवा क्लब"}
+                      {config.entity_name || ""}
                     </h2>
                     {config.entity_sub_name && (
                       <div className="text-xs font-semibold text-muted-foreground">
@@ -1097,7 +990,7 @@ function EventsPage() {
                       </div>
                     )}
                     <div className="text-xs">
-                      {config.address || "वीरेन्द्रनगर, सुर्खेत, कर्णाली प्रदेश"}
+                      {config.address || ""}
                     </div>
                     {config.tagline && (
                       <div className="text-[11px] text-muted-foreground">{config.tagline}</div>

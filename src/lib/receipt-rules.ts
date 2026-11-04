@@ -992,7 +992,12 @@ export function employeeOutstandingDr(
   transactions: EmployeeLedgerTxn[],
   expenses?: ExpenseRecord[],
 ): number {
-  const rows = buildEmployeeLedger({ employee: employee ?? null, payrolls, transactions, expenses });
+  const rows = buildEmployeeLedger({
+    employee: employee ?? null,
+    payrolls,
+    transactions,
+    ...(expenses ? { expenses } : {}),
+  });
   const last = rows[rows.length - 1];
   if (!last || last.runType !== "dr") return 0;
   return Math.max(0, last.running);
@@ -1209,6 +1214,9 @@ export interface RPTransaction {
   account_name?: string | null;
   owner_id?: string;
   created_at?: string;
+  company_name?: string | null;
+  linked_event_id?: string | null;
+  linked_event_title?: string | null;
 }
 
 export interface RPParty {
@@ -1472,6 +1480,8 @@ export type TheliStockItem = {
   amount_booked?: number;
   amount_obtained?: number;
   balance?: number;
+  /** True once the booked amount has been converted into a receipt (रूपान्तरित) */
+  converted_to_receipt?: boolean;
 
   updated_at?: string;
 };

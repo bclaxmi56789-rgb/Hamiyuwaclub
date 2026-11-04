@@ -28,7 +28,6 @@ import {
   Boxes,
 } from "lucide-react";
 import { useAppConfig } from "@/lib/app-config";
-import logo from "@/assets/club-logo.asset.json";
 import { ThemeSelector } from "@/components/theme-selector";
 
 export const Route = createFileRoute("/landing")({
@@ -64,7 +63,7 @@ export function LandingPage() {
           <div className="flex items-center gap-2 font-medium">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <MapPin className="h-3.5 w-3.5 text-primary" />
-            <span>बीरेन्द्रनगर, सुर्खेत · कर्णाली प्रदेश</span>
+            <span>{appConfig.address}</span>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="hidden sm:inline font-medium">युवा सोच, सशक्त राष्ट्र!</span>
@@ -88,10 +87,10 @@ export function LandingPage() {
           <Link to="/landing" className="flex items-center gap-3.5 group">
             <div className="relative rounded-2xl p-1 bg-gradient-to-br from-card to-muted border shadow-[0_4px_12px_rgba(0,0,0,0.08)] group-hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] group-hover:-translate-y-0.5 transition-all duration-300">
               <img
-                src={appConfig.logo_url || logo.url}
-                alt={appConfig.entity_name || "हामी युवा क्लब"}
+                src={appConfig.logo_url || ""}
+                alt={appConfig.entity_name || ""}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/favicon.png";
+                  (e.target as HTMLImageElement).removeAttribute("src");
                 }}
                 className="size-11 sm:size-12 object-contain rounded-xl bg-card p-1"
               />
@@ -235,7 +234,7 @@ export function LandingPage() {
           <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border bg-card/90 backdrop-blur-md text-xs sm:text-sm font-bold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all">
             <span className="flex h-2.5 w-2.5 rounded-full bg-primary animate-ping" />
             <Sparkles className="h-4 w-4 text-amber-500" />
-            <span>बीरेन्द्रनगर, सुर्खेत · कर्णाली प्रदेश</span>
+            <span>{appConfig.address}</span>
           </div>
 
           {/* 3D Styled Headline */}
@@ -351,7 +350,7 @@ export function LandingPage() {
               प्रत्येक युवालाई स्वर, आत्मविश्वास र परिवर्तनको नेतृत्व गर्ने अवसर उपलब्ध गराउँदै एक सशक्त भविष्यको परिकल्पना।
             </p>
             <div className="mt-6 flex items-center justify-center gap-2 text-xs font-black text-primary uppercase tracking-widest">
-              <span>— हामी युवा क्लब, बीरेन्द्रनगर, सुर्खेत</span>
+              <span>{appConfig.entity_name}</span>
             </div>
           </div>
         </div>
@@ -709,10 +708,10 @@ export function LandingPage() {
             <div className="space-y-3">
               <div className="flex items-center gap-3.5">
                 <img
-                  src={appConfig.logo_url || logo.url}
+                  src={appConfig.logo_url || ""}
                   alt="Logo"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = "/favicon.png";
+                    (e.target as HTMLImageElement).removeAttribute("src");
                   }}
                   className="size-11 object-contain rounded-xl p-1 bg-card border shadow-xs"
                 />
@@ -724,7 +723,7 @@ export function LandingPage() {
                 युवा सोच, सशक्त राष्ट्र!
               </p>
               <p className="text-xs text-muted-foreground font-medium">
-                बीरेन्द्रनगर, सुर्खेत, कर्णाली प्रदेश, नेपाल
+                {appConfig.address}
               </p>
             </div>
 
@@ -772,9 +771,9 @@ export function LandingPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground font-medium">
-            <p>© २०२६ हामी युवा क्लब। सर्वाधिकार सुरक्षित।</p>
+            <p>{appConfig.entity_name ? `© २०२६ ${appConfig.entity_name}. सर्वाधिकार सुरक्षित।` : "© २०२६। सर्वाधिकार सुरक्षित।"}</p>
             <p className="flex items-center gap-2">
-              <span>Birendranagar, Surkhet · Karnali Province, Nepal</span>
+              <span>{appConfig.address}</span>
             </p>
           </div>
         </div>

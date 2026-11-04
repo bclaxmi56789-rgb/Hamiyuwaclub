@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { MONTHS, np, todayBS, type PayrollRecord, type Employee } from "@/lib/receipt-rules";
 import { useAppConfig } from "@/lib/app-config";
-import logo from "@/assets/club-logo.asset.json";
 import { Printer, X } from "lucide-react";
 
 const money = (n: number) => "रु. " + (n || 0).toLocaleString("en-IN");
@@ -50,20 +49,20 @@ export function PaySlipVoucher({
           <div className="flex items-center justify-between border-b pb-4">
             <div className="flex items-center gap-3">
               <img
-                src={config.logo_url || logo.url}
+                src={config.logo_url || ""}
                 alt={config.entity_name || "Club Logo"}
                 className="size-14 rounded-sm object-contain"
               />
               <div>
                 <h2 className="text-lg font-extrabold tracking-tight">
-                  {config.entity_name || "हामी युवा क्लब"}
+                  {config.entity_name || ""}
                 </h2>
                 {config.entity_sub_name && (
                   <div className="text-xs font-semibold text-muted-foreground">
                     {config.entity_sub_name}
                   </div>
                 )}
-                <div className="text-xs">{config.address || "वीरेन्द्रनगर, सुर्खेत, कर्णाली प्रदेश"}</div>
+                <div className="text-xs">{config.address || ""}</div>
                 {config.tagline && (
                   <div className="text-[11px] text-muted-foreground">{config.tagline}</div>
                 )}
@@ -236,7 +235,7 @@ export function PaySlipVoucher({
           </div>
 
           <div className="mt-5 text-center text-[10px] text-muted-foreground">
-            हामी युवा क्लब, वीरेन्द्रनगर - सुर्खेत । यो कम्प्युटर प्रणालीबाट तयार गरिएको आधिकारिक पे-स्लिप हो।
+            यो कम्प्युटर प्रणालीबाट तयार गरिएको आधिकारिक पे-स्लिप हो।
           </div>
         </div>
 

@@ -15,8 +15,8 @@ export function ReceiptVoucher({ r, onClose }: { r: Receipt; onClose: () => void
             <img src={config.logo_url} alt="Logo" className="size-14 object-contain rounded-sm" />
           )}
           <div>
-            <h3 className="text-base font-bold text-foreground">{config.entity_name || "हामी युवा क्लब"}</h3>
-            <div className="text-xs text-muted-foreground">{config.address || "वीरेन्द्रनगर, सुर्खेत"}</div>
+            <h3 className="text-base font-bold text-foreground">{config.entity_name || ""}</h3>
+            <div className="text-xs text-muted-foreground">{config.address || ""}</div>
             {config.pan_vat && <div className="text-xs font-mono text-muted-foreground">PAN: {config.pan_vat}</div>}
           </div>
         </div>

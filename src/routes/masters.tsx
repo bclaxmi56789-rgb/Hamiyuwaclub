@@ -77,8 +77,8 @@ export const Route = createFileRoute("/masters")({
 
 const getEmptyForm = (defaultWard = "1"): Person => {
   return {
-    district: "सुर्खेत",
-    municipality: "वीरेन्द्रनगर",
+    district: "",
+    municipality: "",
     ward: defaultWard || "1",
     card: "",
     name: "",
@@ -434,8 +434,8 @@ function Masters() {
     setForm({
       card: p.card,
       name: p.name,
-      district: p.district || "सुर्खेत",
-      municipality: p.municipality || "वीरेन्द्रनगर",
+      district: p.district || "",
+      municipality: p.municipality || "",
       ward: p.ward,
       tole: p.tole,
       phone: p.phone || "",

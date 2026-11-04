@@ -1642,14 +1642,14 @@ function SettingsPage() {
                   <Upload className="h-4 w-4" />
                   लोगो परिवर्तन गर्नुहोस्
                 </Button>
-                {form.logo_url !== DEFAULT_CONFIG.logo_url && (
+                {form.logo_url && (
                   <Button
                     variant="ghost"
                     size="xs"
-                    onClick={() => setForm((p) => ({ ...p, logo_url: DEFAULT_CONFIG.logo_url }))}
+                    onClick={() => setForm((p) => ({ ...p, logo_url: "" }))}
                     className="text-muted-foreground text-xs"
                   >
-                    डिफल्ट लोगोमा फर्काउनुस्
+                    लोगो हटाउनुस्
                   </Button>
                 )}
               </div>

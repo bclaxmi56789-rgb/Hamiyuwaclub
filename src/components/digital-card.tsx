@@ -365,7 +365,7 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
             style={{ background: "linear-gradient(90deg, #1e3a5f, #1d4ed8)" }}
             className="px-5 py-2 flex items-center justify-between text-[10px] text-sky-200"
           >
-            <span>{person.municipality || "वीरेन्द्रनगर"} • {person.district || "सुर्खेत"}</span>
+            <span>{person.municipality || ""} • {person.district || ""}</span>
             <span className="font-mono">{np(today)}</span>
             <span>Hami Yuwa Club — Member Card</span>
           </div>
