@@ -1,4 +1,3 @@
-import "./lib/ssr-shim";
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
