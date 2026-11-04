@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useWorkspace, WorkspacePage, money } from "@/components/workspace";
 import { Button } from "@/components/ui/button";
+import { useTeamLocationBroadcast } from "@/lib/team-location";
 import {
   MapPin,
   Navigation,
@@ -99,6 +100,14 @@ function CollectionMapPage() {
 
   const watchIdRef = useRef<number | null>(null);
   const firstFixRef = useRef(false);
+
+  // ── Broadcast this collector's live location to the dashboard map ──────
+  const broadcastToDashboard = useTeamLocationBroadcast({
+    userId: userId ?? null,
+    name: "संकलक",
+    role: "collector",
+    active: trackingLocation,
+  });
 
   // Selected customer for navigation / route
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDue | null>(null);
@@ -497,6 +506,9 @@ function CollectionMapPage() {
         const { latitude, longitude } = position.coords;
         setDriverLocation({ latitude, longitude });
         setLocatingStatus(msg || "✓ लोकेसन सक्रिय छ");
+
+        // Broadcast to dashboard live map
+        broadcastToDashboard(latitude, longitude);
 
         // Center on the driver only once (the first fix); watch updates must not
         // keep dragging the map while the driver moves or pans manually.

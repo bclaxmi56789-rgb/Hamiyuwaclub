@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useWorkspace, WorkspacePage } from "@/components/workspace";
 import { logTrip, deleteTrip } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
+import { useTeamLocationBroadcast } from "@/lib/team-location";
 import {
   MapPin,
   Navigation,
@@ -73,7 +74,7 @@ interface CustomerWithTrips extends Person {
 }
 
 function TripDriverPage() {
-  const { query, ward, year } = useWorkspace();
+  const { query, ward, year, userId } = useWorkspace();
   const queryClient = useQueryClient();
   const logTripFn = useServerFn(logTrip);
   const deleteTripFn = useServerFn(deleteTrip);
@@ -99,6 +100,14 @@ function TripDriverPage() {
   const [settingDriverMode, setSettingDriverMode] = useState(false);
   const settingDriverModeRef = useRef(false);
   settingDriverModeRef.current = settingDriverMode;
+
+  // ── Broadcast this driver's live location to the dashboard map ──────────
+  const broadcastToDashboard = useTeamLocationBroadcast({
+    userId: userId ?? null,
+    name: "चालक",
+    role: "driver",
+    active: trackingLocation,
+  });
 
   // Trips month: current BS month by default
   const today = todayBS();
@@ -461,6 +470,10 @@ function TripDriverPage() {
       const lat = Number(position.coords.latitude.toFixed(7));
       const lng = Number(position.coords.longitude.toFixed(7));
       setDriverLocation({ latitude: lat, longitude: lng });
+
+      // Broadcast to dashboard live map
+      broadcastToDashboard(lat, lng);
+
       setDriverTrail((prev) => {
         const last = prev[prev.length - 1];
         if (last && Math.abs(last[0] - lat) < 0.000005 && Math.abs(last[1] - lng) < 0.000005)

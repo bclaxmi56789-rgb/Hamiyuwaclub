@@ -395,7 +395,6 @@ function Dashboard() {
           <DashboardLiveMap
             userId={userId}
             userName={myName || `सदस्य-${userId.slice(0, 6)}`}
-            accountId="tjawgszwbozvxqugdnva"
           />
         </div>
       )}
