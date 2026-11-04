@@ -56,6 +56,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/dashboard")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Dashboard — Sangstha" },

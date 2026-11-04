@@ -44,6 +44,7 @@ import {
 import { natureEmoji } from "@/lib/nature";
 
 export const Route = createFileRoute("/trip-driver")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Trips & Driver Map — Sangstha" },

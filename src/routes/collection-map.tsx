@@ -43,6 +43,7 @@ import {
 import { natureEmoji } from "@/lib/nature";
 
 export const Route = createFileRoute("/collection-map")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Collection & Driver Map — Sangstha" },
