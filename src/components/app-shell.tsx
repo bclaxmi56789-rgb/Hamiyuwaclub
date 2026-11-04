@@ -913,8 +913,62 @@ export function AppShell({ children }: { children: ReactNode }) {
               {authError}
             </p>
           )}
-          {/* Top bar opposite the navigation: theme + sign out */}
+          {/* Top bar opposite the navigation: access profile + theme + sign out */}
           <div className="no-print sticky top-0 z-20 flex items-center justify-end gap-3 border-b border-border bg-background/90 px-4 py-2 backdrop-blur sm:px-7">
+            {/* ─── Access Profile Indicator ─── */}
+            <div className="flex items-center gap-2 mr-auto ml-12 lg:ml-0">
+              <span className="text-[11px] font-semibold text-muted-foreground hidden sm:inline shrink-0">
+                पहुँच प्रोफाइल:
+              </span>
+              <Select
+                value={activeEmployeeId ?? "__admin__"}
+                onValueChange={(val) => {
+                  if (val === "__admin__") {
+                    // Switch to admin: requires re-lock so admin can re-enter PIN
+                    if (window.confirm("Admin पहुँचमा फर्कन PIN पुनः प्रविष्ट गर्नुपर्छ। जारी राख्ने?")) {
+                      setPinUnlocked(false);
+                      setActiveEmployeeId(null);
+                      setGateRole("admin");
+                      setGatePin("");
+                      setGateError("");
+                    }
+                  } else {
+                    // Switch to employee: requires re-lock
+                    if (window.confirm(`कर्मचारी पहुँचमा स्विच गर्न PIN पुनः प्रविष्ट गर्नुपर्छ। जारी राख्ने?`)) {
+                      setPinUnlocked(false);
+                      setGateRole("employee");
+                      setGateEmpId(val);
+                      setGatePin("");
+                      setGateError("");
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs font-semibold w-[220px] sm:w-[260px] border-primary/30 bg-primary/5 text-foreground focus:ring-primary/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__admin__">
+                    🔥 मुख्य व्यवस्थापक / Admin (Full Access)
+                  </SelectItem>
+                  {employees
+                    .filter((emp): emp is Employee & { id: string } => Boolean(emp.id))
+                    .map((emp) => {
+                      const empPerms = permissions.filter((p) => p.employee_id === emp.id);
+                      const hasFullAll = empPerms.every((p) => p.access_level === "full_access");
+                      const hasReadAll = empPerms.every((p) => p.access_level === "read_only");
+                      const badge = hasFullAll ? "✏️ Edit" : hasReadAll ? "👁 Read" : "🔒 Mixed";
+                      return (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          👤 {emp.name}
+                          {emp.designation ? ` (${emp.designation})` : ""} — {badge}
+                        </SelectItem>
+                      );
+                    })}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-muted-foreground hidden sm:inline">रङ / Theme</span>
               <ThemeSelector />
@@ -930,6 +984,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="hidden sm:inline">साइन आउट</span>
             </Button>
           </div>
+          {/* Read-only mode banner — shown when active employee has read_only on current page */}
+          {activeEmployeeId && isPageReadOnly(location.pathname) && (
+            <div className="no-print flex items-center gap-2 bg-blue-500/10 border-b border-blue-500/30 px-5 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
+              <Eye className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                👁 हेर्न मात्र पहुँच (Read-only Mode) —{" "}
+                {employees.find((e) => e.id === activeEmployeeId)?.name ?? "कर्मचारी"}लाई
+                यस पृष्ठमा सम्पादन (Edit/Create/Delete) अनुमति छैन।
+              </span>
+            </div>
+          )}
           {children}
           <ScrollNavigationButtons scrollRef={contentRef} />
         </div>
