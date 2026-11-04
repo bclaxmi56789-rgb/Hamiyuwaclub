@@ -45,13 +45,13 @@ import { natureEmoji } from "@/lib/nature";
 export const Route = createFileRoute("/trip-driver")({
   head: () => ({
     meta: [
-      { title: "Trips & Driver Map — Hami Yuwa Club" },
+      { title: "Trips & Driver Map — Sangstha" },
       {
         name: "description",
         content:
           "Trip and driver map: the principal driver's live GPS track with each customer's home trip progress (red → orange → green).",
       },
-      { property: "og:title", content: "Trips & Driver Map — Hami Yuwa Club" },
+      { property: "og:title", content: "Trips & Driver Map — Sangstha" },
     ],
   }),
   component: TripDriverPage,
@@ -529,7 +529,7 @@ function TripDriverPage() {
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => updatePos(pos),
       (err) => console.warn("Watch pos error:", err),
-      { enableHighAccuracy: false, maximumAge: 10000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     );
   };
 
@@ -757,7 +757,9 @@ function TripDriverPage() {
       )}
 
       {/* Map area */}
-      <div className="relative h-[calc(100vh-220px)] min-h-[500px] w-full overflow-hidden rounded-xl border-2 border-border shadow-lg">
+      {/* leaflet-map-wrapper creates an isolated stacking context so Leaflet's
+          internal z-indexes don't bleed above the sticky app navbar on mobile. */}
+      <div className="leaflet-map-wrapper relative w-full overflow-hidden rounded-xl border-2 border-border shadow-lg">
         <div
           ref={mapContainerRef}
           className={`h-full w-full bg-muted ${settingDriverMode ? "cursor-crosshair" : ""}`}

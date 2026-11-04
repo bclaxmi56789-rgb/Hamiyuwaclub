@@ -44,13 +44,13 @@ import { natureEmoji } from "@/lib/nature";
 export const Route = createFileRoute("/collection-map")({
   head: () => ({
     meta: [
-      { title: "Collection & Driver Map — Hami Yuwa Club" },
+      { title: "Collection & Driver Map — Sangstha" },
       {
         name: "description",
         content:
           "Interactive map for waste collectors and drivers showing customer dues, bubble sizes, live location and direct receipt creation.",
       },
-      { property: "og:title", content: "Waste Collection Map — Hami Yuwa Club" },
+      { property: "og:title", content: "Waste Collection Map — Sangstha" },
     ],
   }),
   component: CollectionMapPage,
@@ -566,7 +566,7 @@ function CollectionMapPage() {
       watchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => updatePos(pos),
         (err) => console.warn("Watch pos error:", err),
-        { enableHighAccuracy: false, maximumAge: 10000 },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
       );
     }
   };
@@ -813,7 +813,9 @@ function CollectionMapPage() {
       )}
 
       {/* Main Map View Area with Floating Overlay Panels */}
-      <div className="relative h-[calc(100vh-220px)] min-h-[500px] w-full overflow-hidden rounded-xl border-2 border-border shadow-lg">
+      {/* leaflet-map-wrapper creates an isolated stacking context so Leaflet's
+          internal z-indexes don't bleed above the sticky app navbar on mobile. */}
+      <div className="leaflet-map-wrapper relative w-full overflow-hidden rounded-xl border-2 border-border shadow-lg">
         {/* Leaflet Map Canvas */}
         <div
           ref={mapContainerRef}

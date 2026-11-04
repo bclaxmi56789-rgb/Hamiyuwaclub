@@ -345,3 +345,41 @@
   display: none !important;
 }
 
+/*
+ * Leaflet mobile fix — isolate the map stacking context so Leaflet's
+ * internal z-indexes (tile panes z:200, marker panes z:400, popup z:700…)
+ * never bleed above the app's sticky navbar (z-20) or hamburger (z-30).
+ *
+ * .leaflet-map-wrapper creates a new stacking context (isolation:isolate)
+ * so every z-index inside it is relative to the wrapper, not the page.
+ */
+.leaflet-map-wrapper {
+  isolation: isolate;
+  /* Use small viewport height on mobile so the map never grows behind the
+     browser's chrome (address bar, bottom bar) or the sticky app navbar.   */
+  height: calc(100svh - 260px);
+  min-height: 420px;
+}
+
+@media (min-width: 1024px) {
+  /* Desktop: sidebar is always visible and navbar is thinner, so more room */
+  .leaflet-map-wrapper {
+    height: calc(100vh - 220px);
+    min-height: 500px;
+  }
+}
+
+/* Ensure the map container itself fills the wrapper */
+.leaflet-map-wrapper .leaflet-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Keep floating overlay panels (legend, customer cards) reachable above
+   map tiles/markers (which sit at z:200-700 inside the isolated context) */
+.leaflet-map-wrapper .leaflet-overlay-panel {
+  position: absolute;
+  z-index: 800;
+  pointer-events: auto;
+}
+
