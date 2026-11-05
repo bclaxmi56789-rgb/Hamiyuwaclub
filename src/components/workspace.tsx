@@ -14,6 +14,15 @@ export function useWorkspace() {
     queryKey: ["workspace", app.userId],
     queryFn: () => fetchData(),
     enabled: app.ready && app.signedIn,
+    // The first fetch right after sign-in can race the auth token attach; retry
+    // so records load without a manual refresh.
+    retry: (count, err) => {
+      const msg = String((err as Error)?.message || "");
+      if (/Unauthorized/i.test(msg) && count < 3) return true;
+      return count < 2;
+    },
+    retryDelay: 1200,
+    refetchOnWindowFocus: true,
   });
   return { ...app, query };
 }
