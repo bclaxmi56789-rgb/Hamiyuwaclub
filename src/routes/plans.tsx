@@ -15,8 +15,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Car,
+  DownloadCloud,
 } from "lucide-react";
-import type { PlanItem } from "@/lib/receipt-rules";
+import { DEFAULT_PLANS, type PlanItem } from "@/lib/receipt-rules";
 
 export const Route = createFileRoute("/plans")({
   head: () => ({
@@ -59,6 +60,7 @@ function PlansPage() {
   const [editingPlan, setEditingPlan] = useState<PlanItem | null>(null);
   const [form, setForm] = useState<PlanItem>(getEmptyPlan());
   const [busy, setBusy] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [err, setErr] = useState("");
   const queryClient = useQueryClient();
   const savePlanFn = useServerFn(savePlan);
@@ -66,6 +68,37 @@ function PlansPage() {
 
   const plans = query.data?.plans ?? [];
   const people = query.data?.people ?? [];
+
+  async function handleLoadStandardPresets() {
+    if (!window.confirm("के तपाईं ३ वटा मानक फोहोरमैला योजनाहरू (घरायसी, व्यवसायिक, प्रति ट्रिप) लोड गर्न चाहनुहुन्छ?")) {
+      return;
+    }
+    setSeeding(true);
+    setErr("");
+    try {
+      for (const preset of DEFAULT_PLANS) {
+        await savePlanFn({
+          data: {
+            name: preset.name,
+            uom: preset.uom || "महिना (Month)",
+            rate: preset.rate ?? preset.amount,
+            trips: preset.trips ?? preset.no_of_trips ?? 1,
+            no_of_trips: preset.no_of_trips ?? preset.trips ?? 1,
+            amount: preset.amount,
+            incentive: preset.incentive ?? 0,
+            chargeable_amount: preset.chargeable_amount,
+            description: preset.description || "",
+            is_active: true,
+          },
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["workspace"] });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "नमुना योजनाहरू लोड गर्न सकिएन।");
+    } finally {
+      setSeeding(false);
+    }
+  }
 
   const handleOpenAdd = () => {
     setForm(getEmptyPlan());
@@ -175,6 +208,18 @@ function PlansPage() {
           <span className="text-xs text-muted-foreground">
             कुल योजना: <b>{plans.length}</b>
           </span>
+          {plans.length === 0 && (
+            <Button
+              onClick={handleLoadStandardPresets}
+              disabled={!signedIn || seeding}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs text-primary border-primary/40 hover:bg-primary/10"
+            >
+              <DownloadCloud className="size-4" />
+              {seeding ? "लोड हुँदैछ..." : "मानक नमुना योजना लोड (Load Standard Presets)"}
+            </Button>
+          )}
           <Button onClick={handleOpenAdd} disabled={!signedIn} size="sm">
             <Plus className="mr-1 size-4" /> नयाँ योजना थप्नुहोस् (Add Plan)
           </Button>
@@ -278,10 +323,40 @@ function PlansPage() {
               );
             })}
             {!plans.length && (
-              <EmptyRows
-                columns={10}
-                text="कुनै योजना भेटिएन। 'Add Plan' थिचेर नयाँ योजना दर्ता गर्नुहोस्।"
-              />
+              <tr>
+                <td colSpan={10} className="p-8 text-center">
+                  <div className="mx-auto max-w-md space-y-3">
+                    <Layers className="mx-auto size-10 text-muted-foreground/50" />
+                    <p className="font-semibold text-foreground">
+                      यस संस्था/क्लबमा अहिलेसम्म कुनै योजना दर्ता गरिएको छैन।
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      तपाईं आफ्नै नयाँ योजना सिर्जना गर्न सक्नुहुन्छ वा मानक नमुना योजनाहरू (घरायसी, व्यवसायिक, प्रति ट्रिप) लोड गर्न सक्नुहुन्छ।
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                      <Button
+                        onClick={handleLoadStandardPresets}
+                        disabled={!signedIn || seeding}
+                        variant="default"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                      >
+                        <DownloadCloud className="size-4" />
+                        {seeding ? "लोड हुँदैछ..." : "मानक नमुना योजना लोड गर्नुहोस् (Load Presets)"}
+                      </Button>
+                      <Button
+                        onClick={handleOpenAdd}
+                        disabled={!signedIn}
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                      >
+                        <Plus className="size-4" /> नयाँ योजना थप्नुहोस् (Add Plan)
+                      </Button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

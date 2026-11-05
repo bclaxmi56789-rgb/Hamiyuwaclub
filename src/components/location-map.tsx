@@ -269,7 +269,14 @@ export function LocationMap({
       geocodeCoordsRef.current = null;
       setRefining(false);
       setRefiningNotice("");
-      if (best) void applyCoordsWithGeocode(best.lat, best.lng, best.acc);
+      if (best) {
+        if (best.acc !== null && best.acc > GPS_TARGET_ACCURACY) {
+          setGpsError(
+            `उपलब्ध सटीकता ±${best.acc}m (लक्ष्य ±${GPS_TARGET_ACCURACY}m)। iPhone मा: Settings → Privacy & Security → Location Services → Safari Websites → "While Using" र "Precise Location" अन गर्नुहोस्; खुला ठाउँ (पार्क/बाहिर) मा GPS लिनुहोस् वा पिन तानेर सच्याउनुहोस्।`,
+          );
+        }
+        void applyCoordsWithGeocode(best.lat, best.lng, best.acc);
+      }
     }, 35000);
 
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -548,8 +555,8 @@ export function LocationMap({
       },
       {
         enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 30000,
+        timeout: 15000, // give iPhone GPS time to warm up for a precise fix
+        maximumAge: 0, // never accept a stale/cached position
       },
     );
   };
