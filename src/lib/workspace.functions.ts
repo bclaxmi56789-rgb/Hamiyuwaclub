@@ -44,6 +44,7 @@ export const getWorkspaceData = createServerFn({ method: "GET" })
       const result = await context.supabase
         .from("customer_master")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("id")
         .range(offset, offset + 999);
       if (result.error) throw new Error("Customer records could not be loaded.");
@@ -55,6 +56,7 @@ export const getWorkspaceData = createServerFn({ method: "GET" })
       const result = await context.supabase
         .from("ward_receipts")
         .select("id,payload")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: false })
         .order("id")
         .range(offset, offset + 999);
@@ -445,21 +447,24 @@ export const getMembersData = createServerFn({ method: "GET" })
     let accounts: Array<{ id: string; name: string; account_type: "cash" | "bank" }> = [];
 
     try {
-      // Check 'members' or 'club_members' or 'bod_members'
+      // Check 'members' or 'club_members' or 'bod_members' scoped to this tenant
       let memRes = await context.supabase
         .from("members")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: true });
       if (memRes.error || !memRes.data || memRes.data.length === 0) {
         memRes = await context.supabase
           .from("club_members")
           .select("*")
+          .eq("owner_id", context.userId)
           .order("created_at", { ascending: true });
       }
       if (memRes.error || !memRes.data || memRes.data.length === 0) {
         memRes = await context.supabase
           .from("bod_members")
           .select("*")
+          .eq("owner_id", context.userId)
           .order("created_at", { ascending: true });
       }
       if (!memRes.error && memRes.data) {
@@ -473,6 +478,7 @@ export const getMembersData = createServerFn({ method: "GET" })
       const empRes = await context.supabase
         .from("employee_master")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: true });
       if (!empRes.error && empRes.data) {
         employees.push(...(empRes.data as unknown as Employee[]));
@@ -485,6 +491,7 @@ export const getMembersData = createServerFn({ method: "GET" })
       const payRes = await context.supabase
         .from("payroll_records")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("year", { ascending: false })
         .order("month", { ascending: false });
       if (!payRes.error && payRes.data) {
@@ -1321,6 +1328,7 @@ export const getEventsData = createServerFn({ method: "GET" })
       const res = await context.supabase
         .from("club_events")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("commencing_date", { ascending: false })
         .order("created_at", { ascending: false });
       if (!res.error && res.data) {
@@ -1425,6 +1433,7 @@ export const getMinutesData = createServerFn({ method: "GET" })
       const res = await context.supabase
         .from("event_minutes")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("meeting_date", { ascending: false })
         .order("created_at", { ascending: false });
       if (!res.error && res.data) {
@@ -2556,6 +2565,7 @@ export const getTheliData = createServerFn({ method: "GET" })
       const empRes = await context.supabase
         .from("employee_master")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: true });
       if (!empRes.error && empRes.data) employees.push(...(empRes.data as unknown as Employee[]));
     } catch {
@@ -2565,17 +2575,20 @@ export const getTheliData = createServerFn({ method: "GET" })
       let memRes = await context.supabase
         .from("members")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: true });
       if (memRes.error || !memRes.data || memRes.data.length === 0) {
         memRes = await context.supabase
           .from("club_members")
           .select("*")
+          .eq("owner_id", context.userId)
           .order("created_at", { ascending: true });
       }
       if (memRes.error || !memRes.data || memRes.data.length === 0) {
         memRes = await context.supabase
           .from("bod_members")
           .select("*")
+          .eq("owner_id", context.userId)
           .order("created_at", { ascending: true });
       }
       if (!memRes.error && memRes.data) members.push(...(memRes.data as unknown as Member[]));
@@ -2718,6 +2731,7 @@ export const getTheliStockData = createServerFn({ method: "GET" })
       const empRes = await context.supabase
         .from("employee_master")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: true });
       if (!empRes.error && empRes.data) employees.push(...(empRes.data as unknown as Employee[]));
     } catch {
@@ -2728,11 +2742,13 @@ export const getTheliStockData = createServerFn({ method: "GET" })
       let memRes = await context.supabase
         .from("members")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: true });
       if (memRes.error || !memRes.data || memRes.data.length === 0) {
         memRes = await context.supabase
           .from("club_members")
           .select("*")
+          .eq("owner_id", context.userId)
           .order("created_at", { ascending: true });
       }
       if (!memRes.error && memRes.data) members.push(...(memRes.data as unknown as Member[]));
