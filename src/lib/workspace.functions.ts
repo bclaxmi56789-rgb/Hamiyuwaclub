@@ -390,6 +390,178 @@ export const deleteCustomer = createServerFn({ method: "POST" })
     return true;
   });
 
+// ─── Driver trip sessions (start / share GPS / end; type: collection | dumping) ──
+
+export interface TripSession {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  ward: string;
+  fiscal_year: number | null;
+  trip_type: "collection" | "dumping";
+  status: "active" | "ended";
+  started_at: string;
+  ended_at: string | null;
+  end_note: string;
+}
+
+export interface TripPoint {
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+  recorded_at: string;
+}
+
+export const startTripSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      trip_type: z.enum(["collection", "dumping"]),
+      ward: z.string().default(""),
+      fiscal_year: z.number().min(2079).max(2099).nullable().optional(),
+      employee_id: z.string().default(""),
+      employee_name: z.string().default(""),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    // Close any careless leftovers, then open the new session atomically.
+    await context.supabase
+      .from("trip_sessions")
+      .update({ status: "ended", ended_at: new Date().toISOString(), end_note: "auto-closed" })
+      .eq("owner_id", context.userId)
+      .eq("status", "active");
+
+    const res = await context.supabase
+      .from("trip_sessions")
+      .insert({
+        owner_id: context.userId,
+        employee_id: data.employee_id,
+        employee_name: data.employee_name,
+        ward: data.ward,
+        fiscal_year: data.fiscal_year ?? null,
+        trip_type: data.trip_type,
+        status: "active",
+      })
+      .select("*")
+      .single();
+    if (res.error) {
+      throw new Error(
+        res.error.message ||
+          "Could not start trip. Please ensure migration 0039_trip_sessions.sql has been executed in Supabase.",
+      );
+    }
+    return res.data as TripSession;
+  });
+
+export const endTripSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      session_id: z.string(),
+      end_note: z.string().trim().max(300).default(""),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const res = await context.supabase
+      .from("trip_sessions")
+      .update({ status: "ended", ended_at: new Date().toISOString(), end_note: data.end_note })
+      .eq("id", data.session_id)
+      .eq("owner_id", context.userId)
+      .eq("status", "active")
+      .select("*")
+      .single();
+    if (res.error) throw new Error(res.error.message || "Could not end trip session.");
+    return res.data as TripSession;
+  });
+
+export const addTripPoints = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      session_id: z.string(),
+      points: z
+        .array(
+          z.object({
+            lat: z.number().min(-90).max(90),
+            lng: z.number().min(-180).max(180),
+            accuracy: z.number().min(0).max(100000).nullable().optional(),
+            recorded_at: z.string().default(""),
+          }),
+        )
+        .min(1)
+        .max(200),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const res = await context.supabase
+      .from("trip_points")
+      .insert(
+        data.points.map((p) => ({
+          session_id: data.session_id,
+          owner_id: context.userId,
+          lat: p.lat,
+          lng: p.lng,
+          accuracy: p.accuracy ?? null,
+          recorded_at: p.recorded_at ? p.recorded_at : new Date().toISOString(),
+        })),
+      )
+      .select("seq");
+    if (res.error) throw new Error(res.error.message || "Could not save trip location points.");
+    return { saved: res.data.length };
+  });
+
+export const getActiveTripSession = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const res = await context.supabase
+      .from("trip_sessions")
+      .select("*")
+      .eq("owner_id", context.userId)
+      .eq("status", "active")
+      .order("started_at", { ascending: false })
+      .limit(1);
+    if (res.error) return null;
+    return (res.data?.[0] as TripSession | undefined) ?? null;
+  });
+
+export const getTripSessions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ session_id: z.string().optional() }))
+  .handler(async ({ data, context }) => {
+    if (data.session_id) {
+      const res = await context.supabase
+        .from("trip_sessions")
+        .select("*")
+        .eq("owner_id", context.userId)
+        .eq("id", data.session_id)
+        .maybeSingle();
+      return { session: (res.data as TripSession | null) ?? null, sessions: [] };
+    }
+    const res = await context.supabase
+      .from("trip_sessions")
+      .select("*")
+      .eq("owner_id", context.userId)
+      .order("started_at", { ascending: false })
+      .limit(100);
+    if (res.error) return { session: null, sessions: [] };
+    return { session: null, sessions: res.data as TripSession[] };
+  });
+
+export const getTripSessionPoints = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ session_id: z.string() }))
+  .handler(async ({ data, context }) => {
+    const res = await context.supabase
+      .from("trip_points")
+      .select("lat,lng,accuracy,recorded_at")
+      .eq("owner_id", context.userId)
+      .eq("session_id", data.session_id)
+      .order("seq", { ascending: true })
+      .limit(3000);
+    if (res.error) throw new Error(res.error.message || "Could not load trip points.");
+    return res.data as unknown as TripPoint[];
+  });
+
 export const logTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -3359,21 +3531,17 @@ export const verifyAdminPin = createServerFn({ method: "POST" })
       if (!configuredPin) {
         // No admin PIN in DB yet: fall back to the PIN captured during signup
         // (stored in the user's auth metadata), and persist it on first match.
-        const metaPin = String(
-          (context.claims as any)?.user_metadata?.admin_pin || "",
-        ).trim();
+        const metaPin = String((context.claims as any)?.user_metadata?.admin_pin || "").trim();
         if (metaPin) {
           if (metaPin === data.pin) {
-            await context.supabase
-              .from("app_configuration")
-              .upsert(
-                {
-                  owner_id: context.userId,
-                  admin_pin: data.pin,
-                  updated_at: new Date().toISOString(),
-                },
-                { onConflict: "owner_id" },
-              );
+            await context.supabase.from("app_configuration").upsert(
+              {
+                owner_id: context.userId,
+                admin_pin: data.pin,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "owner_id" },
+            );
             return { ok: true, code: "ok" as const };
           }
           return { ok: false, code: "wrong_pin" as const };
@@ -3424,7 +3592,10 @@ export const saveAdminPin = createServerFn({ method: "POST" })
           .select("admin_pin");
         if (upd.error) {
           // Last resort: insert a fresh configuration row for this owner
-          const ins = await context.supabase.from("app_configuration").insert(payload).select("admin_pin");
+          const ins = await context.supabase
+            .from("app_configuration")
+            .insert(payload)
+            .select("admin_pin");
           if (ins.error) return { ok: false, error: ins.error.message };
           return { ok: true };
         }

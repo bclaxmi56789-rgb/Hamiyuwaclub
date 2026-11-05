@@ -22,6 +22,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   TEAM_LOCATION_CHANNEL,
@@ -29,6 +30,12 @@ import {
   type TeamMemberLocation,
   type TeamMemberRole,
 } from "@/lib/team-location";
+import {
+  getTripSessions,
+  getTripSessionPoints,
+  type TripSession,
+  type TripPoint,
+} from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import {
   LocateFixed,
@@ -75,6 +82,25 @@ const ROLE_META: Record<TeamMemberRole, { emoji: string; color: string; label: s
   driver: { emoji: "🛻", color: "#7c3aed", label: "चालक" },
   admin: { emoji: "🏢", color: "#059669", label: "प्रशासक" },
   other: { emoji: "👤", color: "#64748b", label: "अन्य" },
+};
+
+const tripDateTime = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "—";
+
+const tripDurationText = (s: TripSession) => {
+  const from = new Date(s.started_at).getTime();
+  const to = s.ended_at ? new Date(s.ended_at).getTime() : Date.now();
+  const mins = Math.max(0, Math.round((to - from) / 60000));
+  return `${Math.floor(mins / 60)} घण्टा ${mins % 60} मिनेट`;
 };
 
 interface CustomerMapPin extends Person {
@@ -125,6 +151,124 @@ export function DashboardLiveMap({
 
   const [members, setMembers] = useState<TeamMemberLocation[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "driver" | "collector">("all");
+
+  // ── Trip history (saved trip sessions per employee) ────────────────────
+  const getTripSessionsFn = useServerFn(getTripSessions);
+  const getTripSessionPointsFn = useServerFn(getTripSessionPoints);
+  const [tripSessions, setTripSessions] = useState<TripSession[]>([]);
+  const [tripSessionsLoaded, setTripSessionsLoaded] = useState(false);
+  const [tripHistoryOpen, setTripHistoryOpen] = useState(false);
+  const [tripEmployeeFilter, setTripEmployeeFilter] = useState<string>("all");
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [tripTrail, setTripTrail] = useState<TripPoint[]>([]);
+  const [tripTrailLoading, setTripTrailLoading] = useState(false);
+  const tripTrailLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // Load saved trip sessions (per-employee trips) once
+  useEffect(() => {
+    if (!userId || tripSessionsLoaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getTripSessionsFn({ data: {} });
+        if (!cancelled) {
+          setTripSessions(data.sessions);
+          setTripSessionsLoaded(true);
+        }
+      } catch {
+        // migration 0039 not applied yet — nothing to show
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, tripSessionsLoaded]);
+
+  // Load the selected trip's GPS points and draw the green start marker +
+  // red dotted travelled path on the map
+  const showTripOnMap = async (session: TripSession) => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (selectedTripId === session.id) {
+      // Toggle off
+      tripTrailLayerRef.current?.clearLayers();
+      tripTrailLayerRef.current = null;
+      setSelectedTripId(null);
+      setTripTrail([]);
+      return;
+    }
+    setSelectedTripId(session.id);
+    setTripTrailLoading(true);
+    try {
+      const points = await getTripSessionPointsFn({ data: { session_id: session.id } });
+      setTripTrail(points);
+      if (tripTrailLayerRef.current) {
+        tripTrailLayerRef.current.clearLayers();
+      }
+      const layer = L.layerGroup().addTo(map);
+      tripTrailLayerRef.current = layer;
+
+      const start = points[0];
+      if (points.length > 0 && start) {
+        // Trip start point (green flag pin)
+        L.marker([start.lat, start.lng], {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="
+              display:flex; align-items:center; justify-content:center;
+              width:30px; height:30px; border-radius:9999px;
+              background:#059669; color:#fff; font-size:15px;
+              border:3px solid #ffffff; box-shadow:0 3px 10px rgba(5,150,105,0.5);
+            ">🚩</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+          }),
+          zIndexOffset: 3000,
+        })
+          .bindTooltip(
+            `<b>ट्रिप सुरु.${new Date(session.started_at).toLocaleString("en-GB", { hour12: true })}</b>`,
+            { direction: "top", offset: [0, -20] },
+          )
+          .addTo(layer);
+
+        // Travelled path: red dot-dot-dot dotted line + small red dots
+        const line = L.polyline(
+          points.map((p) => [p.lat, p.lng] as [number, number]),
+          { color: "#dc2626", weight: 3, opacity: 0.95, dashArray: "1 8", lineCap: "round" },
+        ).addTo(layer);
+        for (let i = 1; i < points.length; i += 3) {
+          const p = points[i];
+          if (!p) continue;
+          L.circleMarker([p.lat, p.lng], {
+            radius: 3,
+            color: "#dc2626",
+            weight: 1,
+            fillColor: "#dc2626",
+            fillOpacity: 0.85,
+          }).addTo(layer);
+        }
+        line.bindTooltip(
+          `<b>${session.employee_name || "चालक"}</b> — ${session.trip_type === "dumping" ? "🗑️ मल फाल्ने" : "🚚 संकलन"} ट्रिप ट्रयाक (${points.length} बिन्दु)`,
+          { direction: "center" },
+        );
+        map.fitBounds(line.getBounds(), { padding: [60, 60], maxZoom: 17 });
+      }
+    } catch {
+      // points not available
+    } finally {
+      setTripTrailLoading(false);
+    }
+  };
+
+  // Clear trail when leaving fullscreen/unmount
+  useEffect(() => {
+    return () => {
+      tripTrailLayerRef.current?.clearLayers();
+      tripTrailLayerRef.current = null;
+    };
+  }, []);
+
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "done">("all");
   const [wardFilter, setWardFilter] = useState<string>(selectedWard || "all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -163,9 +307,7 @@ export function DashboardLiveMap({
             .filter((r) => r.ward === p.ward && r.card.toLowerCase() === p.card.toLowerCase())
             .flatMap((r) => r.months.map((m) => `${m.year ?? r.year}:${m.m}`)),
         );
-        const autoDues = p.joining_date
-          ? getDueMonths(p.joining_date, customerPaidSet)
-          : [];
+        const autoDues = p.joining_date ? getDueMonths(p.joining_date, customerPaidSet) : [];
         const dueMonths = mergeOpeningDues(autoDues, p.opening_dues, customerPaidSet);
         const monthlyFee = getCustomerTotalRate(p, activePlans);
         const dueAmount = dueMonths.reduce((s, dm) => s + (dm.amount ?? monthlyFee), 0);
@@ -315,6 +457,13 @@ export function DashboardLiveMap({
       });
 
       const tooltipContent = `<b>${m.name}</b>${m.designation ? ` (${m.designation})` : ` (${meta.label})`}<br/>
+        ${
+          m.tripType
+            ? `<span style="font-size:10px;font-weight:800;color:#ffffff;background:${m.tripType === "dumping" ? "#d97706" : "#2563eb"};padding:1px 6px;border-radius:3px;">
+                ${m.tripType === "dumping" ? "🗑️ मल फाल्ने ट्रिप (Dumping)" : "🚚 संकलन ट्रिप (Collection)"}
+               </span><br/>`
+            : ""
+        }
         <span style="font-size:10px;color:${stale ? "#d97706" : "#059669"};">
           ${stale ? "⚠️ पुरानो स्थान" : "🟢 लाइभ GPS सक्रिय"}</span>`;
 
@@ -538,7 +687,9 @@ export function DashboardLiveMap({
               type="button"
               onClick={() => setActiveTab("all")}
               className={`rounded-md px-2.5 py-1 transition-colors ${
-                activeTab === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                activeTab === "all"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               सबै दृश्य
@@ -547,7 +698,9 @@ export function DashboardLiveMap({
               type="button"
               onClick={() => setActiveTab("driver")}
               className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors ${
-                activeTab === "driver" ? "bg-background text-violet-700 dark:text-violet-300 shadow-xs" : "text-muted-foreground hover:text-foreground"
+                activeTab === "driver"
+                  ? "bg-background text-violet-700 dark:text-violet-300 shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Truck className="size-3" /> चालक (Trips)
@@ -556,7 +709,9 @@ export function DashboardLiveMap({
               type="button"
               onClick={() => setActiveTab("collector")}
               className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors ${
-                activeTab === "collector" ? "bg-background text-blue-700 dark:text-blue-300 shadow-xs" : "text-muted-foreground hover:text-foreground"
+                activeTab === "collector"
+                  ? "bg-background text-blue-700 dark:text-blue-300 shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Car className="size-3" /> संकलक (Dues)
@@ -642,10 +797,163 @@ export function DashboardLiveMap({
             <span className="size-2 rounded-full bg-red-500 animate-pulse" />
             <span>बाँकी/नपुगेको: {pendingCount}</span>
           </div>
-          <div className="text-muted-foreground">
-            नक्सामा कुल: {filteredCustomers.length} जना
-          </div>
+          <div className="text-muted-foreground">नक्सामा कुल: {filteredCustomers.length} जना</div>
         </div>
+      </div>
+
+      {/* ── Trip History Panel (saved per-employee trips) ── */}
+      <div className="border-b bg-violet-500/5 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTripHistoryOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-md border border-violet-500/40 bg-card px-2.5 py-1 text-xs font-bold text-violet-700 dark:text-violet-300 hover:bg-violet-500/10"
+          >
+            🛻 ट्रिप इतिहास (Trip History) ({tripSessions.length})
+            {tripTrailLoading && (
+              <span className="ml-1 inline-block size-2 animate-spin rounded-full border border-violet-500 border-t-transparent" />
+            )}
+            <span className="text-[10px]">{tripHistoryOpen ? "▲" : "▼"}</span>
+          </button>
+
+          {(() => {
+            const employees = Array.from(new Set(tripSessions.map((s) => s.employee_name || "—")));
+            return (
+              employees.length > 1 && (
+                <select
+                  aria-label="Filter trips by employee"
+                  className="h-7 rounded-md border bg-background px-2 text-xs font-bold"
+                  value={tripEmployeeFilter}
+                  onChange={(e) => setTripEmployeeFilter(e.target.value)}
+                >
+                  <option value="all">सबै कर्मचारी (All Employees)</option>
+                  {employees.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              )
+            );
+          })()}
+
+          <button
+            type="button"
+            onClick={() => {
+              setTripSessionsLoaded(false);
+              setTripSessions([]);
+            }}
+            className="rounded-md border bg-card px-2 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground"
+            title="ट्रिप इतिहास ताजा गर्नुहोस्"
+          >
+            <RotateCw className="inline size-3" /> ताजा
+          </button>
+
+          {selectedTripId && (
+            <span className="text-[11px] font-bold text-red-600">
+              🔴 नक्सामा ट्रिप ट्रयाक देखाइँदैछ (सुरु 🚩 + रातो डट मार्ग)
+            </span>
+          )}
+        </div>
+
+        {tripHistoryOpen && (
+          <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border bg-card">
+            {(() => {
+              const filtered =
+                tripEmployeeFilter === "all"
+                  ? tripSessions
+                  : tripSessions.filter((s) => (s.employee_name || "—") === tripEmployeeFilter);
+              if (filtered.length === 0) {
+                return (
+                  <div className="p-3 text-xs text-muted-foreground">
+                    {tripSessions.length === 0
+                      ? "अझै कुनै ट्रिप सुरक्षित छैन। चालकले 'ट्रिप सुरु' गरेपछि प्रत्येक ट्रिप यहाँ इतिहासमा बचत हुन्छ।"
+                      : "यो कर्मचारीको कुनै ट्रिप छैन।"}
+                  </div>
+                );
+              }
+              return (
+                <table className="w-full text-left text-[11px]">
+                  <thead className="sticky top-0 bg-muted/80 text-[10px] uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-2.5 py-1.5">चालक (कर्मचारी)</th>
+                      <th className="px-2.5 py-1.5">प्रकार</th>
+                      <th className="px-2.5 py-1.5">सुरु मिति र समय</th>
+                      <th className="px-2.5 py-1.5">समाप्ति मिति र समय</th>
+                      <th className="px-2.5 py-1.5">अवधि</th>
+                      <th className="px-2.5 py-1.5">वडा</th>
+                      <th className="px-2.5 py-1.5 text-right">नक्सा</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((s) => (
+                      <tr
+                        key={s.id}
+                        className={`border-t ${selectedTripId === s.id ? "bg-violet-500/10" : "hover:bg-muted/40"}`}
+                      >
+                        <td className="px-2.5 py-1.5 font-bold">
+                          {s.employee_name || "—"}{" "}
+                          {s.employee_id && (
+                            <span className="font-mono text-[9px] text-muted-foreground">
+                              ({s.employee_id})
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2.5 py-1.5">
+                          {s.trip_type === "dumping" ? (
+                            <span className="rounded bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              🗑️ मल फाल्ने
+                            </span>
+                          ) : (
+                            <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                              🚚 संकलन
+                            </span>
+                          )}
+                          {s.status === "active" && (
+                            <span className="ml-1 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">
+                              लाइभ
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2.5 py-1.5 whitespace-nowrap">
+                          ▶ {tripDateTime(s.started_at)}
+                        </td>
+                        <td className="px-2.5 py-1.5 whitespace-nowrap">
+                          {s.status === "ended" ? (
+                            <>
+                              <CheckCircle2 className="mr-0.5 inline size-3 text-emerald-600" />
+                              {tripDateTime(s.ended_at)}
+                            </>
+                          ) : (
+                            <span className="font-bold text-rose-600">
+                              ⏳ चलिरहेको (अझै समाप्त भएन)
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2.5 py-1.5 whitespace-nowrap">{tripDurationText(s)}</td>
+                        <td className="px-2.5 py-1.5">{s.ward || "—"}</td>
+                        <td className="px-2.5 py-1.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => void showTripOnMap(s)}
+                            className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                              selectedTripId === s.id
+                                ? "bg-red-600 text-white"
+                                : "bg-violet-600 text-white hover:bg-violet-700"
+                            }`}
+                            title="सुरु बिन्दु (🚩) र रातो डट डट मार्ग नक्सामा देखाउनुहोस्"
+                          >
+                            {selectedTripId === s.id ? "✕ लुकाउनुहोस्" : "🗺️ नक्सामा देखाउनुहोस्"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {/* ── Leaflet Map Area ── */}
@@ -690,15 +998,14 @@ export function DashboardLiveMap({
               <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-base">{natureEmoji(selectedPerson.nature) || "👤"}</span>
-                  <h4 className="font-extrabold text-sm text-foreground">
-                    {selectedPerson.name}
-                  </h4>
+                  <h4 className="font-extrabold text-sm text-foreground">{selectedPerson.name}</h4>
                   <span className="rounded bg-primary/10 border border-primary/30 px-1 py-0.2 font-mono text-[10px] font-bold text-primary">
                     कार्ड: {selectedPerson.card}
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  💼 पेसा: <b>{natureLabel(selectedPerson.nature) || "घरायसी / अन्य"}</b> • वडा {selectedPerson.ward}, {selectedPerson.tole}
+                  💼 पेसा: <b>{natureLabel(selectedPerson.nature) || "घरायसी / अन्य"}</b> • वडा{" "}
+                  {selectedPerson.ward}, {selectedPerson.tole}
                 </p>
               </div>
               <button
@@ -713,14 +1020,22 @@ export function DashboardLiveMap({
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-lg bg-muted/60 p-2">
                 <span className="block text-[10px] text-muted-foreground">मासिक ट्रिप स्थिति</span>
-                <span className={`font-bold ${selectedPerson.isTripComplete ? "text-emerald-600" : "text-amber-600"}`}>
-                  {selectedPerson.isTripComplete ? "✓ पूरा भयो" : `${selectedPerson.doneTrips}/${selectedPerson.plannedTrips} ट्रिप`}
+                <span
+                  className={`font-bold ${selectedPerson.isTripComplete ? "text-emerald-600" : "text-amber-600"}`}
+                >
+                  {selectedPerson.isTripComplete
+                    ? "✓ पूरा भयो"
+                    : `${selectedPerson.doneTrips}/${selectedPerson.plannedTrips} ट्रिप`}
                 </span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2">
                 <span className="block text-[10px] text-muted-foreground">बक्यौता रकम</span>
-                <span className={`font-bold ${selectedPerson.isDuePaid ? "text-emerald-600" : "text-red-600"}`}>
-                  {selectedPerson.isDuePaid ? "✓ चुक्ता" : `रु. ${selectedPerson.dueAmount.toLocaleString("en-IN")}`}
+                <span
+                  className={`font-bold ${selectedPerson.isDuePaid ? "text-emerald-600" : "text-red-600"}`}
+                >
+                  {selectedPerson.isDuePaid
+                    ? "✓ चुक्ता"
+                    : `रु. ${selectedPerson.dueAmount.toLocaleString("en-IN")}`}
                 </span>
               </div>
             </div>
@@ -738,7 +1053,8 @@ export function DashboardLiveMap({
       <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          GPS सक्रिय हुँदा स्वतः प्रत्यक्ष ट्र्याक भई नजिक पुग्दा वा कार्य सम्पन्न हुँदा हरियो (🟢) हुन्छ
+          GPS सक्रिय हुँदा स्वतः प्रत्यक्ष ट्र्याक भई नजिक पुग्दा वा कार्य सम्पन्न हुँदा हरियो (🟢)
+          हुन्छ
         </span>
         <div className="flex items-center gap-2 font-mono text-[10px]">
           <span>चालक ट्रिप + संकलक बक्यौता लाइभ सिंक</span>

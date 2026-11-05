@@ -29,6 +29,9 @@ export interface TeamMemberLocation {
   name: string;
   designation?: string;
   role: TeamMemberRole;
+  /** Active driver trip type — "collection" | "dumping" (only while a trip session is running) */
+  tripType?: string;
+  tripSessionId?: string;
   lat: number;
   lng: number;
   updatedAt: number; // epoch ms
@@ -62,14 +65,22 @@ interface BroadcastOptions {
   designation?: string;
   /** Role label — drives the emoji and colour on the dashboard */
   role: TeamMemberRole;
+  /** Active trip info — set while the driver has a trip session running */
+  tripType?: string;
+  tripSessionId?: string;
   /** Only broadcast while this is true (tracks the GPS-ON state of the page) */
   active: boolean;
 }
 
 /**
  * Joins the shared team-location Realtime channel and returns a stable
- * `broadcast(lat, lng)` function. Automatically unjoins on unmount or
- * when `active` becomes false.
+ * `broadcast(lat, lng)` function.
+ *
+ * The channel is ALWAYS joined (regardless of `active`) so that the first GPS
+ * fix is immediately propagated. `active=false` just means we do NOT call
+ * track() on subscribe — we still stay connected. The only time we untrack is
+ * on unmount (cleanup) or when the user explicitly turns off GPS (`active`
+ * transitions from true → false).
  */
 export function useTeamLocationBroadcast({
   userId,
@@ -78,24 +89,47 @@ export function useTeamLocationBroadcast({
   name,
   designation,
   role,
+  tripType,
+  tripSessionId,
   active,
 }: BroadcastOptions): (lat: number, lng: number) => void {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const activeRef = useRef(active);
+  const prevActiveRef = useRef(active);
   activeRef.current = active;
-  const metaRef = useRef({ userId, userEmail, employeeId, name, designation, role });
-  metaRef.current = { userId, userEmail, employeeId, name, designation, role };
+  const metaRef = useRef({
+    userId,
+    userEmail,
+    employeeId,
+    name,
+    designation,
+    role,
+    tripType,
+    tripSessionId,
+  });
+  metaRef.current = {
+    userId,
+    userEmail,
+    employeeId,
+    name,
+    designation,
+    role,
+    tripType,
+    tripSessionId,
+  };
   const lastFixRef = useRef<TeamMemberLocation | null>(null);
 
   const memberKey = `${userId || userEmail || "worker"}:${employeeId || role}`;
 
+  // Always join the channel — never tear it down on active change
   useEffect(() => {
     const channel = supabase.channel(TEAM_LOCATION_CHANNEL, {
       config: { presence: { key: memberKey } },
     });
 
     channel.subscribe((status) => {
+      // On reconnect, re-broadcast last known fix if still active
       if (status === "SUBSCRIBED" && lastFixRef.current && activeRef.current) {
         void channel.track(lastFixRef.current);
       }
@@ -109,15 +143,26 @@ export function useTeamLocationBroadcast({
     };
   }, [memberKey]);
 
+  // Only untrack when active transitions true → false (GPS deliberately turned off)
   useEffect(() => {
-    if (!active) {
+    if (prevActiveRef.current && !active) {
       void channelRef.current?.untrack();
     }
+    prevActiveRef.current = active;
   }, [active]);
 
   const broadcast = useCallback((lat: number, lng: number) => {
-    const { userId: uid, userEmail: uemail, employeeId: empId, name: nm, designation: desig, role: rl } = metaRef.current;
-    if (!activeRef.current || !channelRef.current) return;
+    const {
+      userId: uid,
+      userEmail: uemail,
+      employeeId: empId,
+      name: nm,
+      designation: desig,
+      role: rl,
+      tripType: ttype,
+      tripSessionId: tsession,
+    } = metaRef.current;
+    if (!channelRef.current) return; // removed activeRef guard — allow broadcast any time channel exists
     const key = `${uid || uemail || "worker"}:${empId || rl}`;
     const fix: TeamMemberLocation = {
       id: key,
@@ -127,6 +172,8 @@ export function useTeamLocationBroadcast({
       name: nm || (rl === "driver" ? "चालक" : "संकलक"),
       designation: desig || undefined,
       role: rl,
+      tripType: ttype,
+      tripSessionId: tsession,
       lat,
       lng,
       updatedAt: Date.now(),

@@ -134,7 +134,7 @@ function CollectionMapPage() {
     name: broadcasterName,
     designation: broadcasterDesignation,
     role: "collector",
-    active: trackingLocation || Boolean(driverLocation),
+    active: trackingLocation,
   });
 
   // Always keep dashboard updated whenever collector location updates

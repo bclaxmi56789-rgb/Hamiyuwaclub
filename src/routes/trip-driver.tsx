@@ -5,7 +5,15 @@ import "leaflet/dist/leaflet.css";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useWorkspace, WorkspacePage } from "@/components/workspace";
-import { logTrip, deleteTrip } from "@/lib/workspace.functions";
+import {
+  logTrip,
+  deleteTrip,
+  startTripSession,
+  endTripSession,
+  addTripPoints,
+  getActiveTripSession,
+  type TripSession,
+} from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import {
   useTeamLocationBroadcast,
@@ -88,6 +96,10 @@ function TripDriverPage() {
   const queryClient = useQueryClient();
   const logTripFn = useServerFn(logTrip);
   const deleteTripFn = useServerFn(deleteTrip);
+  const startTripSessionFn = useServerFn(startTripSession);
+  const endTripSessionFn = useServerFn(endTripSession);
+  const addTripPointsFn = useServerFn(addTripPoints);
+  const getActiveTripSessionFn = useServerFn(getActiveTripSession);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -110,6 +122,23 @@ function TripDriverPage() {
   const [settingDriverMode, setSettingDriverMode] = useState(false);
   const settingDriverModeRef = useRef(false);
   settingDriverModeRef.current = settingDriverMode;
+
+  // ── Trip session (start → GPS shared with admin → end) ──────────────────
+  const [activeTrip, setActiveTrip] = useState<TripSession | null>(null);
+  const activeTripRef = useRef<TripSession | null>(null);
+  activeTripRef.current = activeTrip;
+  const [tripType, setTripType] = useState<"collection" | "dumping">("collection");
+  const [tripSessionErr, setTripSessionErr] = useState("");
+  const [tripSessionBusy, setTripSessionBusy] = useState(false);
+  const [tripStartedAt, setTripStartedAt] = useState<number | null>(null);
+  const [tripSavedPoints, setTripSavedPoints] = useState(0);
+  const [tripPendingPoints, setTripPendingPoints] = useState(0);
+  const pendingPointsRef = useRef<
+    { lat: number; lng: number; accuracy: number | null; recorded_at: string }[]
+  >([]);
+  const flushingRef = useRef(false);
+  const flushTripPointsRef = useRef<() => Promise<boolean>>(async () => true);
+  const [durationSeconds, setDurationSeconds] = useState(0);
 
   // ── Live team locations from other workers (collectors etc.) ──────────────
   const [teamMembers, setTeamMembers] = useState<TeamMemberLocation[]>([]);
@@ -140,7 +169,9 @@ function TripDriverPage() {
     name: broadcasterName,
     designation: broadcasterDesignation,
     role: "driver",
-    active: trackingLocation || Boolean(driverLocation),
+    tripType: activeTrip?.trip_type,
+    tripSessionId: activeTrip?.id,
+    active: trackingLocation,
   });
 
   // Always keep dashboard updated whenever driver location updates (GPS, click or drag)
@@ -149,6 +180,47 @@ function TripDriverPage() {
       broadcastToDashboard(driverLocation.latitude, driverLocation.longitude);
     }
   }, [driverLocation, broadcastToDashboard]);
+
+  // Resume an unfinished trip session after reload / returning to the tab
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await getActiveTripSessionFn();
+        if (!cancelled && session) {
+          setActiveTrip(session);
+          setTripType(session.trip_type);
+          setTripStartedAt(new Date(session.started_at).getTime());
+        }
+      } catch {
+        // migration not applied yet — ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Periodically flush buffered trip points (even when the trail barely moves)
+  useEffect(() => {
+    if (!activeTrip) return;
+    const t = setInterval(() => {
+      void flushTripPointsRef.current();
+    }, 20000);
+    return () => clearInterval(t);
+  }, [activeTrip]);
+
+  // Trip duration ticker
+  useEffect(() => {
+    if (!tripStartedAt) return;
+    const t = setInterval(
+      () => setDurationSeconds(Math.floor((Date.now() - tripStartedAt) / 1000)),
+      1000,
+    );
+    return () => clearInterval(t);
+  }, [tripStartedAt]);
 
   // Local ward filter (allows viewing all wards or specific ward independently)
   const [selectedWard, setSelectedWard] = useState<string>("all");
@@ -204,7 +276,8 @@ function TripDriverPage() {
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
       setMapFull(false);
     } else if (el.requestFullscreen) {
-      void el.requestFullscreen()
+      void el
+        .requestFullscreen()
         .then(() => setMapFull(true))
         .catch(() => setMapFull(true)); // API blocked (e.g. preview iframe): CSS fallback
     } else {
@@ -382,7 +455,7 @@ function TripDriverPage() {
       const st = TEAM_ROLE_STYLE[m.role] ?? TEAM_ROLE_STYLE.other;
       const stale = Date.now() - m.updatedAt > 90_000;
       const badgeBg = stale ? "#94a3b8" : st.color;
-      const label = m.designation ? `${m.name} (${m.designation})` : (m.name || st.label);
+      const label = m.designation ? `${m.name} (${m.designation})` : m.name || st.label;
 
       const icon = L.divIcon({
         className: "team-vehicle-icon",
@@ -625,6 +698,29 @@ function TripDriverPage() {
   }, [driverLocation, selectedCustomer]);
 
   // Driver location tracking with 3-stage fallback (same resilient pipeline as collection map)
+  const flushTripPoints = async (): Promise<boolean> => {
+    if (flushingRef.current) return false;
+    const session = activeTripRef.current;
+    const buffer = pendingPointsRef.current;
+    if (!session || buffer.length === 0) return true;
+    flushingRef.current = true;
+    const points = buffer.splice(0, buffer.length);
+    flushingRef.current = false;
+    try {
+      await addTripPointsFn({ data: { session_id: session.id, points } });
+      setTripSavedPoints((n) => n + points.length);
+      setTripPendingPoints(pendingPointsRef.current.length);
+      return true;
+    } catch (e) {
+      // Put the points back so nothing is lost; retry happens on next fix/flush.
+      pendingPointsRef.current = [...points, ...pendingPointsRef.current];
+      setTripPendingPoints(pendingPointsRef.current.length);
+      console.warn("Trip point flush failed:", e);
+      return false;
+    }
+  };
+  flushTripPointsRef.current = flushTripPoints;
+
   const toggleLocationTracking = () => {
     if (trackingLocation) {
       if (watchIdRef.current !== null) {
@@ -665,6 +761,27 @@ function TripDriverPage() {
         if (last && getDistanceInMeters(last[0], last[1], lat, lng) < 10) return prev;
         return [...prev.slice(-499), [lat, lng] as [number, number]];
       });
+
+      // While a trip session is running, buffer every GPS fix so it can be
+      // persisted and shown to admin later on the trip history.
+      if (activeTripRef.current) {
+        const buffer = pendingPointsRef.current;
+        const lastPoint = buffer[buffer.length - 1];
+        const accuracy = Number.isFinite(position.coords.accuracy)
+          ? Number(position.coords.accuracy.toFixed(1))
+          : null;
+        if (lastPoint && getDistanceInMeters(lastPoint.lat, lastPoint.lng, lat, lng) < 5) {
+          // Same spot — just extend the recording time so duration stays true
+          lastPoint.recorded_at = new Date().toISOString();
+        } else {
+          buffer.push({ lat, lng, accuracy, recorded_at: new Date().toISOString() });
+        }
+        setTripPendingPoints(buffer.length);
+        if (buffer.length >= 10) {
+          void flushTripPoints();
+        }
+      }
+
       setLocatingStatus(msg || "✓ लोकेसन सक्रिय छ");
 
       // Center on the driver only on the first fix; later watch updates must not
@@ -728,6 +845,67 @@ function TripDriverPage() {
       (err) => console.warn("Watch pos error:", err),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     );
+  };
+
+  const handleStartTrip = async () => {
+    setTripSessionErr("");
+    if (!userId) {
+      setTripSessionErr("ट्रिप सुरु गर्न पहिले साइन इन गर्नुहोस्।");
+      return;
+    }
+    if (tripSessionBusy) return;
+    setTripSessionBusy(true);
+    try {
+      const session = await startTripSessionFn({
+        data: {
+          trip_type: tripType,
+          ward,
+          fiscal_year: year ?? null,
+          employee_id: activeEmployee?.id || activeEmployeeId || "",
+          employee_name: broadcasterName,
+        },
+      });
+      setActiveTrip(session);
+      pendingPointsRef.current = [];
+      setTripSavedPoints(0);
+      setTripPendingPoints(0);
+      setTripStartedAt(Date.now());
+      setDurationSeconds(0);
+      // Make sure GPS watch + live broadcast are running while on a trip
+      if (!trackingLocation && !watchIdRef.current) toggleLocationTracking();
+      setLocatingStatus(
+        `✓ ट्रिप सुरु भयो (${session.trip_type === "dumping" ? "मल फाल्ने" : "संकलन"}) — लोकेसन प्रशासकलाई पठाइँदैछ`,
+      );
+    } catch (e) {
+      setTripSessionErr(e instanceof Error ? e.message : "ट्रिप सुरु गर्न सकिएन।");
+    } finally {
+      setTripSessionBusy(false);
+    }
+  };
+
+  const handleEndTrip = async () => {
+    setTripSessionErr("");
+    const session = activeTripRef.current;
+    if (!session || tripSessionBusy) return;
+    setTripSessionBusy(true);
+    try {
+      await flushTripPoints();
+      const ended = await endTripSessionFn({ data: { session_id: session.id, end_note: "" } });
+      const endedAt = ended.ended_at ? new Date(ended.ended_at).getTime() : Date.now();
+      setLocatingStatus(
+        `✓ ${tripSavedPoints} लोकेसन बिन्दु सुरक्षित गरियो — कुल समय: ${Math.max(1, Math.round((endedAt - (tripStartedAt ?? endedAt)) / 60000))} मिनेट`,
+      );
+      setActiveTrip(null);
+      pendingPointsRef.current = [];
+      setTripPendingPoints(0);
+      setTripSavedPoints(0);
+      setTripStartedAt(null);
+      setDurationSeconds(0);
+    } catch (e) {
+      setTripSessionErr(e instanceof Error ? e.message : "ट्रिप समाप्त गर्न सकिएन।");
+    } finally {
+      setTripSessionBusy(false);
+    }
   };
 
   const centerOnDriver = () => {
@@ -951,6 +1129,84 @@ function TripDriverPage() {
         </div>
       </div>
 
+      {/* Trip session panel: start GPS-tracked trip (collection / dumping) → end trip */}
+      <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border-2 border-violet-500/30 bg-violet-500/5 p-2">
+        <span className="text-xs font-extrabold text-violet-800 dark:text-violet-200">
+          🛻 ट्रिप:
+        </span>
+
+        {!activeTrip ? (
+          <>
+            <div className="flex overflow-hidden rounded-md border border-violet-400/50 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setTripType("collection")}
+                className={`px-3 py-1.5 ${tripType === "collection" ? "bg-blue-600 text-white" : "bg-card text-blue-700 hover:bg-blue-50 dark:text-blue-300"}`}
+              >
+                🚚 संकलन (Collection)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTripType("dumping")}
+                className={`px-3 py-1.5 ${tripType === "dumping" ? "bg-amber-600 text-white" : "bg-card text-amber-700 hover:bg-amber-50 dark:text-amber-300"}`}
+              >
+                🗑️ मल फाल्ने (Dumping)
+              </button>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={tripSessionBusy}
+              onClick={handleStartTrip}
+              className="h-8 px-4 text-xs font-extrabold bg-green-600 hover:bg-green-700 text-white"
+            >
+              {tripSessionBusy ? "सुरु हुँदैछ..." : "▶ ट्रिप सुरु गर्नुहोस् (Start Trip)"}
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              ट्रिप सुरु गर्दा GPS लोकेसन लाइभ प्रशासक (Admin) नक्सामा देखिन्छ र प्रत्येक बिन्दु
+              सुरक्षित हुन्छ।
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="rounded-full bg-blue-600 px-2.5 py-1 text-[11px] font-extrabold text-white">
+              {activeTrip.trip_type === "dumping"
+                ? "🗑️ मल फाल्ने (Dumping)"
+                : "🚚 संकलन (Collection)"}
+            </span>
+            <span
+              className="flex items-center gap-1.5 rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-extrabold text-white"
+              title="लाइभ ट्रिप — स्थान प्रशासकलाई पठाइँदैछ"
+            >
+              <span className="inline-block size-2 animate-pulse rounded-full bg-white" />
+              लाइभ ट्रिप चलिरहेको छ
+            </span>
+            <span
+              className="text-[11px] font-bold text-violet-800 dark:text-violet-200"
+              suppressHydrationWarning
+            >
+              ⏱️ {Math.floor(durationSeconds / 3600)}:
+              {String(Math.floor((durationSeconds % 3600) / 60)).padStart(2, "0")}:
+              {String(durationSeconds % 60).padStart(2, "0")} · बिन्दु: {tripSavedPoints} सुरक्षित
+              {tripPendingPoints > 0 ? ` + ${tripPendingPoints}` : ""}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              disabled={tripSessionBusy}
+              onClick={handleEndTrip}
+              className="h-8 px-4 text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {tripSessionBusy ? "बन्द हुँदैछ..." : "■ ट्रिप समाप्त गर्नुहोस् (End Trip)"}
+            </Button>
+          </>
+        )}
+
+        {tripSessionErr && (
+          <span className="text-[11px] font-bold text-rose-600">{tripSessionErr}</span>
+        )}
+      </div>
+
       {locatingStatus && (
         <div className="mb-2 flex items-center gap-2 rounded-lg bg-violet-500/10 border border-violet-500/20 p-2 text-xs text-violet-700 dark:text-violet-300 font-medium">
           <LocateFixed className="size-3.5 shrink-0 animate-spin text-violet-600" />
@@ -1008,7 +1264,11 @@ function TripDriverPage() {
           )}
           <button
             type="button"
-            title={hideBoxes ? "बक्सहरू देखाउनुहोस् (Show info boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide boxes)"}
+            title={
+              hideBoxes
+                ? "बक्सहरू देखाउनुहोस् (Show info boxes)"
+                : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide boxes)"
+            }
             onClick={() => setHideBoxes((v) => !v)}
             className="rounded-full bg-card p-2 text-foreground shadow-lg border hover:bg-accent"
           >
@@ -1026,46 +1286,46 @@ function TripDriverPage() {
 
         {/* Trip legend */}
         {!hideBoxes && (
-        <div className="absolute top-3 left-3 z-[1000] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[220px]">
-          <div className="font-bold text-foreground mb-1.5 flex items-center gap-1">
-            <Truck className="size-3.5 text-violet-600" />
-            <span>मासिक ट्रिप अवस्था ({MONTHS[month]})</span>
+          <div className="absolute top-3 left-3 z-[1000] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[220px]">
+            <div className="font-bold text-foreground mb-1.5 flex items-center gap-1">
+              <Truck className="size-3.5 text-violet-600" />
+              <span>मासिक ट्रिप अवस्था ({MONTHS[month]})</span>
+            </div>
+            <div className="space-y-1 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="size-3 rounded-full bg-red-600 animate-pulse shrink-0" />
+                <span>रातो: ट्रिप सुरु हुन बाँकी (0 सम्म)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-3 rounded-full bg-amber-500 shrink-0" />
+                <span>
+                  सुन्तला: ट्रिप जारी (जस्तै 1/3, ..., {stats.plannedTotal > 3 ? "7/8" : "2/3"})
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-3 rounded-full bg-emerald-500 shrink-0" />
+                <span>
+                  हरियो: तोकिएका सबै पूरा (जस्तै {stats.plannedTotal > 3 ? `8/8, 12/12` : "3/3"}),
+                  अतिरिक्त ट्रिप छ भने <b>✓ अतिरिक्त</b> देखाउँछ
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="size-5 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center shrink-0"
+                  style={{ fontSize: "8px" }}
+                >
+                  🛻
+                </span>
+                <span>प्रमुख चालकको GPS ट्रयाक</span>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-border/60 text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="size-2.5 rounded-full border border-amber-500 bg-amber-100" />
+                <span>पहेँलो किनारा: वडा क्षेत्र अनुमान</span>
+              </div>
+            </div>
           </div>
-          <div className="space-y-1 text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span className="size-3 rounded-full bg-red-600 animate-pulse shrink-0" />
-              <span>रातो: ट्रिप सुरु हुन बाँकी (0 सम्म)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="size-3 rounded-full bg-amber-500 shrink-0" />
-              <span>
-                सुन्तला: ट्रिप जारी (जस्तै 1/3, ..., {stats.plannedTotal > 3 ? "7/8" : "2/3"})
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="size-3 rounded-full bg-emerald-500 shrink-0" />
-              <span>
-                हरियो: तोकिएका सबै पूरा (जस्तै {stats.plannedTotal > 3 ? `8/8, 12/12` : "3/3"}),
-                अतिरिक्त ट्रिप छ भने <b>✓ अतिरिक्त</b> देखाउँछ
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className="size-5 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center shrink-0"
-                style={{ fontSize: "8px" }}
-              >
-                🛻
-              </span>
-              <span>प्रमुख चालकको GPS ट्रयाक</span>
-            </div>
-          </div>
-          <div className="mt-2 pt-2 border-t border-border/60 text-[10px] text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full border border-amber-500 bg-amber-100" />
-              <span>पहेँलो किनारा: वडा क्षेत्र अनुमान</span>
-            </div>
-          </div>
-        </div>
         )}
 
         {settingDriverMode && (
