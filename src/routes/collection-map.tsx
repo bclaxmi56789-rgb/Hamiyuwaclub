@@ -31,7 +31,6 @@ import {
   getDueMonths,
   mergeOpeningDues,
   getCustomerTotalRate,
-  DEFAULT_PLANS,
   type Person,
   type PlanItem,
   type DueMonth,
@@ -184,8 +183,7 @@ function CollectionMapPage() {
     () => typeof window !== "undefined" && window.innerWidth >= 1024,
   );
 
-  const plans: PlanItem[] =
-    query.data?.plans && query.data.plans.length > 0 ? query.data.plans : DEFAULT_PLANS;
+  const plans: PlanItem[] = query.data?.plans ?? [];
   const allPeople: Person[] = query.data?.people ?? [];
   const allReceipts = query.data?.receipts ?? [];
 

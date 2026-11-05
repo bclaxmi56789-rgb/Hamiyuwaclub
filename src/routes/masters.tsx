@@ -37,7 +37,6 @@ import { BSDatePicker } from "@/components/bs-date-picker";
 import {
   todayBS,
   np,
-  DEFAULT_PLANS,
   matchPlan,
   getCustomerTotalRate,
   getDueMonths,
@@ -149,8 +148,7 @@ function Masters() {
   const [viewingMapPerson, setViewingMapPerson] = useState<Person | null>(null);
   const [viewingCardPerson, setViewingCardPerson] = useState<Person | null>(null);
   const [viewingPerson, setViewingPerson] = useState<Person | null>(null);
-  const plans: PlanItem[] =
-    query.data?.plans && query.data.plans.length > 0 ? query.data.plans : DEFAULT_PLANS;
+  const plans: PlanItem[] = query.data?.plans ?? [];
   const [form, setForm] = useState<Person>(getEmptyForm(ward ?? "1"));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");

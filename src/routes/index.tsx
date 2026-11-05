@@ -26,7 +26,6 @@ import {
   getCustomerTotalRate,
   getDueMonths,
   mergeOpeningDues,
-  DEFAULT_PLANS,
   type Person,
   type Receipt,
   type PlanItem,
@@ -151,7 +150,7 @@ function Index() {
   const appConfig = useAppConfig();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
-  const [plans, setPlans] = useState<PlanItem[]>(DEFAULT_PLANS);
+  const [plans, setPlans] = useState<PlanItem[]>([]);
   const [payments, setPayments] = useState<{ card: string; month: number; year?: number }[]>([]);
   const [date, setDate] = useState("");
   const [year, setYear] = useState("");

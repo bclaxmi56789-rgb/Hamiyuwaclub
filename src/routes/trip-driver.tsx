@@ -32,7 +32,6 @@ import {
   np,
   plannedTripsForPerson,
   tripStatus,
-  DEFAULT_PLANS,
   type Person,
   type PlanItem,
   type TripLogEntry,
@@ -187,8 +186,7 @@ function TripDriverPage() {
     };
   }, [mapFull]);
 
-  const plans: PlanItem[] =
-    query.data?.plans && query.data.plans.length > 0 ? query.data.plans : DEFAULT_PLANS;
+  const plans: PlanItem[] = query.data?.plans ?? [];
   const allPeople: Person[] = query.data?.people ?? [];
   const allTrips: TripLogEntry[] = query.data?.trips ?? [];
 

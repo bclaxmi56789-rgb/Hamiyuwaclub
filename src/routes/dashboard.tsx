@@ -10,7 +10,6 @@ import {
   collectionByMonth,
   inBSRange,
   todayBS,
-  DEFAULT_PLANS,
   remainingDuesForPerson,
   getCustomerTotalRate,
   type ExpenseRecord,
@@ -124,7 +123,7 @@ function Dashboard() {
     () => query.data?.people.filter((p) => !ward || p.ward === ward) ?? [],
     [query.data?.people, ward],
   );
-  const plans = query.data?.plans && query.data.plans.length > 0 ? query.data.plans : DEFAULT_PLANS;
+  const plans = query.data?.plans ?? [];
 
   // Total collected revenue
   const total = receipts.reduce((a, r) => a + r.total, 0);

@@ -61,7 +61,6 @@ import {
   getDueMonths,
   mergeOpeningDues,
   getCustomerTotalRate,
-  DEFAULT_PLANS,
   type Person,
   type PlanItem,
   type TripLogEntry,
@@ -109,7 +108,7 @@ export function DashboardLiveMap({
   people = [],
   trips = [],
   receipts = [],
-  plans = DEFAULT_PLANS,
+  plans = [],
   selectedWard,
   currentYear = 2081,
   currentMonth = 0,
@@ -142,7 +141,7 @@ export function DashboardLiveMap({
     }
 
     // Collector paid dues
-    const activePlans = plans && plans.length > 0 ? plans : DEFAULT_PLANS;
+    const activePlans = plans;
 
     return people
       .filter((p) => !selectedWard || p.ward === selectedWard)
