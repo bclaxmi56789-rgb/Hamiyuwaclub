@@ -3340,8 +3340,28 @@ export const verifyAdminPin = createServerFn({ method: "POST" })
       const conf = res.data as { admin_pin?: string | null } | null;
       const configuredPin = (conf?.admin_pin || "").trim();
 
-      // If no admin PIN set in DB yet, deny entry until the admin configures one
       if (!configuredPin) {
+        // No admin PIN in DB yet: fall back to the PIN captured during signup
+        // (stored in the user's auth metadata), and persist it on first match.
+        const metaPin = String(
+          (context.claims as any)?.user_metadata?.admin_pin || "",
+        ).trim();
+        if (metaPin) {
+          if (metaPin === data.pin) {
+            await context.supabase
+              .from("app_configuration")
+              .upsert(
+                {
+                  owner_id: context.userId,
+                  admin_pin: data.pin,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "owner_id" },
+              );
+            return { ok: true, code: "ok" as const };
+          }
+          return { ok: false, code: "wrong_pin" as const };
+        }
         return { ok: false, code: "pin_not_set" as const };
       }
 
