@@ -85,6 +85,33 @@ export const getReceiptData = createServerFn({ method: "GET" })
     };
   });
 
+/** Look up a customer by card number across all wards (scanner fallback). */
+export const lookupCustomerByCard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ card: z.string().trim().min(1).max(30) }))
+  .handler(async ({ data, context }) => {
+    try {
+      let res = await context.supabase
+        .from("customer_master")
+        .select("*")
+        .eq("card", data.card.trim())
+        .limit(1);
+      if (!res.error && res.data?.[0]) return res.data[0];
+      const norm = data.card.replace(/\D/g, "").replace(/^0+/, "");
+      if (norm && norm !== data.card.trim()) {
+        res = await context.supabase
+          .from("customer_master")
+          .select("*")
+          .eq("card", norm)
+          .limit(1);
+        if (!res.error && res.data?.[0]) return res.data[0];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
 export const saveReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(

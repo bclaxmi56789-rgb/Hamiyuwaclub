@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAppState, SignInPanel } from "@/components/app-shell";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import { ReceiptVoucher } from "@/components/receipt-voucher";
-import { getReceiptData, saveReceipt } from "@/lib/receipts.functions";
+import { getReceiptData, lookupCustomerByCard, saveReceipt } from "@/lib/receipts.functions";
 import { getRpAccounts } from "@/lib/workspace.functions";
 import {
   MONTHS,
@@ -80,6 +80,12 @@ function parseScannedData(raw: string, people: Person[], ward: string): Person |
     /* not JSON */
   }
   if (!cardCandidate && !phoneCandidate) cardCandidate = raw.trim();
+  // Labeled formats like "CARD: 1234", "कार्ड = 001", "card-1234"
+  if (!cardCandidate || !/[\dA-Za-z]/.test(cardCandidate)) cardCandidate = "";
+  if (!cardCandidate) {
+    const labelMatch = raw.match(/(?:card|कार्ड)\s*[:=-]?\s*([A-Za-z0-9]+)/i);
+    if (labelMatch?.[1]) cardCandidate = labelMatch[1];
+  }
 
   const norm = (v: string) => v.replace(/\D/g, "").replace(/^0+/, "");
   const byCardExact = (c: string) =>
@@ -103,6 +109,23 @@ function parseScannedData(raw: string, people: Person[], ward: string): Person |
     }
   }
   return null;
+}
+
+/** Extract a card/music number from a scanned raw string (same rules as parseScannedData). */
+function scanCardCandidate(raw: string): string {
+  let candidate = "";
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === "object") candidate = String(obj.card ?? "");
+  } catch {
+    /* not JSON */
+  }
+  if (!candidate) candidate = raw.trim();
+  if (!/[\dA-Za-z]/.test(candidate)) {
+    const labelMatch = raw.match(/(?:card|कार्ड)\s*[:=-]?\s*([A-Za-z0-9]+)/i);
+    candidate = labelMatch?.[1] || "";
+  }
+  return candidate.trim();
 }
 
 function Index() {
@@ -171,6 +194,7 @@ function Index() {
   const scanRef = useRef<HTMLInputElement>(null);
 
   const fetchRecords = useServerFn(getReceiptData);
+  const lookupFn = useServerFn(lookupCustomerByCard);
   const saveRecord = useServerFn(saveReceipt);
   const fetchAccounts = useServerFn(getRpAccounts);
   const queryClient = useQueryClient();
@@ -237,7 +261,9 @@ function Index() {
   }, [signedIn, ward, year, revision]);
 
   useEffect(() => {
-    setP({ card: "", name: "", ward, tole: "", phone: "" });
+    // When the ward changes, clear the form — but keep a scanned customer whose
+    // own ward matches the newly selected one.
+    setP((prev) => (prev.name && prev.ward === ward ? prev : { card: "", name: "", ward, tole: "", phone: "" }));
     setSel({});
     setMode("");
     setPrinted(null);
@@ -349,11 +375,31 @@ function Index() {
     });
   };
 
-  const handleScan = (raw: string) => {
-    const person = parseScannedData(raw, people, ward);
+  const handleScan = async (raw: string) => {
+    let person = parseScannedData(raw, people, ward);
+    if (!person) {
+      // Local list only holds the selected ward — fall back to a server lookup
+      for (const card of [scanCardCandidate(raw), raw.trim()]) {
+        if (!card) continue;
+        try {
+          const remote = await lookupFn({ data: { card: card.substring(0, 30) } });
+          if (remote) {
+            person = remote as unknown as Person;
+            break;
+          }
+        } catch {
+          /* try next candidate */
+        }
+      }
+    }
     if (!person) {
       setScanErr(`कार्ड "${raw.substring(0, 30)}" — People Master मा फेला परेन।`);
       return;
+    }
+    // The matched customer may belong to a different ward than currently selected —
+    // follow the customer so their master data and dues line up.
+    if (person.ward && person.ward !== ward) {
+      setWard(person.ward);
     }
     setP({ ...person });
     setScanMode(false);
