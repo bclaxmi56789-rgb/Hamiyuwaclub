@@ -189,6 +189,9 @@ export function LocationMap({
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const geocodeCoordsRef = useRef<{ lat: number; lng: number; acc: number | null } | null>(null);
 
+  // Required accuracy ceiling for a captured location (±5 m)
+  const GPS_TARGET_ACCURACY = 5;
+
   const hasCoords =
     typeof latitude === "number" &&
     typeof longitude === "number" &&
@@ -259,7 +262,7 @@ export function LocationMap({
       }, 1500);
     };
 
-    // Bail out of refinement after 25 s max — the current best fix stands.
+    // Bail out of refinement after 35 s max — the current best fix stands.
     refineTimerRef.current = setTimeout(() => {
       const best = geocodeCoordsRef.current;
       watchIdRef.current = null;
@@ -267,7 +270,7 @@ export function LocationMap({
       setRefining(false);
       setRefiningNotice("");
       if (best) void applyCoordsWithGeocode(best.lat, best.lng, best.acc);
-    }, 25000);
+    }, 35000);
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
@@ -285,18 +288,20 @@ export function LocationMap({
         }
 
         setRefiningNotice(
-          acc <= 10
+          acc <= GPS_TARGET_ACCURACY
             ? `✓ उत्कृष्ट सटीकता (±${acc}m) — घरस्तरको लोकेसन तयार`
-            : `GPS सुधारिँदैछ: ±${acc}m → लक्ष्य ±10m`,
+            : `GPS सुधारिँदैछ: ±${acc}m → लक्ष्य ±${GPS_TARGET_ACCURACY}m`,
         );
 
         // Move the pin live so the user can verify each improvement
         applyCoordsOnly(lat, lng, acc);
         if (mapRef.current) {
-          mapRef.current.flyTo([lat, lng], acc <= 12 ? 19 : 17, { duration: 0.8 });
+          mapRef.current.flyTo([lat, lng], acc <= GPS_TARGET_ACCURACY + 2 ? 19 : 17, {
+            duration: 0.8,
+          });
         }
 
-        if (acc <= 10) stopRefinement();
+        if (acc <= GPS_TARGET_ACCURACY) stopRefinement();
       },
       (err) => {
         console.warn("GPS refine watch:", err);
@@ -479,7 +484,7 @@ export function LocationMap({
       }
 
       // Keep refining with the GPS watch — every meter counts for house/room level
-      if (acc > 10) startGpsRefinement({ lat, lng, acc });
+      if (acc > GPS_TARGET_ACCURACY) startGpsRefinement({ lat, lng, acc });
 
       setTimeout(() => setGpsSuccess(false), 4000);
     };
