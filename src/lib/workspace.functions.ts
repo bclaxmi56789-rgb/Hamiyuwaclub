@@ -3368,27 +3368,30 @@ export const saveAdminPin = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     try {
+      const payload = {
+        owner_id: context.userId,
+        admin_pin: data.admin_pin,
+        updated_at: new Date().toISOString(),
+      };
       // Upsert into app_configuration for this user
       const res = await context.supabase
         .from("app_configuration")
-        .upsert(
-          {
-            owner_id: context.userId,
-            admin_pin: data.admin_pin,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "owner_id" },
-        )
+        .upsert(payload, { onConflict: "owner_id" })
         .select("admin_pin")
         .maybeSingle();
-
       if (res.error) {
         // Fallback: try update if upsert failed due to missing constraint
         const upd = await context.supabase
           .from("app_configuration")
           .update({ admin_pin: data.admin_pin, updated_at: new Date().toISOString() })
-          .eq("owner_id", context.userId);
-        if (upd.error) return { ok: false, error: upd.error.message };
+          .eq("owner_id", context.userId)
+          .select("admin_pin");
+        if (upd.error) {
+          // Last resort: insert a fresh configuration row for this owner
+          const ins = await context.supabase.from("app_configuration").insert(payload).select("admin_pin");
+          if (ins.error) return { ok: false, error: ins.error.message };
+          return { ok: true };
+        }
       }
       return { ok: true };
     } catch (e: any) {

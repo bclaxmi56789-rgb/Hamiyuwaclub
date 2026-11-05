@@ -270,10 +270,13 @@ function SettingsPage() {
     try {
       const res = await saveAdminPinFn({ data: { admin_pin: adminPinInput.trim() } });
       if (res && res.ok === false) {
-        setAdminPinError(`सुरक्षित गर्न सकिएन: ${res.error || "अज्ञात त्रुटि"}`);
+        setAdminPinError(
+          `सुरक्षित गर्न सकिएन: ${res.error || "अज्ञात त्रुटि"} — संकेत: supabase/apply-employee-credentials.sql चलाउनुपर्ने हुनसक्छ (admin_pin column)।`,
+        );
         return;
       }
       setAdminPinSuccess("Admin PIN सफलतापूर्वक भण्डार (Vault) मा सुरक्षित भयो ✓");
+      saveStoredConfig({ admin_pin: adminPinInput.trim() });
       setTimeout(() => setAdminPinSuccess(null), 4000);
     } catch (err: any) {
       setAdminPinError(`त्रुटि: ${err?.message || "सुरक्षित गर्न सकिएन"}`);
