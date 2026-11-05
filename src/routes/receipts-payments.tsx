@@ -45,11 +45,11 @@ import {
 export const Route = createFileRoute("/receipts-payments")({
   head: () => ({
     meta: [
-      { title: "Receipts & Payments — Hami Yuwa Club" },
+      { title: "Receipts & Payments — Sangstha" },
       {
         name: "description",
         content:
-          "Cash and bank book for Hami Yuwa Club — petty cash and bank masters, receipts, payments and account transfers.",
+          "Cash and bank book for Sangstha — petty cash and bank masters, receipts, payments and account transfers.",
       },
     ],
   }),

@@ -215,7 +215,7 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
             <div className="relative flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-bold tracking-widest uppercase text-sky-200 mb-0.5">
-                  हामी युवा क्लब — Hami Yuwa Club
+                  द्वारा संचालित
                 </p>
                 <h1 className="text-xl font-extrabold tracking-tight leading-tight">{person.name}</h1>
                 <p className="mt-1 text-sm text-sky-100">
@@ -355,7 +355,7 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
             <div className="flex flex-col items-center justify-center border-t border-dashed border-slate-200 pt-3">
               <svg ref={barcodeRef} className="max-w-full" />
               <p className="mt-0.5 text-[10px] text-slate-400 font-mono">
-                {person.card} · हामी युवा क्लब
+                {person.card}
               </p>
             </div>
           </div>
@@ -367,7 +367,7 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
           >
             <span>{person.municipality || ""} • {person.district || ""}</span>
             <span className="font-mono">{np(today)}</span>
-            <span>Hami Yuwa Club — Member Card</span>
+            <span>Sangstha — Member Card</span>
           </div>
         </div>
       </div>

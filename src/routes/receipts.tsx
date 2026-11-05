@@ -9,9 +9,9 @@ import { Eye } from "lucide-react";
 export const Route = createFileRoute("/receipts")({
   head: () => ({
     meta: [
-      { title: "Receipt History — Hami Yuwa Club" },
+      { title: "Receipt History — Sangstha" },
       { name: "description", content: "Search and reprint saved ward receipts by fiscal year." },
-      { property: "og:title", content: "Hami Yuwa Club history" },
+      { property: "og:title", content: "Sangstha history" },
       { property: "og:description", content: "Saved payments and printable receipts." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

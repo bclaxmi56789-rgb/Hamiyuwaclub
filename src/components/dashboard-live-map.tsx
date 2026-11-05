@@ -16,28 +16,19 @@ import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import {
   TEAM_LOCATION_CHANNEL,
-  useTeamLocationBroadcast,
   type TeamMemberLocation,
   type TeamMemberRole,
 } from "@/lib/team-location";
 import { Button } from "@/components/ui/button";
-import {
-  LocateFixed,
-  Radio,
-  Users,
-  MapPin,
-  Navigation,
-  AlertTriangle,
-  Eye,
-} from "lucide-react";
+import { LocateFixed, Radio, Users, MapPin, Navigation, AlertTriangle, Eye } from "lucide-react";
 import { BIRENDRANAGAR_CENTER, NEPAL_CENTER } from "@/lib/geo";
 
 /** Role → emoji + color */
 const ROLE_META: Record<TeamMemberRole, { emoji: string; color: string; label: string }> = {
-  collector: { emoji: "🚚", color: "#2563eb",  label: "संकलक" },
-  driver:    { emoji: "🛻", color: "#7c3aed",  label: "चालक" },
-  admin:     { emoji: "🏢", color: "#059669",  label: "प्रशासक" },
-  other:     { emoji: "👤", color: "#64748b",  label: "अन्य" },
+  collector: { emoji: "🚚", color: "#2563eb", label: "संकलक" },
+  driver: { emoji: "🛻", color: "#7c3aed", label: "चालक" },
+  admin: { emoji: "🏢", color: "#059669", label: "प्रशासक" },
+  other: { emoji: "👤", color: "#64748b", label: "अन्य" },
 };
 
 interface Props {
@@ -47,25 +38,34 @@ interface Props {
 
 export function DashboardLiveMap({ userId, userName }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef          = useRef<L.Map | null>(null);
-  const markersRef      = useRef<Map<string, L.Marker>>(new Map());
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<Map<string, L.Marker>>(new Map());
 
-  const [members, setMembers]         = useState<TeamMemberLocation[]>([]);
-  const [myRole, setMyRole]           = useState<TeamMemberRole>("admin");
-  const [sharing, setSharing]         = useState(false);
-  const [myLocation, setMyLocation]   = useState<{ lat: number; lng: number } | null>(null);
+  const [members, setMembers] = useState<TeamMemberLocation[]>([]);
+  const [myRole, setMyRole] = useState<TeamMemberRole>("admin");
+  const [sharing, setSharing] = useState(false);
+  const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState("");
-  const [status, setStatus]           = useState("");
+  const [status, setStatus] = useState("");
 
   const watchIdRef = useRef<number | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // ── broadcast hook (dashboard users can optionally share too) ───────────
-  const broadcastPos = useTeamLocationBroadcast({
-    userId,
-    name: userName,
-    role: myRole,
-    active: sharing,
-  });
+  // ── stable broadcast helper (tracks own position when sharing) ──────────
+  const broadcastPos = useCallback(
+    (lat: number, lng: number) => {
+      if (!userId || !channelRef.current) return;
+      void channelRef.current.track({
+        userId,
+        name: userName || `Member-${userId.slice(0, 6)}`,
+        role: myRole,
+        lat,
+        lng,
+        updatedAt: Date.now(),
+      } satisfies TeamMemberLocation);
+    },
+    [userId, userName, myRole],
+  );
 
   // ── Leaflet map initialisation ──────────────────────────────────────────
   useEffect(() => {
@@ -82,8 +82,7 @@ export function DashboardLiveMap({ userId, userName }: Props) {
     mapRef.current = map;
 
     setTimeout(() => {
-      if (mapRef.current)
-        mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 13, { duration: 1.5 });
+      if (mapRef.current) mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 13, { duration: 1.5 });
     }, 600);
 
     return () => {
@@ -110,8 +109,8 @@ export function DashboardLiveMap({ userId, userName }: Props) {
 
     // Add / move markers
     members.forEach((m) => {
-      const meta  = ROLE_META[m.role] ?? ROLE_META.other;
-      const isMe  = m.userId === userId;
+      const meta = ROLE_META[m.role] ?? ROLE_META.other;
+      const isMe = m.userId === userId;
       const stale = Date.now() - m.updatedAt > 90_000; // grey if >90 s old
 
       const icon = L.divIcon({
@@ -163,7 +162,11 @@ export function DashboardLiveMap({ userId, userName }: Props) {
     // Auto-fit to show all active members
     if (members.length >= 2) {
       const lls = members.map((m) => [m.lat, m.lng] as [number, number]);
-      try { map.fitBounds(lls, { padding: [60, 60], maxZoom: 16, animate: false }); } catch { /* ignore */ }
+      try {
+        map.fitBounds(lls, { padding: [60, 60], maxZoom: 16, animate: false });
+      } catch {
+        /* ignore */
+      }
     } else if (members.length === 1) {
       map.setView([members[0].lat, members[0].lng], 15);
     }
@@ -187,15 +190,28 @@ export function DashboardLiveMap({ userId, userName }: Props) {
       }
       // Sort: collectors first, then drivers, then others
       list.sort((a, b) => {
-        const order: Record<TeamMemberRole, number> = { collector: 0, driver: 1, admin: 2, other: 3 };
+        const order: Record<TeamMemberRole, number> = {
+          collector: 0,
+          driver: 1,
+          admin: 2,
+          other: 3,
+        };
         return (order[a.role] ?? 3) - (order[b.role] ?? 3);
       });
       setMembers(list);
     };
 
-    channel.on("presence", { event: "sync" }, sync).subscribe();
+    channelRef.current = channel;
 
-    return () => { void supabase.removeChannel(channel); };
+    // Presence callbacks must be registered before subscribe()
+    channel.on("presence", { event: "sync" }, sync);
+    channel.subscribe();
+
+    return () => {
+      void channel.untrack();
+      void supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
   }, [userId]);
 
   // ── Optional: dashboard admin shares their own location ─────────────────
@@ -208,6 +224,7 @@ export function DashboardLiveMap({ userId, userName }: Props) {
       setSharing(false);
       setMyLocation(null);
       setStatus("");
+      void channelRef.current?.untrack();
       return;
     }
 
@@ -225,21 +242,21 @@ export function DashboardLiveMap({ userId, userName }: Props) {
       setMyLocation({ lat, lng });
       setStatus("✓ लोकेसन साझा भइरहेको छ");
       broadcastPos(lat, lng);
-      if (mapRef.current && !myLocation)
-        mapRef.current.flyTo([lat, lng], 15, { duration: 1 });
+      if (mapRef.current && !myLocation) mapRef.current.flyTo([lat, lng], 15, { duration: 1 });
     };
 
     navigator.geolocation.getCurrentPosition(
       handlePos,
-      () => navigator.geolocation.getCurrentPosition(
-        handlePos,
-        () => {
-          setSharing(false);
-          setStatus("");
-          setLocationError("GPS स्थान प्राप्त गर्न सकिएन।");
-        },
-        { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
-      ),
+      () =>
+        navigator.geolocation.getCurrentPosition(
+          handlePos,
+          () => {
+            setSharing(false);
+            setStatus("");
+            setLocationError("GPS स्थान प्राप्त गर्न सकिएन।");
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
+        ),
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
     );
 
@@ -256,14 +273,16 @@ export function DashboardLiveMap({ userId, userName }: Props) {
   }, [myRole, sharing, myLocation, broadcastPos]);
 
   // Cleanup watch on unmount
-  useEffect(() => () => {
-    if (watchIdRef.current !== null)
-      navigator.geolocation.clearWatch(watchIdRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    },
+    [],
+  );
 
   const activeCount = members.length;
   const collectorCount = members.filter((m) => m.role === "collector").length;
-  const driverCount    = members.filter((m) => m.role === "driver").length;
+  const driverCount = members.filter((m) => m.role === "driver").length;
 
   return (
     <div className="rounded-xl border bg-card shadow-xs overflow-hidden">
@@ -361,13 +380,15 @@ export function DashboardLiveMap({ userId, userName }: Props) {
           </div>
           {activeCount === 0 ? (
             <p className="text-muted-foreground text-[10px] leading-relaxed">
-              अहिले कुनै संकलक वा चालकले GPS सुरु गरेका छैनन्।<br />
-              <span className="font-semibold">संकलन नक्सा</span> वा <span className="font-semibold">ट्रिप पृष्ठ</span>मा GPS ON गर्नुहोस्।
+              अहिले कुनै संकलक वा चालकले GPS सुरु गरेका छैनन्।
+              <br />
+              <span className="font-semibold">संकलन नक्सा</span> वा{" "}
+              <span className="font-semibold">ट्रिप पृष्ठ</span>मा GPS ON गर्नुहोस्।
             </p>
           ) : (
             <div className="space-y-1">
               {members.map((m) => {
-                const meta  = ROLE_META[m.role] ?? ROLE_META.other;
+                const meta = ROLE_META[m.role] ?? ROLE_META.other;
                 const stale = Date.now() - m.updatedAt > 90_000;
                 return (
                   <button
@@ -375,8 +396,7 @@ export function DashboardLiveMap({ userId, userName }: Props) {
                     type="button"
                     className="flex w-full items-center gap-1.5 cursor-pointer hover:bg-muted/60 rounded px-1 py-0.5 text-left"
                     onClick={() => {
-                      if (mapRef.current)
-                        mapRef.current.flyTo([m.lat, m.lng], 16, { duration: 1 });
+                      if (mapRef.current) mapRef.current.flyTo([m.lat, m.lng], 16, { duration: 1 });
                     }}
                   >
                     <span>{meta.emoji}</span>
@@ -404,7 +424,8 @@ export function DashboardLiveMap({ userId, userName }: Props) {
                 कुनै संकलक वा चालक अहिले लाइभ छैनन्
               </p>
               <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-                <b>संकलन नक्सा (GPS)</b> वा <b>ट्रिप तथा चालक</b> पृष्ठमा गएर<br />
+                <b>संकलन नक्सा (GPS)</b> वा <b>ट्रिप तथा चालक</b> पृष्ठमा गएर
+                <br />
                 <b>GPS सुरु गर्नुहोस्</b> बटन थिच्नुहोस् — स्थान यहाँ आउँछ।
               </p>
             </div>

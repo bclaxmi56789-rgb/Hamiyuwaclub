@@ -57,7 +57,7 @@ export function DashboardAIChatbot({
     {
       id: "welcome",
       role: "assistant",
-      content: `नमस्ते! म **हामी युवा क्लब**को संस्थागत AI सहायक (Institutional AI Copilot) हुँ। \nतपाईं यहाँ संस्थाको **रसिद संकलन, वडागत तथ्याङ्क, खर्च, सदस्य, कर्मचारी, सामग्री (Item Master), वा स्थिर सम्पत्ति (Fixed Assets)** सम्बन्धी कुनै पनि जानकारी सोध्न सक्नुहुन्छ। \n\nतलका द्रुत प्रश्नहरूमा थिच्नुहोस् वा आफ्नो प्रश्न लेख्नुहोस् — आवाजबाट पनि सोध्न सक्नुहुन्छ! 🎙️`,
+      content: `नमस्ते! म **संस्था**को संस्थागत AI सहायक (Institutional AI Copilot) हुँ। \nतपाईं यहाँ संस्थाको **रसिद संकलन, वडागत तथ्याङ्क, खर्च, सदस्य, कर्मचारी, सामग्री (Item Master), वा स्थिर सम्पत्ति (Fixed Assets)** सम्बन्धी कुनै पनि जानकारी सोध्न सक्नुहुन्छ। \n\nतलका द्रुत प्रश्नहरूमा थिच्नुहोस् वा आफ्नो प्रश्न लेख्नुहोस् — आवाजबाट पनि सोध्न सक्नुहुन्छ! 🎙️`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -261,7 +261,7 @@ export function DashboardAIChatbot({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-sm text-foreground">
-                हामी युवा क्लब AI सहायक (Dashboard Copilot)
+                संस्था AI सहायक (Dashboard Copilot)
               </h3>
               <Badge
                 variant="outline"

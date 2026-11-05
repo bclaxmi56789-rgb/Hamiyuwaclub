@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useAppConfig } from "@/lib/app-config";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -48,12 +49,12 @@ export const Route = createFileRoute("/")({
   }),
   head: () => ({
     meta: [
-      { title: "New Receipt — Hami Yuwa Club" },
+      { title: "New Receipt — Sangstha" },
       {
         name: "description",
         content: "वडा कार्यालयको फोहोरमैला व्यवस्थापन रसिद, महिनाअनुसार भुक्तानी र प्रिन्ट।",
       },
-      { property: "og:title", content: "Hami Yuwa Club — Payment Receipt" },
+      { property: "og:title", content: "Sangstha — Payment Receipt" },
       {
         property: "og:description",
         content: "Nepali receipt system with multi-month payments, payment mode and contact.",
@@ -67,28 +68,47 @@ export const Route = createFileRoute("/")({
 
 /* ─────────────── parse QR/barcode scan ─────────────── */
 function parseScannedData(raw: string, people: Person[], ward: string): Person | null {
+  let cardCandidate = "";
+  let phoneCandidate = "";
   try {
     const obj = JSON.parse(raw);
-    if (obj.card) {
-      const m =
-        people.find((x) => x.ward === ward && x.card === obj.card) ||
-        people.find((x) => x.card === obj.card);
-      if (m) return m;
+    if (obj && typeof obj === "object") {
+      cardCandidate = String(obj.card ?? "");
+      phoneCandidate = String(obj.phone ?? "");
     }
   } catch {
     /* not JSON */
   }
-  const trimmed = raw.trim();
-  return (
-    people.find((x) => x.ward === ward && x.card.toLowerCase() === trimmed.toLowerCase()) ||
-    people.find((x) => x.card.toLowerCase() === trimmed.toLowerCase()) ||
-    null
-  );
+  if (!cardCandidate && !phoneCandidate) cardCandidate = raw.trim();
+
+  const norm = (v: string) => v.replace(/\D/g, "").replace(/^0+/, "");
+  const byCardExact = (c: string) =>
+    people.find((x) => x.ward === ward && x.card.toLowerCase() === c.toLowerCase()) ||
+    people.find((x) => x.card.toLowerCase() === c.toLowerCase());
+  const byCardNorm = (c: string) =>
+    people.find((x) => x.ward === ward && norm(x.card) === norm(c) && norm(c) !== "") ||
+    people.find((x) => norm(x.card) === norm(c) && norm(c) !== "");
+
+  if (cardCandidate) {
+    const m = byCardExact(cardCandidate) || byCardNorm(cardCandidate);
+    if (m) return m;
+  }
+  if (phoneCandidate) {
+    const p = norm(phoneCandidate);
+    if (p) {
+      const m =
+        people.find((x) => x.ward === ward && x.phone && norm(x.phone) === p) ||
+        people.find((x) => x.phone && norm(x.phone) === p);
+      if (m) return m;
+    }
+  }
+  return null;
 }
 
 function Index() {
   const searchParams = Route.useSearch();
   const { ward, setWard, signedIn, ready, signOut } = useAppState();
+  const appConfig = useAppConfig();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [plans, setPlans] = useState<PlanItem[]>(DEFAULT_PLANS);
@@ -360,9 +380,12 @@ function Index() {
       validateDateInFiscalYear(date, Number(year), "रसिद मिति") ||
       validateReceipt(p, date, mode, months, registeredCards);
     if (error) return setErr(error);
-    if (mode && accounts.length > 0 && !accountId) {
-      return setErr("कुन नगद/बैंक खाता छान्नुहोस्।");
-    }
+    if (!mode) return setErr("भुक्तानी माध्यम छान्नुहोस् (नगद/बैंक)।");
+    if (accounts.length === 0)
+      return setErr(
+        "नगद/बैंक खाता छैन — पहिले Receipts & Payments → नगद तथा बैंक मास्टर मा खाता थप्नुहोस्।",
+      );
+    if (!accountId) return setErr("कुन नगद/बैंक खाता छान्नुहोस्।");
     if (months.some((m) => paid.has(`${m.year}:${m.m}`)))
       return setErr("A selected month is already paid.");
     if (!signedIn) return setErr("Sign in to save receipts.");
@@ -467,7 +490,7 @@ function Index() {
             <h1 className="text-2xl font-extrabold">
               वीरेन्द्रनगर नगरपालिका, {currentWard} नं. वडा कार्यालय
             </h1>
-            <p className="text-sm text-muted-foreground">हामी युवा क्लबद्वारा संचालित</p>
+            <p className="text-sm text-muted-foreground">{appConfig.entity_name ? `${appConfig.entity_name}द्वारा संचालित` : ""}</p>
             <span className="mt-3 inline-block rounded bg-foreground px-4 py-1 font-bold text-background">
               फोहोरमैला व्यवस्थापन
             </span>
@@ -903,9 +926,9 @@ function Index() {
                 ))}
               </select>
               {accounts.length === 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  खाता छैनन् — खाता राख्न Receipts & Payments → नगद तथा बैंक मास्टर मा थप्नुहोस्
-                  (खाता खाली भएसम्म यो चरण छोड्न सकिन्छ)।
+                <p className="mt-1 text-xs font-semibold text-destructive">
+                  कुनै नगद/बैंक खाता छैन — रसिद सुरक्षित गर्नुअघि Receipts & Payments → नगद तथा बैंक
+                  मास्टर मा खाता थप्नुहोस्।
                 </p>
               )}
             </div>

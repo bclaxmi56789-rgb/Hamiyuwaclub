@@ -1,3 +1,4 @@
+import { hamiCacheKey } from "@/lib/hami-cache";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -76,7 +77,7 @@ function VendorsPage() {
 
   const [vendors, setVendors] = useState<Vendor[]>(() => {
     try {
-      const cached = localStorage.getItem("hami_vendors_cache");
+      const cached = localStorage.getItem(hamiCacheKey("hami_vendors_cache"));
       if (cached) return JSON.parse(cached);
     } catch {}
     return [];
@@ -105,11 +106,11 @@ function VendorsPage() {
       if (Array.isArray(data)) {
         setVendors(data);
         try {
-          localStorage.setItem("hami_vendors_cache", JSON.stringify(data));
+          localStorage.setItem(hamiCacheKey("hami_vendors_cache"), JSON.stringify(data));
         } catch {}
       }
     } catch {
-      const cached = localStorage.getItem("hami_vendors_cache");
+      const cached = localStorage.getItem(hamiCacheKey("hami_vendors_cache"));
       if (cached) {
         try {
           setVendors(JSON.parse(cached));
@@ -172,7 +173,7 @@ function VendorsPage() {
           updated = [...prev, saved];
         }
         try {
-          localStorage.setItem("hami_vendors_cache", JSON.stringify(updated));
+          localStorage.setItem(hamiCacheKey("hami_vendors_cache"), JSON.stringify(updated));
         } catch {}
         return updated;
       });
@@ -191,7 +192,7 @@ function VendorsPage() {
       setVendors((prev) => {
         const updated = prev.filter((v) => v.id !== deleteTarget.id);
         try {
-          localStorage.setItem("hami_vendors_cache", JSON.stringify(updated));
+          localStorage.setItem(hamiCacheKey("hami_vendors_cache"), JSON.stringify(updated));
         } catch {}
         return updated;
       });

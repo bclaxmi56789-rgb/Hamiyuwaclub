@@ -50,9 +50,11 @@ export function CameraBarcodeScanner({ onScan, onClose }: CameraBarcodeScannerPr
           await scanner.start(
             camId,
             {
-              fps: 15,
-              qrbox: { width: 260, height: 180 },
-              aspectRatio: 1.333,
+              fps: 10,
+              qrbox: { width: 300, height: 240 },
+              aspectRatio: 1.777,
+              disableFlip: false,
+
             },
             (decodedText) => {
               if (!isMounted) return;
@@ -135,7 +137,13 @@ export function CameraBarcodeScanner({ onScan, onClose }: CameraBarcodeScannerPr
 
       await scannerRef.current.start(
         nextCam.id,
-        { fps: 15, qrbox: { width: 260, height: 180 } },
+        {
+          fps: 10,
+          qrbox: { width: 300, height: 240 },
+          aspectRatio: 1.777,
+          disableFlip: false,
+
+        },
         (decodedText) => handleSuccess(decodedText),
         () => {}
       );

@@ -21,13 +21,13 @@ import type { PlanItem } from "@/lib/receipt-rules";
 export const Route = createFileRoute("/plans")({
   head: () => ({
     meta: [
-      { title: "Plan Master — Hami Yuwa Club" },
+      { title: "Plan Master — Sangstha" },
       {
         name: "description",
         content:
           "Manage waste management service plans, base fee, incentives and chargeable amounts.",
       },
-      { property: "og:title", content: "Hami Yuwa Club Plan Master" },
+      { property: "og:title", content: "Sangstha Plan Master" },
       {
         property: "og:description",
         content: "Waste management service plans, rates, incentives, and net chargeable fees.",

@@ -1,3 +1,4 @@
+import { hamiCacheKey, setCacheScope, clearLegacySharedCaches } from "@/lib/hami-cache";
 import {
   createContext,
   useContext,
@@ -229,7 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // ─── RBAC: Active Employee & Permissions State ───
   const [activeEmployeeId, setActiveEmployeeIdState] = useState<string | null>(() => {
     try {
-      return localStorage.getItem("hami_active_employee_id") || null;
+      return localStorage.getItem(hamiCacheKey("hami_active_employee_id")) || null;
     } catch {
       return null;
     }
@@ -237,7 +238,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [permissions, setPermissions] = useState<EmployeePermission[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem("hami_employee_permissions") || "[]");
+      return JSON.parse(localStorage.getItem(hamiCacheKey("hami_employee_permissions")) || "[]");
     } catch {
       return [];
     }
@@ -264,15 +265,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       setGateError("");
       try {
         const result = await verifyAdminPinFn({ data: { pin: gatePin } });
-        if (result.ok) {
+        if (result.ok && result.code === "ok") {
           setActiveEmployeeId(null);
           try {
-            localStorage.removeItem("hami_active_employee_id");
+            localStorage.removeItem(hamiCacheKey("hami_active_employee_id"));
           } catch {}
           setPinUnlocked(true);
           setGatePin("");
         } else if (result.code === "wrong_pin") {
           setGateError("Admin PIN मिलेन। कृपया सही पिन प्रविष्ट गर्नुहोस्।");
+        } else if (result.code === "pin_not_set") {
+          setGateError(
+            "Admin PIN सेट गरिएको छैन। Settings मा जाई Admin PIN राख्नुहोस्।",
+          );
         } else {
           setGateError("प्रमाणिकरण हुन सकेन। पुनः प्रयास गर्नुहोस्।");
         }
@@ -318,9 +323,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     setActiveEmployeeIdState(id);
     try {
       if (id) {
-        localStorage.setItem("hami_active_employee_id", id);
+        localStorage.setItem(hamiCacheKey("hami_active_employee_id"), id);
       } else {
-        localStorage.removeItem("hami_active_employee_id");
+        localStorage.removeItem(hamiCacheKey("hami_active_employee_id"));
       }
     } catch {}
   };
@@ -335,7 +340,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       setEmployees(empList || []);
       setPermissions((permList as EmployeePermission[]) || []);
       try {
-        localStorage.setItem("hami_employee_permissions", JSON.stringify(permList || []));
+        localStorage.setItem(hamiCacheKey("hami_employee_permissions"), JSON.stringify(permList || []));
       } catch {}
     } catch {}
   };
@@ -373,8 +378,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       transition = true;
       setSignedIn(Boolean(session));
       setUserId(session?.user.id ?? null);
+      // Name-space every private cache by the signed-in account so a new account starts blank
+      setCacheScope(session?.user.id ?? null);
       setReady(true);
       if (event === "SIGNED_OUT") {
+        clearLegacySharedCaches();
         void queryClient.cancelQueries();
         queryClient.clear();
         setPinUnlocked(false);
@@ -396,6 +404,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (active && !transition) {
           setSignedIn(!error && Boolean(data.user));
           setUserId(error ? null : (data.user?.id ?? null));
+          setCacheScope(error ? null : (data.user?.id ?? null));
           setReady(true);
         }
       })
@@ -436,6 +445,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     setAuthError("");
     await queryClient.cancelQueries();
     queryClient.clear();
+    // Name-spaced caches of the signed-out account stop being read; clear the active-worker key too
+    setSignedIn(false);
+    setUserId(null);
+    try {
+      localStorage.removeItem(hamiCacheKey("hami_active_employee_id"));
+      localStorage.removeItem(hamiCacheKey("hami_employee_permissions"));
+    } catch {}
+    setCacheScope(null);
     // Drop API keys from session memory so nothing private survives sign-out
     saveStoredConfig({
       gemini_api_key: "",
@@ -500,12 +517,33 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Credentials verification spinner
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground animate-pulse">
-          <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-          <span>प्रणाली खुल्दैछ (Checking credentials)…</span>
+      <AppContext.Provider
+        value={{
+          ward,
+          setWard,
+          year,
+          setYear,
+          signedIn,
+          userId,
+          ready,
+          signOut,
+          activeEmployeeId,
+          setActiveEmployeeId,
+          employees,
+          permissions,
+          hasPageAccess,
+          isPageReadOnly,
+          canEditOnPage,
+          refreshPermissions,
+        }}
+      >
+        <div className="flex min-h-screen items-center justify-center bg-background p-6">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground animate-pulse">
+            <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+            <span>प्रणाली खुल्दैछ (Checking credentials)…</span>
+          </div>
         </div>
-      </div>
+      </AppContext.Provider>
     );
   }
 
@@ -544,21 +582,41 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!pinUnlocked) {
     const gateEmp = employees.find((e) => e.id === gateEmpId);
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 selection:bg-primary/20 relative">
-        <div className="absolute -z-10 w-96 h-96 bg-primary/15 rounded-full blur-[100px] pointer-events-none" />
-        <div className="w-full max-w-md rounded-3xl border bg-card/95 backdrop-blur-2xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.22)] border-t-white/30 relative transition-all duration-300">
-          <div className="flex items-center justify-between pb-6 border-b mb-6">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              <Fingerprint className="h-4 w-4 text-primary" />
-              <span>पहुँच अनलक (Unlock Access)</span>
+      <AppContext.Provider
+        value={{
+          ward,
+          setWard,
+          year,
+          setYear,
+          signedIn,
+          userId,
+          ready,
+          signOut,
+          activeEmployeeId,
+          setActiveEmployeeId,
+          employees,
+          permissions,
+          hasPageAccess,
+          isPageReadOnly,
+          canEditOnPage,
+          refreshPermissions,
+        }}
+      >
+        <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 selection:bg-primary/20 relative">
+          <div className="absolute -z-10 w-96 h-96 bg-primary/15 rounded-full blur-[100px] pointer-events-none" />
+          <div className="w-full max-w-md rounded-3xl border bg-card/95 backdrop-blur-2xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.22)] border-t-white/30 relative transition-all duration-300">
+            <div className="flex items-center justify-between pb-6 border-b mb-6">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <Fingerprint className="h-4 w-4 text-primary" />
+                <span>पहुँच अनलक (Unlock Access)</span>
+              </div>
+              <ThemeSelector />
             </div>
-            <ThemeSelector />
-          </div>
 
-          <div className="text-center space-y-2 mb-6">
-            <div className="mx-auto size-14 rounded-2xl bg-primary/10 border border-primary/20 p-2 flex items-center justify-center">
-              <Lock className="h-6 w-6 text-primary" />
-            </div>
+            <div className="text-center space-y-2 mb-6">
+              <div className="mx-auto size-14 rounded-2xl bg-primary/10 border border-primary/20 p-2 flex items-center justify-center">
+                <Lock className="h-6 w-6 text-primary" />
+              </div>
             <h1 className="text-xl font-black tracking-tight text-foreground">
               स्वागत छ! आफ्नो पहुँच खोल्नुहोस्
             </h1>
@@ -723,8 +781,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               मुख्य लगइन: सफल ✓
             </Badge>
           </div>
+          <ScrollNavigationButtons />
+          </div>
         </div>
-      </div>
+      </AppContext.Provider>
     );
   }
 

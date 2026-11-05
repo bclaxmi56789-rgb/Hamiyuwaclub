@@ -33,17 +33,17 @@ import { ThemeSelector } from "@/components/theme-selector";
 export const Route = createFileRoute("/landing")({
   head: () => ({
     meta: [
-      { title: "हामी युवा क्लब — युवा सोच, सशक्त राष्ट्र" },
+      { title: "संस्था पोर्टल" },
       {
         name: "description",
         content:
-          "हामी युवा क्लब, बीरेन्द्रनगर, सुर्खेत, कर्णाली प्रदेश। डिजिटल युगको सम्भावनालाई आत्मसात् गर्दै एक सजग, समावेशी र भविष्यमुखी समाजको निर्माण।",
+          "एकीकृत संस्था व्यवस्थापन पोर्टल। डिजिटल युगको सम्भावनालाई आत्मसात् गर्दै एक सजग, समावेशी र भविष्यमुखी समाजको निर्माण।",
       },
-      { property: "og:title", content: "हामी युवा क्लब — युवा सोच, सशक्त राष्ट्र।" },
+      { property: "og:title", content: "संस्था पोर्टल।" },
       {
         property: "og:description",
         content:
-          "बीरेन्द्रनगर, सुर्खेत · कर्णाली प्रदेश। युवा वकालत, सामुदायिक कार्य, वातावरण र नेतृत्व।",
+          "एकीकृत संस्था व्यवस्थापन पोर्टल। युवा वकालत, सामुदायिक कार्य, वातावरण र नेतृत्व।",
       },
       { property: "og:type", content: "website" },
     ],
@@ -98,10 +98,10 @@ export function LandingPage() {
             </div>
             <div className="flex flex-col">
               <span className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-foreground flex items-center gap-1.5">
-                हामी <span className="text-primary italic font-serif underline decoration-primary/40 underline-offset-4">युवा</span> क्लब
+                {appConfig.entity_name}
               </span>
               <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
-                Hami Yuwa Club · Surkhet
+                {appConfig.entity_sub_name}
               </span>
             </div>
           </Link>
@@ -527,7 +527,7 @@ export function LandingPage() {
                 प्रशासनिक तथा रसिद संकलन पोर्टल
               </h3>
               <p className="text-base text-muted-foreground leading-relaxed">
-                हामी युवा क्लबका कर्मचारी तथा वडा अधिकृतहरूका लागि रसिद संकलन, खर्च तथा बिल स्क्यान (AI OCR), मिटिङ मिनेट, सामग्री (Item Master), र स्थिर सम्पत्ति (Fixed Assets) व्यवस्थापन गर्ने एकीकृत प्रणाली।
+                संस्थाका कर्मचारी तथा वडा अधिकृतहरूका लागि रसिद संकलन, खर्च तथा बिल स्क्यान (AI OCR), मिटिङ मिनेट, सामग्री (Item Master), र स्थिर सम्पत्ति (Fixed Assets) व्यवस्थापन गर्ने एकीकृत प्रणाली।
               </p>
             </div>
 
@@ -716,7 +716,7 @@ export function LandingPage() {
                   className="size-11 object-contain rounded-xl p-1 bg-card border shadow-xs"
                 />
                 <span className="text-2xl font-black tracking-tight text-foreground">
-                  हामी युवा क्लब
+                  {appConfig.entity_name}
                 </span>
               </div>
               <p className="text-sm font-bold text-primary">

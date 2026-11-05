@@ -1,3 +1,4 @@
+import { hamiCacheKey } from "@/lib/hami-cache";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,7 +44,7 @@ import {
 export const Route = createFileRoute("/events")({
   head: () => ({
     meta: [
-      { title: "Events & Programmes — Hami Yuwa Club" },
+      { title: "Events & Programmes — Sangstha" },
       {
         name: "description",
         content:
@@ -101,7 +102,7 @@ function EventsPage() {
   // Local state with seed fallback
   const [eventsList, setEventsList] = useState<ClubEvent[]>(() => {
     try {
-      const stored = localStorage.getItem("hami_events_cache");
+      const stored = localStorage.getItem(hamiCacheKey("hami_events_cache"));
       if (stored) return JSON.parse(stored);
     } catch {
       // cache unavailable — fall back to seed data
@@ -113,7 +114,7 @@ function EventsPage() {
     if (query.data?.events && query.data.events.length > 0) {
       setEventsList(query.data.events);
       try {
-        localStorage.setItem("hami_events_cache", JSON.stringify(query.data.events));
+        localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(query.data.events));
       } catch {
         // storage unavailable
       }
@@ -253,7 +254,7 @@ function EventsPage() {
         : [res, ...eventsList];
       setEventsList(updated);
       try {
-        localStorage.setItem("hami_events_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(updated));
       } catch {
         // storage unavailable
       }
@@ -269,7 +270,7 @@ function EventsPage() {
         : [localItem, ...eventsList];
       setEventsList(updated);
       try {
-        localStorage.setItem("hami_events_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(updated));
       } catch {
         // storage unavailable
       }
@@ -287,7 +288,7 @@ function EventsPage() {
     const updated = eventsList.filter((e) => e.id !== id);
     setEventsList(updated);
     try {
-      localStorage.setItem("hami_events_cache", JSON.stringify(updated));
+      localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(updated));
     } catch {
       // storage unavailable
     }
@@ -346,7 +347,7 @@ function EventsPage() {
             </h1>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            हामी युवा क्लब - सरसफाइ अभियान, बजेट, स्थान तथा अधिकृत कर्मचारी र टोली व्यवस्थापन
+            कार्यक्रम, बजेट तथा टोली व्यवस्थापन
           </p>
         </div>
 

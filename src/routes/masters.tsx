@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   Camera,
   ImagePlus,
+  Eye,
 } from "lucide-react";
 import { LocationMap } from "@/components/location-map";
 import { BSDatePicker } from "@/components/bs-date-picker";
@@ -56,13 +57,13 @@ import { DigitalCard } from "@/components/digital-card";
 export const Route = createFileRoute("/masters")({
   head: () => ({
     meta: [
-      { title: "People Master — Hami Yuwa Club" },
+      { title: "People Master — Sangstha" },
       {
         name: "description",
         content:
           "Saved people’s names, wards, toles, card numbers, plans, joining date, PAN and GPS locations.",
       },
-      { property: "og:title", content: "Hami Yuwa Club People Master" },
+      { property: "og:title", content: "Sangstha People Master" },
       {
         property: "og:description",
         content:
@@ -97,8 +98,13 @@ const getEmptyForm = (defaultWard = "1"): Person => {
     opening_dues: [],
     locality_photo: "",
     nature: "",
+    place_detail: "",
   };
 };
+
+function placeDetailLabel(p: Person): string {
+  return p.place_detail?.trim() || "";
+}
 
 // Resolves locality photo values: `locality:{ward}:{card}` refs are fetched from the
 // owner-scoped locality_photos table; anything else (legacy Storage URL, data URL,
@@ -139,8 +145,10 @@ function Masters() {
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [editingCard, setEditingCard] = useState<string | null>(null);
+  const [editingWard, setEditingWard] = useState<string | null>(null);
   const [viewingMapPerson, setViewingMapPerson] = useState<Person | null>(null);
   const [viewingCardPerson, setViewingCardPerson] = useState<Person | null>(null);
+  const [viewingPerson, setViewingPerson] = useState<Person | null>(null);
   const plans: PlanItem[] =
     query.data?.plans && query.data.plans.length > 0 ? query.data.plans : DEFAULT_PLANS;
   const [form, setForm] = useState<Person>(getEmptyForm(ward ?? "1"));
@@ -163,6 +171,7 @@ function Masters() {
   const [camErr, setCamErr] = useState("");
   const formPhotoSrc = useLocalityPhotoSrc(form.locality_photo);
   const viewerPhotoSrc = useLocalityPhotoSrc(viewingMapPerson?.locality_photo || "");
+  const viewPhotoSrc = useLocalityPhotoSrc(viewingPerson?.locality_photo || "");
 
   const openCamera = async () => {
     setCamErr("");
@@ -347,7 +356,7 @@ function Masters() {
       const term = search.toLowerCase();
       const planNames = p.plans?.map((x) => x.name).join(" ") || "";
       const text =
-        `${p.name} ${p.card} ${p.district ?? ""} ${p.municipality ?? ""} ${p.tole} ${p.ward} ${p.phone} ${p.email ?? ""} ${p.pan ?? ""} ${p.full_address ?? ""} ${p.plan ?? ""} ${planNames} ${p.joining_date ?? ""} ${p.nature ?? ""}`.toLowerCase();
+        `${p.name} ${p.card} ${p.district ?? ""} ${p.municipality ?? ""} ${p.tole} ${p.ward} ${p.phone} ${p.email ?? ""} ${p.pan ?? ""} ${p.full_address ?? ""} ${p.plan ?? ""} ${planNames} ${p.joining_date ?? ""} ${p.nature ?? ""} ${p.place_detail ?? ""}`.toLowerCase();
       return text.includes(term);
     }) ?? [];
 
@@ -387,6 +396,7 @@ function Masters() {
       description: "",
     });
     setEditingCard(null);
+    setEditingWard(null);
     setErr("");
     setOpenModal(true);
   };
@@ -452,6 +462,7 @@ function Masters() {
       opening_dues: Array.isArray(p.opening_dues) ? p.opening_dues : [],
       locality_photo: p.locality_photo || "",
       nature: p.nature || "",
+      place_detail: p.place_detail || "",
     });
     setIsCreatingPlan(false);
     setNewPlanForm({
@@ -466,6 +477,7 @@ function Masters() {
       description: "",
     });
     setEditingCard(p.card);
+    setEditingWard(p.ward);
     setErr("");
     setOpenModal(true);
   };
@@ -638,6 +650,23 @@ function Masters() {
       setErr("कम्तिमा एउटा सेवा योजना छनोट गर्नुहोस् (Please select at least one plan).");
       return;
     }
+    if (editingCard && editingWard && form.ward !== editingWard) {
+      setErr(
+        "सम्पादनमा वडा नं परिवर्तन गर्न मिल्दैन — पुरानो वडाबाट मेटेर नयाँ वडामा थप्नुहोस् (Ward cannot be changed while editing; delete from the old ward and add again).",
+      );
+      return;
+    }
+    if (form.card.trim()) {
+      const dup = (query.data?.people ?? []).find(
+        (p) => p.ward === form.ward && p.card === form.card.trim() && p.card !== editingCard,
+      );
+      if (dup) {
+        setErr(
+          `वडा ${form.ward} मा कार्ड नं. ${form.card.trim()} पहिले नै दर्ता छ (${dup.name}) (Card number already used in ward ${form.ward}).`,
+        );
+        return;
+      }
+    }
 
     setBusy(true);
     setErr("");
@@ -691,6 +720,7 @@ function Masters() {
       setForm(getEmptyForm(ward ?? "1"));
       setIsCreatingPlan(false);
       setEditingCard(null);
+      setEditingWard(null);
     } catch (e) {
       setErr(
         e instanceof Error ? e.message : "ग्राहक सुरक्षित गर्न सकिएन (Could not save customer).",
@@ -874,6 +904,11 @@ function Masters() {
                   <td className="p-3 font-semibold">{p.ward}</td>
                   <td className="p-3">
                     <div className="font-medium">{p.tole}</div>
+                    {placeDetailLabel(p) && (
+                      <div className="text-xs font-semibold text-foreground">
+                        🏠 {placeDetailLabel(p)}
+                      </div>
+                    )}
                     {p.full_address && (
                       <div className="text-xs text-muted-foreground">{p.full_address}</div>
                     )}
@@ -928,6 +963,15 @@ function Masters() {
                   </td>
                   <td className="p-3 text-right">
                     <div className="inline-flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground hover:text-primary"
+                        title="विवरण हेर्नुहोस् (View customer)"
+                        onClick={() => setViewingPerson(p)}
+                      >
+                        <Eye className="size-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -1854,7 +1898,8 @@ function Masters() {
                     </label>
                     <p className="text-[11px] text-muted-foreground">
                       नक्सामा क्लिक गर्दा वा "लाइभ GPS" लिँदा जिल्ला, नगरपालिका, वडा, टोल र ठेगाना
-                      स्वतः भरिनेछ (पछि सच्याउन पनि मिल्छ)।
+                      स्वतः भरिनेछ (पछि सच्याउन पनि मिल्छ)। घर तथा कोठा विवरण तल लेख्नुहोस् — पिन
+                      सेभ भएपछि अर्को पटक त्यही स्थानमै देखिनेछ।
                     </p>
                   </div>
                   <LocationMap
@@ -1888,6 +1933,27 @@ function Masters() {
                       });
                     }}
                   />
+                  <div className="mt-2">
+                    <label
+                      htmlFor="place-detail"
+                      className="block text-xs font-bold text-foreground"
+                    >
+                      🏠 घर / तल्ला / कोठा विवरण (House / Floor / Room detail)
+                    </label>
+                    <input
+                      id="place-detail"
+                      type="text"
+                      value={form.place_detail || ""}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, place_detail: e.target.value.slice(0, 200) }))
+                      }
+                      placeholder="जस्तै: पहिलो गेटबाट भित्री घर, दोस्रो तला, बायाँपट्टि कोठा नं. ४"
+                      className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60"
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      डेलिभरी तथा संकलनको लागि घरको मुख्य ढोका, तल्ला र कोठा संख्या अनिवार्य छन्।
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -1947,6 +2013,168 @@ function Masters() {
         </div>
       )}
 
+      {/* Customer View Modal */}
+      {viewingPerson && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b px-6 pb-3 pt-5">
+              <div>
+                <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
+                  {natureEmoji(viewingPerson.nature) && (
+                    <span>{natureEmoji(viewingPerson.nature)}</span>
+                  )}
+                  {viewingPerson.name}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  ग्राहक विवरण (Customer details) — कार्ड सं.{" "}
+                  <span className="font-semibold text-primary">{viewingPerson.card}</span> · वडा{" "}
+                  {viewingPerson.ward}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingPerson(null)}
+                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                {(
+                  [
+                    ["सम्पर्क (Phone)", viewingPerson.phone],
+                    ["इमेल (Email)", viewingPerson.email],
+                    ["जिल्ला (District)", viewingPerson.district],
+                    ["न.पा./गा.पा. (Municipality)", viewingPerson.municipality],
+                    ["टोल (Tole)", viewingPerson.tole],
+                    ["घर/तल्ला/कोठा विवरण (House/Room)", viewingPerson.place_detail],
+                    ["विस्तृत ठेगाना (Full Address)", viewingPerson.full_address],
+                    ["प्यान (PAN)", viewingPerson.pan],
+                    ["व्यवसाय मुख्ति (Nature)", viewingPerson.nature],
+                  ] as [string, string | undefined][]
+                ).map(([label, value]) =>
+                  value ? (
+                    <div key={label} className="border-b pb-2">
+                      <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
+                      <div className="text-sm font-semibold text-foreground">{value}</div>
+                    </div>
+                  ) : null,
+                )}
+                <div className="border-b pb-2">
+                  <div className="text-[10px] font-semibold text-muted-foreground">
+                    दर्ता मिति (Joined)
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {viewingPerson.joining_date ? np(viewingPerson.joining_date) : "—"}
+                  </div>
+                </div>
+                <div className="border-b pb-2">
+                  <div className="text-[10px] font-semibold text-muted-foreground">
+                    योजना (Plans)
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {viewingPerson.plans && viewingPerson.plans.length > 0
+                      ? viewingPerson.plans
+                          .map((sp) =>
+                            sp.quantity && sp.quantity > 1
+                              ? `${sp.name} (${sp.quantity}×)`
+                              : sp.name,
+                          )
+                          .join(", ")
+                      : viewingPerson.plan || "—"}
+                  </div>
+                </div>
+                <div className="border-b pb-2">
+                  <div className="text-[10px] font-semibold text-muted-foreground">
+                    मासिक कुल (Monthly Total)
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    रु. {getCustomerTotalRate(viewingPerson, plans).toLocaleString("en-IN")}
+                  </div>
+                </div>
+              </div>
+
+              {/* Photo */}
+              {viewingPerson.locality_photo && (
+                <div className="mt-4">
+                  <div className="text-[10px] font-semibold text-muted-foreground">
+                    टोल/घरको फोटो
+                  </div>
+                  <img
+                    src={viewPhotoSrc}
+                    alt="टोल/घरको फोटो"
+                    className="mt-1 max-h-44 w-full max-w-md rounded-lg border object-cover"
+                  />
+                </div>
+              )}
+
+              {/* GPS location summary */}
+              {viewingPerson.latitude != null && viewingPerson.longitude != null && (
+                <div className="mt-4 rounded-lg border bg-accent/20 p-3">
+                  <div className="text-[10px] font-semibold text-muted-foreground">GPS लोकेसन</div>
+                  <div className="text-sm font-mono font-semibold text-foreground">
+                    {viewingPerson.latitude.toFixed(7)}, {viewingPerson.longitude.toFixed(7)}
+                    {typeof viewingPerson.gps_accuracy === "number" && (
+                      <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                        ±{viewingPerson.gps_accuracy}m
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-6 py-3">
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs"
+                  onClick={() => {
+                    setViewingMapPerson(viewingPerson);
+                    setViewingPerson(null);
+                  }}
+                >
+                  <MapPin className="size-3.5 text-emerald-600" />
+                  नक्सामा हेर्नुहोस्
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs"
+                  onClick={() => {
+                    setViewingCardPerson(viewingPerson);
+                    setViewingPerson(null);
+                  }}
+                >
+                  <CreditCard className="size-3.5 text-blue-600" />
+                  परिचय पत्र
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs"
+                  onClick={() => {
+                    handleOpenEdit(viewingPerson);
+                    setViewingPerson(null);
+                  }}
+                >
+                  <Edit2 className="size-3.5" />
+                  सम्पादन (Edit)
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setViewingPerson(null)}>
+                  बन्द गर्नुहोस् (Close)
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Map Preview Modal */}
       {viewingMapPerson && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -1966,6 +2194,8 @@ function Masters() {
                   कार्ड: <span className="font-semibold text-primary">{viewingMapPerson.card}</span>{" "}
                   • {viewingMapPerson.municipality ? `${viewingMapPerson.municipality}, ` : ""}वडा{" "}
                   {viewingMapPerson.ward}, {viewingMapPerson.tole}
+                  {placeDetailLabel(viewingMapPerson) &&
+                    ` • 🏠 ${placeDetailLabel(viewingMapPerson)}`}
                   {viewingMapPerson.full_address && ` • ${viewingMapPerson.full_address}`}
                 </p>
                 <div className="mt-1 flex flex-wrap gap-2 text-xs">

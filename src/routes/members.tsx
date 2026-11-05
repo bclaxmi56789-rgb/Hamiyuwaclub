@@ -1,3 +1,4 @@
+import { hamiCacheKey } from "@/lib/hami-cache";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -70,7 +71,7 @@ import {
 export const Route = createFileRoute("/members")({
   head: () => ({
     meta: [
-      { title: "Members, Staff & Payroll — Hami Yuwa Club" },
+      { title: "Members, Staff & Payroll — Sangstha" },
       {
         name: "description",
         content:
@@ -117,7 +118,7 @@ function MembersPage() {
   // Local state with seed fallbacks
   const [memberList, setMemberList] = useState<Member[]>(() => {
     try {
-      const stored = localStorage.getItem("hami_members_cache");
+      const stored = localStorage.getItem(hamiCacheKey("hami_members_cache"));
       if (stored) return JSON.parse(stored);
     } catch {}
     return [];
@@ -125,7 +126,7 @@ function MembersPage() {
 
   const [empList, setEmpList] = useState<Employee[]>(() => {
     try {
-      const stored = localStorage.getItem("hami_emp_cache");
+      const stored = localStorage.getItem(hamiCacheKey("hami_emp_cache"));
       if (stored) return JSON.parse(stored);
     } catch {}
     return [];
@@ -133,7 +134,7 @@ function MembersPage() {
 
   const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>(() => {
     try {
-      const stored = localStorage.getItem("hami_payroll_cache");
+      const stored = localStorage.getItem(hamiCacheKey("hami_payroll_cache"));
       if (stored) return JSON.parse(stored);
     } catch {}
     return [];
@@ -146,13 +147,13 @@ function MembersPage() {
       if (fetchedMembers && fetchedMembers.length > 0) {
         setMemberList(fetchedMembers);
         try {
-          localStorage.setItem("hami_members_cache", JSON.stringify(fetchedMembers));
+          localStorage.setItem(hamiCacheKey("hami_members_cache"), JSON.stringify(fetchedMembers));
         } catch {}
       }
       if (query.data.employees && query.data.employees.length > 0) {
         setEmpList(query.data.employees);
         try {
-          localStorage.setItem("hami_emp_cache", JSON.stringify(query.data.employees));
+          localStorage.setItem(hamiCacheKey("hami_emp_cache"), JSON.stringify(query.data.employees));
         } catch {}
       }
       if (query.data.payrollRecords && query.data.payrollRecords.length > 0) {
@@ -182,7 +183,7 @@ function MembersPage() {
           }
           const merged = Array.from(map.values());
           try {
-            localStorage.setItem("hami_payroll_cache", JSON.stringify(merged));
+            localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(merged));
           } catch {}
           return merged;
         });
@@ -223,7 +224,7 @@ function MembersPage() {
   // Employee-reimbursement bills from the expenses module
   const [empReimbursements, setEmpReimbursements] = useState<ExpenseRecord[]>(() => {
     try {
-      const stored = localStorage.getItem("hami_emp_reimbursement_cache");
+      const stored = localStorage.getItem(hamiCacheKey("hami_emp_reimbursement_cache"));
       if (stored) return JSON.parse(stored);
     } catch {}
     return [];
@@ -475,7 +476,7 @@ function MembersPage() {
       ];
       setPayrollHistory(updatedHistory);
       try {
-        localStorage.setItem("hami_payroll_cache", JSON.stringify(updatedHistory));
+        localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(updatedHistory));
       } catch {}
 
       setPayrollNotice({
@@ -493,7 +494,7 @@ function MembersPage() {
       ];
       setPayrollHistory(updatedHistory);
       try {
-        localStorage.setItem("hami_payroll_cache", JSON.stringify(updatedHistory));
+        localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(updatedHistory));
       } catch {}
       setPayrollNotice({
         type: "success",
@@ -536,7 +537,7 @@ function MembersPage() {
       ];
       setPayrollHistory(updatedHistory);
       try {
-        localStorage.setItem("hami_payroll_cache", JSON.stringify(updatedHistory));
+        localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(updatedHistory));
       } catch {}
 
       // 4. Save to server:
@@ -560,7 +561,7 @@ function MembersPage() {
         ];
         setPayrollHistory(serverHistory);
         try {
-          localStorage.setItem("hami_payroll_cache", JSON.stringify(serverHistory));
+          localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(serverHistory));
         } catch {}
       }
 
@@ -596,7 +597,7 @@ function MembersPage() {
       ];
       setPayrollHistory(updatedHistory);
       try {
-        localStorage.setItem("hami_payroll_cache", JSON.stringify(updatedHistory));
+        localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(updatedHistory));
       } catch {}
       setPayrollNotice({
         type: "success",
@@ -750,7 +751,7 @@ function MembersPage() {
           return item;
         });
         try {
-          localStorage.setItem("hami_payroll_cache", JSON.stringify(next));
+          localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(next));
         } catch {}
         return next;
       });
@@ -825,7 +826,7 @@ function MembersPage() {
         : [...memberList, res];
       setMemberList(updated);
       try {
-        localStorage.setItem("hami_members_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_members_cache"), JSON.stringify(updated));
       } catch {}
       void queryClient.invalidateQueries({ queryKey: ["members_data"] });
     } catch {
@@ -839,7 +840,7 @@ function MembersPage() {
         : [...memberList, localItem];
       setMemberList(updated);
       try {
-        localStorage.setItem("hami_members_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_members_cache"), JSON.stringify(updated));
       } catch {}
     }
     setMemberModalOpen(false);
@@ -853,7 +854,7 @@ function MembersPage() {
     const updated = memberList.filter((b) => b.id !== id);
     setMemberList(updated);
     try {
-      localStorage.setItem("hami_members_cache", JSON.stringify(updated));
+      localStorage.setItem(hamiCacheKey("hami_members_cache"), JSON.stringify(updated));
     } catch {}
   };
 
@@ -922,7 +923,7 @@ function MembersPage() {
         : [...empList, res];
       setEmpList(updated);
       try {
-        localStorage.setItem("hami_emp_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_emp_cache"), JSON.stringify(updated));
       } catch {}
       void queryClient.invalidateQueries({ queryKey: ["members_data"] });
     } catch {
@@ -936,7 +937,7 @@ function MembersPage() {
         : [...empList, localItem];
       setEmpList(updated);
       try {
-        localStorage.setItem("hami_emp_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_emp_cache"), JSON.stringify(updated));
       } catch {}
     }
     setEmpModalOpen(false);
@@ -950,7 +951,7 @@ function MembersPage() {
     const updated = empList.filter((em) => em.id !== id);
     setEmpList(updated);
     try {
-      localStorage.setItem("hami_emp_cache", JSON.stringify(updated));
+      localStorage.setItem(hamiCacheKey("hami_emp_cache"), JSON.stringify(updated));
     } catch {}
   };
 
@@ -1207,7 +1208,7 @@ function MembersPage() {
             सदस्य तथा कर्मचारी व्यवस्थापन (Members & Staff)
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            हामी युवा क्लब - सदस्यहरू, कर्मचारी रेकर्ड तथा मासिक पेरोल
+            सदस्य, कर्मचारी तथा पेरोल
           </p>
         </div>
 

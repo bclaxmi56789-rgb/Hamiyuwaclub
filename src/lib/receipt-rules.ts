@@ -184,6 +184,7 @@ export type Person = {
   opening_dues?: OpeningDue[]; // manually entered pre-system dues
   locality_photo?: string; // photo of the customer's locality/house
   nature?: string; // business nature (from BUSINESS_NATURES master list)
+  place_detail?: string | null; // house / floor / room-level location detail
 };
 export type ReceiptMonthItem = { m: number; amt: number; year?: number };
 export type Receipt = Person & {
@@ -925,10 +926,7 @@ export function buildEmployeeLedger(params: {
 
   // Reimbursement bills: payable goes to the employee, not the vendor
   const reimbursed = (expenses || []).filter(
-    (e) =>
-      e.employee_reimbursed === true &&
-      employee?.id &&
-      e.linked_employee_id === employee.id,
+    (e) => e.employee_reimbursed === true && employee?.id && e.linked_employee_id === employee.id,
   );
   for (const e of reimbursed) {
     const amount = Math.max(0, Number(e.final_amount) || 0);
@@ -938,10 +936,9 @@ export function buildEmployeeLedger(params: {
     drafts.push({
       id: `reimb-${e.id ?? `${e.date_bs}-${e.expense_type}`}`,
       date_bs: date || "-",
-      particulars:
-        (e.vendor_name ?? "").trim()
-          ? `कर्मचारी भार (Reimbursement) — भेन्डर: ${(e.vendor_name ?? "").trim()}${bill ? ` / बिल नं. ${bill}` : ""}`
-          : `कर्मचारी भार (Reimbursement)${bill ? ` — बिल नं. ${bill}` : ""}`,
+      particulars: (e.vendor_name ?? "").trim()
+        ? `कर्मचारी भार (Reimbursement) — भेन्डर: ${(e.vendor_name ?? "").trim()}${bill ? ` / बिल नं. ${bill}` : ""}`
+        : `कर्मचारी भार (Reimbursement)${bill ? ` — बिल नं. ${bill}` : ""}`,
       source: "reimbursement",
       ref: bill,
       dr: amount,
@@ -1608,7 +1605,7 @@ export function calculateTheliBooking(
   // (i.e. next voucher after the last one booked in a prior session).
   // This ensures subsequent reports count from the correct starting voucher.
   const effectiveFrom =
-    (item.status === "partially_booked" && item.remaining_range_from)
+    item.status === "partially_booked" && item.remaining_range_from
       ? item.remaining_range_from
       : item.range_from;
 

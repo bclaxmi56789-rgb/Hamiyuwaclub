@@ -1,3 +1,4 @@
+import { hamiCacheKey } from "@/lib/hami-cache";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -129,8 +130,8 @@ function generateLot(type: "fixed_asset" | "item", existingLots: string[]) {
 
 // ─── Master auto-save helpers (खर्च सेभ गर्दा मास्टरमा स्वतः सुरक्षित) ──
 
-const ITEM_CACHE_KEY = "hami_items_master_cache";
-const ASSET_CACHE_KEY = "hami_fixed_asset_master_cache";
+const ITEM_CACHE_KEY = hamiCacheKey("hami_items_master_cache");
+const ASSET_CACHE_KEY = hamiCacheKey("hami_fixed_asset_master_cache");
 
 type MasterFillRow = {
   include: boolean;
@@ -317,9 +318,9 @@ function AssetItemForm({
 
   useEffect(() => {
     try {
-      const itmStr = localStorage.getItem("hami_items_master_cache");
+      const itmStr = localStorage.getItem(hamiCacheKey("hami_items_master_cache"));
       if (itmStr) setMasterItems(JSON.parse(itmStr));
-      const astStr = localStorage.getItem("hami_fixed_asset_master_cache");
+      const astStr = localStorage.getItem(hamiCacheKey("hami_fixed_asset_master_cache"));
       if (astStr) setMasterAssets(JSON.parse(astStr));
     } catch {}
   }, []);
@@ -1446,9 +1447,9 @@ function OpExForm({
 
   useEffect(() => {
     try {
-      const itmStr = localStorage.getItem("hami_items_master_cache");
+      const itmStr = localStorage.getItem(hamiCacheKey("hami_items_master_cache"));
       if (itmStr) setMasterItems(JSON.parse(itmStr));
-      const astStr = localStorage.getItem("hami_fixed_asset_master_cache");
+      const astStr = localStorage.getItem(hamiCacheKey("hami_fixed_asset_master_cache"));
       if (astStr) setMasterAssets(JSON.parse(astStr));
     } catch {}
   }, []);
@@ -2294,7 +2295,7 @@ function ExpensesPage() {
   const [records, setRecords] = useState<ExpenseRecord[]>(() => {
     if (typeof window === "undefined") return [];
     try {
-      const stored = localStorage.getItem("hami_expenses_cache");
+      const stored = localStorage.getItem(hamiCacheKey("hami_expenses_cache"));
       if (stored) return JSON.parse(stored);
     } catch {}
     return [];
@@ -2335,7 +2336,7 @@ function ExpensesPage() {
         setRecords(recs.value);
         if (typeof window !== "undefined") {
           try {
-            localStorage.setItem("hami_expenses_cache", JSON.stringify(recs.value));
+            localStorage.setItem(hamiCacheKey("hami_expenses_cache"), JSON.stringify(recs.value));
           } catch {}
         }
       }
@@ -2355,7 +2356,7 @@ function ExpensesPage() {
       }
     } catch {
       if (typeof window !== "undefined") {
-        const cached = localStorage.getItem("hami_expenses_cache");
+        const cached = localStorage.getItem(hamiCacheKey("hami_expenses_cache"));
         if (cached) {
           try {
             setRecords(JSON.parse(cached));
@@ -2399,7 +2400,7 @@ function ExpensesPage() {
         updated = [r, ...prev];
       }
       try {
-        localStorage.setItem("hami_expenses_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_expenses_cache"), JSON.stringify(updated));
       } catch {}
       return updated;
     });
@@ -2413,7 +2414,7 @@ function ExpensesPage() {
       setRecords((prev) => {
         const updated = prev.filter((r) => r.id !== deleteTarget.id);
         try {
-          localStorage.setItem("hami_expenses_cache", JSON.stringify(updated));
+          localStorage.setItem(hamiCacheKey("hami_expenses_cache"), JSON.stringify(updated));
         } catch {}
         return updated;
       });

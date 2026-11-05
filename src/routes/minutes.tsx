@@ -1,3 +1,4 @@
+import { hamiCacheKey } from "@/lib/hami-cache";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -75,11 +76,11 @@ import type { SpeechRecognitionCtor, SpeechRecognitionLike } from "@/lib/receipt
 export const Route = createFileRoute("/minutes")({
   head: () => ({
     meta: [
-      { title: "Meeting Minutes — Hami Yuwa Club" },
+      { title: "Meeting Minutes — Sangstha" },
       {
         name: "description",
         content:
-          "Meeting minutes (कार्यविवरण) with attendees, agendas, decisions and AI drafting for Hami Yuwa Club programmes.",
+          "Meeting minutes (कार्यविवरण) with attendees, agendas, decisions and AI drafting for Sangstha programmes.",
       },
     ],
   }),
@@ -124,7 +125,7 @@ function MinutesPage() {
   // Minutes log with localStorage fallback
   const [minutesList, setMinutesList] = useState<EventMinutes[]>(() => {
     try {
-      const stored = localStorage.getItem("hami_minutes_cache");
+      const stored = localStorage.getItem(hamiCacheKey("hami_minutes_cache"));
       if (stored) return JSON.parse(stored);
     } catch {
       // ignore cache parse failures
@@ -136,7 +137,7 @@ function MinutesPage() {
     if (minutesQuery.data?.minutes) {
       setMinutesList(minutesQuery.data.minutes);
       try {
-        localStorage.setItem("hami_minutes_cache", JSON.stringify(minutesQuery.data.minutes));
+        localStorage.setItem(hamiCacheKey("hami_minutes_cache"), JSON.stringify(minutesQuery.data.minutes));
       } catch {
         // storage unavailable — list stays in memory
       }
@@ -396,7 +397,7 @@ function MinutesPage() {
         : [res, ...minutesList];
       setMinutesList(updated);
       try {
-        localStorage.setItem("hami_minutes_cache", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_minutes_cache"), JSON.stringify(updated));
       } catch {
         // storage unavailable — list stays in memory
       }
@@ -421,7 +422,7 @@ function MinutesPage() {
     const updated = minutesList.filter((m) => m.id !== id);
     setMinutesList(updated);
     try {
-      localStorage.setItem("hami_minutes_cache", JSON.stringify(updated));
+      localStorage.setItem(hamiCacheKey("hami_minutes_cache"), JSON.stringify(updated));
     } catch {
       // storage unavailable — list stays in memory
     }

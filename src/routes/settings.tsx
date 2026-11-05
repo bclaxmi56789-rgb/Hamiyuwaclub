@@ -1645,9 +1645,9 @@ function SettingsPage() {
                 {form.logo_url && (
                   <Button
                     variant="ghost"
-                    size="xs"
                     onClick={() => setForm((p) => ({ ...p, logo_url: "" }))}
                     className="text-muted-foreground text-xs"
+                    size="sm"
                   >
                     लोगो हटाउनुस्
                   </Button>
@@ -1667,7 +1667,7 @@ function SettingsPage() {
                   <Input
                     value={form.entity_name}
                     onChange={(e) => setForm((p) => ({ ...p, entity_name: e.target.value }))}
-                    placeholder="उदा. हामी युवा क्लब"
+                    placeholder="उदा. संस्था"
                   />
                 </div>
                 <div className="grid gap-1.5 md:col-span-2">

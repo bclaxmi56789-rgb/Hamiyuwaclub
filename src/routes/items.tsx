@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { hamiCacheKey } from "@/lib/hami-cache";
 import { useEffect, useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -52,8 +53,8 @@ export const Route = createFileRoute("/items")({
   component: ItemsAndAssetsPage,
 });
 
-const ITEM_STORAGE_KEY = "hami_items_master_cache";
-const ASSET_STORAGE_KEY = "hami_fixed_asset_master_cache";
+const ITEM_STORAGE_KEY = hamiCacheKey("hami_items_master_cache");
+const ASSET_STORAGE_KEY = hamiCacheKey("hami_fixed_asset_master_cache");
 
 function fmt(n: number | undefined | null) {
   return (Number(n) || 0).toLocaleString("ne-NP", { minimumFractionDigits: 2 });

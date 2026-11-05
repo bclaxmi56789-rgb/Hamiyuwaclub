@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({ meta: [
-    { title: "Reset Password — Hami Yuwa Club" },
-    { name: "description", content: "Set a new password for your Hami Yuwa Club payment collection account." },
-    { property: "og:title", content: "Hami Yuwa Club — Reset Password" },
+    { title: "Reset Password — Sangstha" },
+    { name: "description", content: "Set a new password for your Sangstha payment collection account." },
+    { property: "og:title", content: "Sangstha — Reset Password" },
     { property: "og:description", content: "Secure password recovery for your collection workspace." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),

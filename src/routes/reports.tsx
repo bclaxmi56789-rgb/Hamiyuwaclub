@@ -21,7 +21,7 @@ import { BarChart3, TrendingDown, TrendingUp } from "lucide-react";
 export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
-      { title: "Reports & Analytics — Hami Yuwa Club" },
+      { title: "Reports & Analytics — Sangstha" },
       {
         name: "description",
         content: "Ward, tole, month and payment-mode collection reports with expense totals.",

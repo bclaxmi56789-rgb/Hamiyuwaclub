@@ -173,12 +173,21 @@ export function LocationMap({
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
+  const lastCenteredRef = useRef<string>("");
 
   const [locating, setLocating] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [gpsSuccess, setGpsSuccess] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodedNotice, setGeocodedNotice] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [refiningNotice, setRefiningNotice] = useState("");
+
+  const watchIdRef = useRef<number | null>(null);
+  const refineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bestAccRef = useRef<number | null>(null);
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const geocodeCoordsRef = useRef<{ lat: number; lng: number; acc: number | null } | null>(null);
 
   const hasCoords =
     typeof latitude === "number" &&
@@ -186,8 +195,28 @@ export function LocationMap({
     !isNaN(latitude) &&
     !isNaN(longitude);
 
+  const stopRefinement = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (refineTimerRef.current) {
+      clearTimeout(refineTimerRef.current);
+      refineTimerRef.current = null;
+    }
+    setRefining(false);
+    setRefiningNotice("");
+  };
+
+  // Notify parent without geocoding (used for fast in-flight GPS refinements)
+  const applyCoordsOnly = (lat: number, lng: number, acc: number | null) => {
+    if (!onChange) return;
+    onChange({ latitude: lat, longitude: lng, accuracy: acc });
+  };
+
   const applyCoordsWithGeocode = async (lat: number, lng: number, acc: number | null) => {
     if (!onChange) return;
+    stopRefinement();
     setGpsError("");
 
     // Step 1: Immediately notify parent of coordinates so map pin updates instantly
@@ -210,6 +239,71 @@ export function LocationMap({
     } else {
       setGeocodedNotice("");
     }
+  };
+
+  // ── Watch-based GPS refinement: keep improving the fix until house-level ──
+  const startGpsRefinement = (firstFix?: { lat: number; lng: number; acc: number }) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    bestAccRef.current = firstFix?.acc ?? null;
+    setRefining(true);
+    setRefiningNotice("GPS सुधारिँदैछ — घरस्तरको सटीकताको लागि थोरै क्षण पर्खनुहोस्…");
+
+    // Only the FINAL (most accurate) fix is reverse-geocoded, to avoid spamming the geocoder.
+    const scheduleFinalGeocode = () => {
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = setTimeout(() => {
+        const best = geocodeCoordsRef.current;
+        geocodeCoordsRef.current = null;
+        if (best) void applyCoordsWithGeocode(best.lat, best.lng, best.acc);
+      }, 1500);
+    };
+
+    // Bail out of refinement after 25 s max — the current best fix stands.
+    refineTimerRef.current = setTimeout(() => {
+      const best = geocodeCoordsRef.current;
+      watchIdRef.current = null;
+      geocodeCoordsRef.current = null;
+      setRefining(false);
+      setRefiningNotice("");
+      if (best) void applyCoordsWithGeocode(best.lat, best.lng, best.acc);
+    }, 25000);
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(7));
+        const lng = Number(pos.coords.longitude.toFixed(7));
+        const acc = Math.round(pos.coords.accuracy);
+
+        const prevBest = bestAccRef.current;
+        const improved = prevBest === null || acc < prevBest * 0.95;
+        // Store as the pending final fix whenever better than the current best
+        if (improved || geocodeCoordsRef.current === null) {
+          geocodeCoordsRef.current = { lat, lng, acc };
+          bestAccRef.current = prevBest === null ? acc : Math.min(prevBest, acc);
+          scheduleFinalGeocode();
+        }
+
+        setRefiningNotice(
+          acc <= 10
+            ? `✓ उत्कृष्ट सटीकता (±${acc}m) — घरस्तरको लोकेसन तयार`
+            : `GPS सुधारिँदैछ: ±${acc}m → लक्ष्य ±10m`,
+        );
+
+        // Move the pin live so the user can verify each improvement
+        applyCoordsOnly(lat, lng, acc);
+        if (mapRef.current) {
+          mapRef.current.flyTo([lat, lng], acc <= 12 ? 19 : 17, { duration: 0.8 });
+        }
+
+        if (acc <= 10) stopRefinement();
+      },
+      (err) => {
+        console.warn("GPS refine watch:", err);
+        stopRefinement();
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+    );
   };
 
   useEffect(() => {
@@ -244,6 +338,9 @@ export function LocationMap({
     const map = mapRef.current;
     if (!map) return;
 
+    const lastCenterRefKey = `${latitude},${longitude}`;
+    const alreadyCenteredHere = lastCenteredRef.current === lastCenterRefKey;
+
     // Update marker position
     if (hasCoords) {
       const pos: [number, number] = [latitude, longitude];
@@ -266,9 +363,22 @@ export function LocationMap({
 
         markerRef.current = marker;
       } else {
+        // StrictMode/HMR remount can detach the marker — re-add it when missing.
+        if (!map.hasLayer(markerRef.current)) markerRef.current.addTo(map);
         markerRef.current.setLatLng(pos);
         markerRef.current.setZIndexOffset(1000);
         markerRef.current.setIcon(createPinIcon(readOnly ? "#2563eb" : "#e11d48", nature));
+      }
+
+      // Keep the map centered on the pin whenever the saved position changes,
+      // so the pin (and its exact coordinates) are never lost off-screen.
+      if (!alreadyCenteredHere) {
+        lastCenteredRef.current = lastCenterRefKey;
+        if (readOnly) {
+          map.setView(pos, Math.max(map.getZoom(), 18), { animate: true });
+        } else {
+          map.setView(pos, map.getZoom());
+        }
       }
 
       if (customerName || addressInfo) {
@@ -292,6 +402,7 @@ export function LocationMap({
             weight: 1,
           }).addTo(map);
         } else {
+          if (!map.hasLayer(circleRef.current)) circleRef.current.addTo(map);
           circleRef.current.setLatLng(pos);
           circleRef.current.setRadius(accuracy);
         }
@@ -332,6 +443,11 @@ export function LocationMap({
         mapRef.current.remove();
         mapRef.current = null;
       }
+      markerRef.current = null;
+      circleRef.current = null;
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      if (refineTimerRef.current) clearTimeout(refineTimerRef.current);
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     };
   }, []);
 
@@ -361,6 +477,9 @@ export function LocationMap({
       if (mapRef.current) {
         mapRef.current.flyTo([lat, lng], 17, { duration: 1.2 });
       }
+
+      // Keep refining with the GPS watch — every meter counts for house/room level
+      if (acc > 10) startGpsRefinement({ lat, lng, acc });
 
       setTimeout(() => setGpsSuccess(false), 4000);
     };
@@ -484,7 +603,14 @@ export function LocationMap({
         </div>
       )}
 
-      {geocodedNotice && !geocoding && (
+      {refiningNotice && (
+        <div className="flex items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 p-2 text-xs font-medium text-amber-700 dark:text-amber-300">
+          <LocateFixed className="size-4 shrink-0 animate-pulse text-amber-600" />
+          <span>{refiningNotice}</span>
+        </div>
+      )}
+
+      {geocodedNotice && !geocoding && !refining && (
         <div className="flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
           <Check className="size-4 shrink-0" />
           <span>{geocodedNotice}</span>

@@ -460,7 +460,7 @@ export async function testAIConnection(
               "Content-Type": "application/json",
               Authorization: `Bearer ${apiKey}`,
               "HTTP-Referer": "https://hamiyuwaclub.org",
-              "X-Title": "Hami Yuwa Club",
+              "X-Title": config.entity_name || "Sangstha AI",
             },
             body: JSON.stringify({
               model,
@@ -633,7 +633,7 @@ Rules:
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${apiKey}`,
                 "HTTP-Referer": "https://hamiyuwaclub.org",
-                "X-Title": "Hami Yuwa Club Waste Management",
+                "X-Title": config.entity_name || "Sangstha AI",
               },
               body: JSON.stringify({
                 model,
@@ -868,7 +868,7 @@ ${agendaBlock || "—"}
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${apiKey}`,
                 "HTTP-Referer": "https://hamiyuwaclub.org",
-                "X-Title": "Hami Yuwa Club",
+                "X-Title": config.entity_name || "Sangstha AI",
               },
               body: JSON.stringify({
                 model,
@@ -971,7 +971,7 @@ export async function askAIChatbot(
   const providers = getPrioritizedAIProviders(config);
   let lastError = "";
 
-  const systemPrompt = `तपाईं "हामी युवा क्लब" (Hami Yuwa Club, वीरेन्द्रनगर, सुर्खेत, कर्णाली प्रदेश) को आधिकारिक संस्थागत AI सहायक (Institutional AI Copilot) हुनुहुन्छ।
+  const systemPrompt = `तपाईं ${config.entity_name || "संस्था"} को आधिकारिक संस्थागत AI सहायक (Institutional AI Copilot) हुनुहुन्छ।
 तपाईंको काम संस्थाका पदाधिकारी, कर्मचारी र व्यवस्थापकहरूलाई फोहोरमैला संकलन, रसिद तथ्याङ्क, आर्थिक हिसाबकिताब, खर्च विवरण, कर्मचारी तथा सदस्य, सामग्री (Item Master), र स्थिर सम्पत्ति (Fixed Assets) सम्बन्धी भरपर्दो र द्रुत उत्तर दिनु हो।
 
 तपाईंसँग हालको प्रणालीको वास्तविक तथ्याङ्क (Live System Context):
@@ -1009,7 +1009,7 @@ ${systemContext}
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${apiKey}`,
                 "HTTP-Referer": "https://hamiyuwaclub.org",
-                "X-Title": "Hami Yuwa Club AI Assistant",
+                "X-Title": config.entity_name || "Sangstha AI",
               },
               body: JSON.stringify({
                 model,
@@ -1060,7 +1060,7 @@ ${systemContext}
                 role: "model",
                 parts: [
                   {
-                    text: "नमस्ते! म हामी युवा क्लबको संस्थागत AI सहायक हुँ। म तपाईंलाई संस्थाको रसिद, खर्च, सदस्य तथा सम्पत्ति व्यवस्थापनमा कसरी सहयोग गर्न सक्छु?",
+                    text: `नमस्ते! म ${config.entity_name || "संस्था"} को संस्थागत AI सहायक हुँ। म तपाईंलाई संस्थाको रसिद, खर्च, सदस्य तथा सम्पत्ति व्यवस्थापनमा कसरी सहयोग गर्न सक्छु?`,
                   },
                 ],
               },

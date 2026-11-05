@@ -1,3 +1,4 @@
+import { hamiCacheKey } from "@/lib/hami-cache";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -73,7 +74,7 @@ import { getRpAccounts } from "@/lib/workspace.functions";
 export const Route = createFileRoute("/assets")({
   head: () => ({
     meta: [
-      { title: "थेली स्टक तथा कर्मचारी लेजर | Hami Yuwa Club" },
+      { title: "थेली स्टक तथा कर्मचारी लेजर | Sangstha" },
       {
         name: "description",
         content:
@@ -294,7 +295,7 @@ function AssetsPage() {
       );
       setStockItems(updatedItems);
       try {
-        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
       } catch {}
 
       setConvertTarget(null);
@@ -325,7 +326,7 @@ function AssetsPage() {
   // State with LocalStorage fallback
   const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>(() => {
     try {
-      const s = localStorage.getItem("hami_theli_stock_batches");
+      const s = localStorage.getItem(hamiCacheKey("hami_theli_stock_batches"));
       if (s) return JSON.parse(s);
     } catch {}
     return SEED_BATCHES;
@@ -333,7 +334,7 @@ function AssetsPage() {
 
   const [stockItems, setStockItems] = useState<TheliStockItem[]>(() => {
     try {
-      const s = localStorage.getItem("hami_theli_stock_items");
+      const s = localStorage.getItem(hamiCacheKey("hami_theli_stock_items"));
       if (s) return JSON.parse(s);
     } catch {}
     return SEED_ITEMS;
@@ -341,7 +342,7 @@ function AssetsPage() {
 
   const [dailyLogs, setDailyLogs] = useState<TheliLog[]>(() => {
     try {
-      const s = localStorage.getItem("hami_theli_daily_logs");
+      const s = localStorage.getItem(hamiCacheKey("hami_theli_daily_logs"));
       if (s) return JSON.parse(s);
     } catch {}
     return [];
@@ -360,9 +361,9 @@ function AssetsPage() {
       setStockItems(iList);
       setDailyLogs(lList);
       try {
-        localStorage.setItem("hami_theli_stock_batches", JSON.stringify(bList));
-        localStorage.setItem("hami_theli_stock_items", JSON.stringify(iList));
-        localStorage.setItem("hami_theli_daily_logs", JSON.stringify(lList));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList));
+        localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList));
       } catch {}
       if (theliStockQuery.data.employees) {
         setEmployees(theliStockQuery.data.employees);
@@ -392,9 +393,9 @@ function AssetsPage() {
       setStockItems([]);
       setDailyLogs([]);
       try {
-        localStorage.removeItem("hami_theli_stock_batches");
-        localStorage.removeItem("hami_theli_stock_items");
-        localStorage.removeItem("hami_theli_daily_logs");
+        localStorage.removeItem(hamiCacheKey("hami_theli_stock_batches"));
+        localStorage.removeItem(hamiCacheKey("hami_theli_stock_items"));
+        localStorage.removeItem(hamiCacheKey("hami_theli_daily_logs"));
       } catch {}
       refreshAll();
       setNotice({
@@ -407,9 +408,9 @@ function AssetsPage() {
       setStockItems([]);
       setDailyLogs([]);
       try {
-        localStorage.removeItem("hami_theli_stock_batches");
-        localStorage.removeItem("hami_theli_stock_items");
-        localStorage.removeItem("hami_theli_daily_logs");
+        localStorage.removeItem(hamiCacheKey("hami_theli_stock_batches"));
+        localStorage.removeItem(hamiCacheKey("hami_theli_stock_items"));
+        localStorage.removeItem(hamiCacheKey("hami_theli_daily_logs"));
       } catch {}
       refreshAll();
       setNotice({
@@ -469,8 +470,8 @@ function AssetsPage() {
       setStockBatches(updatedBatches);
       setStockItems(updatedItems);
       try {
-        localStorage.setItem("hami_theli_stock_batches", JSON.stringify(updatedBatches));
-        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(updatedBatches));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
       } catch {}
 
       setNotice({
@@ -512,8 +513,8 @@ function AssetsPage() {
       setStockBatches(updatedBatches);
       setStockItems(updatedItems);
       try {
-        localStorage.setItem("hami_theli_stock_batches", JSON.stringify(updatedBatches));
-        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(updatedBatches));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
       } catch {}
 
       setNotice({
@@ -607,7 +608,7 @@ function AssetsPage() {
       );
       setStockItems(updated);
       try {
-        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updated));
       } catch {}
 
       const selectedItems = availableRanges.filter((it) => selectedStockItemIds.includes(it.id));
@@ -636,7 +637,7 @@ function AssetsPage() {
       );
       setStockItems(updated);
       try {
-        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updated));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updated));
       } catch {}
       setNotice({
         type: "success",
@@ -807,7 +808,7 @@ function AssetsPage() {
 
       setStockItems(updatedItems);
       try {
-        localStorage.setItem("hami_theli_stock_items", JSON.stringify(updatedItems));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
       } catch {}
 
       setNotice({

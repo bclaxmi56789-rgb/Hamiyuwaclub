@@ -7,7 +7,7 @@ import { Bot } from "lucide-react";
 export const Route = createFileRoute("/ai-assistant")({
   head: () => ({
     meta: [
-      { title: "AI Assistant — Hami Yuwa Club" },
+      { title: "AI Assistant — Sangstha" },
       {
         name: "description",
         content:

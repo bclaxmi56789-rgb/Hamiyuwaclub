@@ -150,6 +150,7 @@ export const saveCustomer = createServerFn({ method: "POST" })
       gps_accuracy: z.number().nullable().optional(),
       locality_photo: z.string().trim().max(600).optional().default(""),
       nature: z.string().trim().max(80).optional().default(""),
+      place_detail: z.string().trim().max(200).optional().default(""),
       opening_dues: z
         .array(
           z.object({
@@ -179,7 +180,18 @@ export const saveCustomer = createServerFn({ method: "POST" })
         .from("member_counters")
         .select("last_number")
         .maybeSingle();
-      const nextNum = (counter.data?.last_number ?? 0) + 1;
+      const cardsRes = await context.supabase
+        .from("customer_master")
+        .select("card")
+        .eq("owner_id", context.userId);
+      const existingCards = (cardsRes.error ? [] : (cardsRes.data ?? [])) as { card: string }[];
+      // Seed from the max already-used numeric card so manually entered card
+      // numbers can never collide with auto-generated ones.
+      const maxUsed = existingCards.reduce((m, row) => {
+        const n = /^0*[1-9]\d*$/.test(row.card) ? parseInt(row.card, 10) : 0;
+        return Math.max(m, n);
+      }, 0);
+      const nextNum = Math.max((counter.data?.last_number ?? 0) + 1, maxUsed + 1);
       await context.supabase
         .from("member_counters")
         .upsert({ owner_id: context.userId, last_number: nextNum });
@@ -208,11 +220,12 @@ export const saveCustomer = createServerFn({ method: "POST" })
     if (data.gps_accuracy != null) upsertPayload.gps_accuracy = data.gps_accuracy;
     if (data.locality_photo) upsertPayload.locality_photo = data.locality_photo;
     if (data.nature) upsertPayload.nature = data.nature;
+    if (data.place_detail) upsertPayload.place_detail = data.place_detail;
     if (data.opening_dues !== undefined) upsertPayload.opening_dues = data.opening_dues;
 
     let insertRes = await context.supabase
       .from("customer_master")
-      .upsert(upsertPayload, { onConflict: "owner_id,card" })
+      .upsert(upsertPayload, { onConflict: "owner_id,ward,card" })
       .select("*")
       .single();
 
@@ -233,7 +246,7 @@ export const saveCustomer = createServerFn({ method: "POST" })
             tole: data.tole,
             phone: data.phone,
           },
-          { onConflict: "owner_id,card" },
+          { onConflict: "owner_id,ward,card" },
         )
         .select("*")
         .single();
@@ -2254,9 +2267,12 @@ export const getRpData = createServerFn({ method: "GET" })
           progFromRemarks;
         return {
           ...t,
-          account_name: (accountsById.get(String(t.account_id ?? ""))?.name ?? null) as string | null,
+          account_name: (accountsById.get(String(t.account_id ?? ""))?.name ?? null) as
+            string | null,
           linked_event_title: evTitle || undefined,
-          company_name: String(t.company_name || "") || (pType === "donation" ? String(t.party_name || "") : undefined),
+          company_name:
+            String(t.company_name || "") ||
+            (pType === "donation" ? String(t.party_name || "") : undefined),
         };
       });
 
@@ -2400,9 +2416,10 @@ export const saveRpTransaction = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const isDonation = data.party_type === "donation";
-    const partyName = isDonation && data.company_name?.trim()
-      ? data.company_name.trim()
-      : (data.party_name ?? "").trim();
+    const partyName =
+      isDonation && data.company_name?.trim()
+        ? data.company_name.trim()
+        : (data.party_name ?? "").trim();
 
     // Include linked programme in remarks if not already present
     let finalRemarks = (data.remarks ?? "").trim();
@@ -3099,20 +3116,11 @@ export const clearAllTheliData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     try {
-      await context.supabase
-        .from("theli_stock_items")
-        .delete()
-        .eq("owner_id", context.userId);
+      await context.supabase.from("theli_stock_items").delete().eq("owner_id", context.userId);
 
-      await context.supabase
-        .from("theli_stock_batches")
-        .delete()
-        .eq("owner_id", context.userId);
+      await context.supabase.from("theli_stock_batches").delete().eq("owner_id", context.userId);
 
-      await context.supabase
-        .from("theli_logs")
-        .delete()
-        .eq("owner_id", context.userId);
+      await context.supabase.from("theli_logs").delete().eq("owner_id", context.userId);
 
       return { success: true };
     } catch (e: any) {
@@ -3315,7 +3323,10 @@ export const verifyAdminPin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
-      pin: z.string().trim().regex(/^\d{4}$/, "Admin PIN चार अंकको हुनुपर्छ"),
+      pin: z
+        .string()
+        .trim()
+        .regex(/^\d{4}$/, "Admin PIN चार अंकको हुनुपर्छ"),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -3329,9 +3340,9 @@ export const verifyAdminPin = createServerFn({ method: "POST" })
       const conf = res.data as { admin_pin?: string | null } | null;
       const configuredPin = (conf?.admin_pin || "").trim();
 
-      // If no admin PIN set in DB yet, allow entry or prompt to configure
+      // If no admin PIN set in DB yet, deny entry until the admin configures one
       if (!configuredPin) {
-        return { ok: true, code: "pin_not_set" as const };
+        return { ok: false, code: "pin_not_set" as const };
       }
 
       if (configuredPin !== data.pin) {
@@ -3349,7 +3360,10 @@ export const saveAdminPin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
-      admin_pin: z.string().trim().regex(/^\d{4}$/, "Admin PIN चार अंकको हुनुपर्छ"),
+      admin_pin: z
+        .string()
+        .trim()
+        .regex(/^\d{4}$/, "Admin PIN चार अंकको हुनुपर्छ"),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -3381,4 +3395,3 @@ export const saveAdminPin = createServerFn({ method: "POST" })
       return { ok: false, error: e?.message };
     }
   });
-
