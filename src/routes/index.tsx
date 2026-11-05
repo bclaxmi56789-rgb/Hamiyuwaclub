@@ -70,11 +70,13 @@ export const Route = createFileRoute("/")({
 function parseScannedData(raw: string, people: Person[], ward: string): Person | null {
   let cardCandidate = "";
   let phoneCandidate = "";
+  let qrWard = "";
   try {
     const obj = JSON.parse(raw);
     if (obj && typeof obj === "object") {
       cardCandidate = String(obj.card ?? "");
       phoneCandidate = String(obj.phone ?? "");
+      qrWard = String(obj.ward ?? "");
     }
   } catch {
     /* not JSON */
@@ -88,12 +90,24 @@ function parseScannedData(raw: string, people: Person[], ward: string): Person |
   }
 
   const norm = (v: string) => v.replace(/\D/g, "").replace(/^0+/, "");
-  const byCardExact = (c: string) =>
-    people.find((x) => x.ward === ward && x.card.toLowerCase() === c.toLowerCase()) ||
-    people.find((x) => x.card.toLowerCase() === c.toLowerCase());
-  const byCardNorm = (c: string) =>
-    people.find((x) => x.ward === ward && norm(x.card) === norm(c) && norm(c) !== "") ||
-    people.find((x) => norm(x.card) === norm(c) && norm(c) !== "");
+  // Prefer the customer that matches the ward embedded in the QR, then the
+  // currently selected ward, then any ward.
+  const byCardExact = (c: string) => {
+    const all = people.filter((x) => x.card.toLowerCase() === c.toLowerCase());
+    if (qrWard) {
+      const m = all.find((x) => x.ward === qrWard);
+      if (m) return m;
+    }
+    return all.find((x) => x.ward === ward) || all[0];
+  };
+  const byCardNorm = (c: string) => {
+    const all = people.filter((x) => norm(x.card) === norm(c) && norm(c) !== "");
+    if (qrWard) {
+      const m = all.find((x) => x.ward === qrWard);
+      if (m) return m;
+    }
+    return all.find((x) => x.ward === ward) || all[0];
+  };
 
   if (cardCandidate) {
     const m = byCardExact(cardCandidate) || byCardNorm(cardCandidate);
@@ -103,6 +117,9 @@ function parseScannedData(raw: string, people: Person[], ward: string): Person |
     const p = norm(phoneCandidate);
     if (p) {
       const m =
+        (qrWard
+          ? people.find((x) => x.ward === qrWard && x.phone && norm(x.phone) === p)
+          : undefined) ||
         people.find((x) => x.ward === ward && x.phone && norm(x.phone) === p) ||
         people.find((x) => x.phone && norm(x.phone) === p);
       if (m) return m;
