@@ -244,7 +244,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   });
 
-  // ─── PIN Unlock Gate (memory-only: relock on fresh sign-in) ───
+  // ─── PIN Unlock Gate (relocks on sign-out or account change) ───
   const verifyPinFn = useServerFn(verifyEmployeePin);
   const verifyAdminPinFn = useServerFn(verifyAdminPin);
   const [pinUnlocked, setPinUnlocked] = useState(false);
@@ -269,6 +269,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           setActiveEmployeeId(null);
           try {
             localStorage.removeItem(hamiCacheKey("hami_active_employee_id"));
+          } catch {}
+          try {
+            sessionStorage.setItem(
+              "hami_pin_lock_v1",
+              JSON.stringify({ uid: userId, role: "admin" }),
+            );
           } catch {}
           setPinUnlocked(true);
           setGatePin("");
@@ -303,6 +309,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       const result = await verifyPinFn({ data: { employee_id: gateEmpId, pin: gatePin } });
       if (result.ok) {
         setActiveEmployeeId(gateEmpId);
+        try {
+          sessionStorage.setItem(
+            "hami_pin_lock_v1",
+            JSON.stringify({ uid: userId, role: "employee", emp: gateEmpId }),
+          );
+        } catch {}
         setPinUnlocked(true);
         setGatePin("");
       } else if (result.code === "pin_not_set") {
@@ -382,6 +394,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       setCacheScope(session?.user.id ?? null);
       setReady(true);
       if (event === "SIGNED_OUT") {
+        try {
+          sessionStorage.removeItem("hami_pin_lock_v1");
+        } catch {}
         clearLegacySharedCaches();
         void queryClient.cancelQueries();
         queryClient.clear();
@@ -390,6 +405,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         setGatePin("");
         setGateError("");
         setGateVisible(false);
+      } else if (session) {
+        // Same account still unlocked within this browser session? skip the gate.
+        try {
+          const saved = JSON.parse(sessionStorage.getItem("hami_pin_lock_v1") || "null");
+          if (saved && saved.uid === session.user.id && (saved.role === "admin" || saved.emp)) {
+            setPinUnlocked(true);
+            if (saved.role === "employee") {
+              setGateRole("employee");
+              setGateEmpId(saved.emp || "");
+            } else {
+              setGateRole("admin");
+            }
+          }
+        } catch {}
       }
       // Defer asynchronous auth-dependent work until the auth callback releases its lock.
       queueMicrotask(() => {
