@@ -239,54 +239,64 @@ function CollectionMapPage() {
   }, [filteredCustomers]);
 
   // Initialize Leaflet Map
+  // NOTE: on first visit the container is not mounted yet (records still
+  // loading), so re-run when the workspace query settles — map inits then.
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    const el = mapContainerRef.current;
+    if (!el || mapRef.current) return;
+    let resizeObserver: ResizeObserver | null = null;
 
-    if (!mapRef.current) {
-      // Start centered on Nepal, will smoothly zoom in
-      const map = L.map(mapContainerRef.current, {
-        center: NEPAL_CENTER,
-        zoom: 7,
-        zoomControl: true,
-        attributionControl: false,
-      });
+    // Start centered on Nepal, will smoothly zoom in
+    const map = L.map(el, {
+      center: NEPAL_CENTER,
+      zoom: 7,
+      zoomControl: true,
+      attributionControl: false,
+    });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-      }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+    }).addTo(map);
 
-      const markersLayer = L.layerGroup().addTo(map);
-      markersLayerRef.current = markersLayer;
-      mapRef.current = map;
+    const markersLayer = L.layerGroup().addTo(map);
+    markersLayerRef.current = markersLayer;
+    mapRef.current = map;
 
-      // Click on map: if setting driver mode, sets vehicle position; otherwise clears selection
-      map.on("click", (e) => {
-        if (settingDriverModeRef.current) {
-          const lat = Number(e.latlng.lat.toFixed(7));
-          const lng = Number(e.latlng.lng.toFixed(7));
-          setDriverLocation({ latitude: lat, longitude: lng });
-          setSettingDriverMode(false);
-          setLocationError("");
-          setLocatingStatus("गाडीको स्थान नक्सामा तोकियो (Vehicle location set).");
-          setTimeout(() => setLocatingStatus(""), 4000);
-        }
-      });
+    // Keep tiles correctly sized when layout changes (sidebar, fullscreen)
+    resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    resizeObserver.observe(el);
 
-      // Smooth zoom into Birendranagar after brief delay
-      setTimeout(() => {
-        if (mapRef.current) {
-          mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 14, { duration: 1.8 });
-        }
-      }, 500);
-    }
+    // Click on map: if setting driver mode, sets vehicle position; otherwise clears selection
+    map.on("click", (e) => {
+      if (settingDriverModeRef.current) {
+        const lat = Number(e.latlng.lat.toFixed(7));
+        const lng = Number(e.latlng.lng.toFixed(7));
+        setDriverLocation({ latitude: lat, longitude: lng });
+        setSettingDriverMode(false);
+        setLocationError("");
+        setLocatingStatus("गाडीको स्थान नक्सामा तोकियो (Vehicle location set).");
+        setTimeout(() => setLocatingStatus(""), 4000);
+      }
+    });
+
+    // Smooth zoom into Birendranagar after brief delay
+    setTimeout(() => {
+      if (mapRef.current) {
+        mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 14, { duration: 1.8 });
+      }
+    }, 500);
 
     return () => {
+      resizeObserver?.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      markersLayerRef.current = null;
     };
-  }, []);
+  }, [query.isPending, mapFull]);
 
   // Update Driver Marker on Map
   useEffect(() => {

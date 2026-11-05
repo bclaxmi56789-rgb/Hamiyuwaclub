@@ -237,47 +237,57 @@ function TripDriverPage() {
   }, [customers]);
 
   // Initialize Leaflet map
+  // NOTE: on first visit the container is not mounted yet (records still
+  // loading), so re-run when the workspace query settles — map inits then.
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    const el = mapContainerRef.current;
+    if (!el || mapRef.current) return;
+    let resizeObserver: ResizeObserver | null = null;
 
-    if (!mapRef.current) {
-      const map = L.map(mapContainerRef.current, {
-        center: NEPAL_CENTER,
-        zoom: 7,
-        zoomControl: true,
-        attributionControl: false,
-      });
+    const map = L.map(el, {
+      center: NEPAL_CENTER,
+      zoom: 7,
+      zoomControl: true,
+      attributionControl: false,
+    });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
 
-      markersLayerRef.current = L.layerGroup().addTo(map);
-      mapRef.current = map;
+    markersLayerRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
 
-      map.on("click", (e) => {
-        if (settingDriverModeRef.current) {
-          const lat = Number(e.latlng.lat.toFixed(7));
-          const lng = Number(e.latlng.lng.toFixed(7));
-          setDriverLocation({ latitude: lat, longitude: lng });
-          setDriverTrail((prev) => [...prev, [lat, lng]]);
-          setSettingDriverMode(false);
-          setLocationError("");
-          setLocatingStatus("प्रमुख चालकको स्थान नक्सामा तोकियो (Principal set on map).");
-          setTimeout(() => setLocatingStatus(""), 4000);
-        }
-      });
+    // Keep tiles correctly sized when layout changes (sidebar, fullscreen)
+    resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    resizeObserver.observe(el);
 
-      setTimeout(() => {
-        if (mapRef.current) mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 14, { duration: 1.8 });
-      }, 500);
-    }
+    map.on("click", (e) => {
+      if (settingDriverModeRef.current) {
+        const lat = Number(e.latlng.lat.toFixed(7));
+        const lng = Number(e.latlng.lng.toFixed(7));
+        setDriverLocation({ latitude: lat, longitude: lng });
+        setDriverTrail((prev) => [...prev, [lat, lng]]);
+        setSettingDriverMode(false);
+        setLocationError("");
+        setLocatingStatus("प्रमुख चालकको स्थान नक्सामा तोकियो (Principal set on map).");
+        setTimeout(() => setLocatingStatus(""), 4000);
+      }
+    });
+
+    setTimeout(() => {
+      if (mapRef.current) mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 14, { duration: 1.8 });
+    }, 500);
 
     return () => {
+      resizeObserver?.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
+      markersLayerRef.current = null;
     };
-  }, []);
+  }, [query.isPending, mapFull]);
 
   // Driver (principal) marker
   useEffect(() => {

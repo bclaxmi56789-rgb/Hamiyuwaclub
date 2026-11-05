@@ -377,7 +377,8 @@
 
 /* Full-viewport map mode (fallback where the Fullscreen API is unavailable,
    e.g. iOS Safari): the wrapper detaches from the page layout. */
-.leaflet-map-wrapper.map-fullscreen {
+.leaflet-map-wrapper.map-fullscreen,
+.leaflet-map-wrapper:fullscreen {
   position: fixed;
   inset: 0;
   z-index: 2000;
@@ -387,6 +388,7 @@
   border-radius: 0;
   border-width: 0;
   box-shadow: none;
+  background: var(--background, #fff);
 }
 
 /* Keep floating overlay panels (legend, customer cards) reachable above
