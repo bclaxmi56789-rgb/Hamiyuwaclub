@@ -991,6 +991,53 @@ export function DashboardLiveMap({
           </div>
         </div>
 
+        {/* Live worker quick-jump overlay (always visible) */}
+        <div className="absolute top-3 right-3 z-[820] flex flex-col gap-1.5 items-end">
+          {(() => {
+            const fmt = (role: TeamMemberRole, emoji: string, count: number) => {
+              const active = count > 0;
+              const first = members.find((m) => m.role === role);
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (first && mapRef.current)
+                      mapRef.current.flyTo([first.lat, first.lng], 16, { duration: 1 });
+                  }}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-extrabold shadow-lg border-2 cursor-pointer transition-all hover:scale-105"
+                  style={
+                    first
+                      ? {
+                          background: ROLE_META[role].color,
+                          color: "#ffffff",
+                          borderColor: "#ffffff",
+                        }
+                      : {
+                          background: "#f1f5f9",
+                          color: "#94a3b8",
+                          borderColor: "#e2e8f0",
+                        }
+                  }
+                  title={
+                    active
+                      ? "लाइभ कर्मचारी भएको ठाउँमा नक्सा लैजानुहोस् (Fly to worker)"
+                      : "अझै कसैको लाइभ GPS छैन"
+                  }
+                  disabled={!active}
+                >
+                  {emoji} {role === "driver" ? "चालक" : "संकलक"} लाइभ: {count}
+                </button>
+              );
+            };
+            return (
+              <>
+                {fmt("driver", "🛻", members.filter((m) => m.role === "driver").length)}
+                {fmt("collector", "🚚", members.filter((m) => m.role === "collector").length)}
+              </>
+            );
+          })()}
+        </div>
+
         {/* Selected Customer Floating Card */}
         {selectedPerson && (
           <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:max-w-sm z-[800] rounded-xl bg-card/95 backdrop-blur-md p-3.5 shadow-xl border-2 border-primary/50 animate-in fade-in slide-in-from-bottom-2">
