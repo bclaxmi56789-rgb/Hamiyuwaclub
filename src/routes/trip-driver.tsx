@@ -7,7 +7,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useWorkspace, WorkspacePage } from "@/components/workspace";
 import { logTrip, deleteTrip } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
-import { useTeamLocationBroadcast } from "@/lib/team-location";
+import {
+  useTeamLocationBroadcast,
+  useTeamLocationSubscribe,
+  TEAM_ROLE_STYLE,
+  type TeamMemberLocation,
+} from "@/lib/team-location";
 import {
   MapPin,
   Navigation,
@@ -24,6 +29,7 @@ import {
   Minimize2,
   EyeOff,
   Eye,
+  RotateCw,
 } from "lucide-react";
 import {
   todayBS,
@@ -78,7 +84,7 @@ interface CustomerWithTrips extends Person {
 }
 
 function TripDriverPage() {
-  const { query, ward, year, userId } = useWorkspace();
+  const { query, ward, year, userId, activeEmployeeId, employees } = useWorkspace();
   const queryClient = useQueryClient();
   const logTripFn = useServerFn(logTrip);
   const deleteTripFn = useServerFn(deleteTrip);
@@ -105,13 +111,28 @@ function TripDriverPage() {
   const settingDriverModeRef = useRef(false);
   settingDriverModeRef.current = settingDriverMode;
 
+  // ── Live team locations from other workers (collectors etc.) ──────────────
+  const [teamMembers, setTeamMembers] = useState<TeamMemberLocation[]>([]);
+  const teamMemberMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  useTeamLocationSubscribe(userId ?? null, setTeamMembers);
+
+  // Compute broadcaster's actual employee name and designation
+  const activeEmployee = employees?.find((e) => e.id === activeEmployeeId);
+  const broadcasterName = activeEmployee?.name || (userId ? "चालक (व्यवस्थापक)" : "चालक");
+  const broadcasterDesignation = activeEmployee?.designation || "चालक";
+
   // ── Broadcast this driver's live location to the dashboard map ──────────
   const broadcastToDashboard = useTeamLocationBroadcast({
     userId: userId ?? null,
-    name: "चालक",
+    employeeId: activeEmployeeId ?? "driver",
+    name: broadcasterName,
+    designation: broadcasterDesignation,
     role: "driver",
     active: trackingLocation,
   });
+
+  // Local ward filter (allows viewing all wards or specific ward independently)
+  const [selectedWard, setSelectedWard] = useState<string>("all");
 
   // Trips month: current BS month by default
   const today = todayBS();
@@ -205,7 +226,7 @@ function TripDriverPage() {
 
   const customers: CustomerWithTrips[] = useMemo(() => {
     return allPeople
-      .filter((p) => !ward || p.ward === ward)
+      .filter((p) => selectedWard === "all" || p.ward === selectedWard)
       .map((person) => {
         const key = `${person.ward}:${person.card}`;
         const done = tripCount.get(key) ?? 0;
@@ -239,7 +260,7 @@ function TripDriverPage() {
           distanceFromDriver,
         };
       });
-  }, [allPeople, ward, tripCount, lastTrip, plans, driverLocation]);
+  }, [allPeople, selectedWard, tripCount, lastTrip, plans, driverLocation]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
@@ -317,8 +338,79 @@ function TripDriverPage() {
         mapRef.current = null;
       }
       markersLayerRef.current = null;
+      teamMemberMarkersRef.current.clear();
     };
   }, [query.isPending, mapFull]);
+
+  // Render live team members (other workers / collectors) on map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const myKey = `${userId}:${activeEmployeeId ?? "driver"}`;
+    const liveIds = new Set(teamMembers.map((m) => m.id || `${m.userId}:${m.role}`));
+    for (const [id, marker] of teamMemberMarkersRef.current) {
+      if (!liveIds.has(id)) {
+        map.removeLayer(marker);
+        teamMemberMarkersRef.current.delete(id);
+      }
+    }
+
+    teamMembers.forEach((m) => {
+      const markerId = m.id || `${m.userId}:${m.role}`;
+      if (markerId === myKey) return; // own marker handled by driverMarkerRef
+
+      const st = TEAM_ROLE_STYLE[m.role] ?? TEAM_ROLE_STYLE.other;
+      const stale = Date.now() - m.updatedAt > 90_000;
+      const badgeBg = stale ? "#94a3b8" : st.color;
+      const label = m.designation ? `${m.name} (${m.designation})` : (m.name || st.label);
+
+      const icon = L.divIcon({
+        className: "team-vehicle-icon",
+        html: `
+          <div style="position:relative; width:46px; height:42px; cursor:pointer;">
+            ${
+              !stale
+                ? `<div style="position:absolute; inset:-6px; border-radius:12px; background:${st.color}; opacity:0.25; animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></div>`
+                : ""
+            }
+            <div style="
+              width:46px; height:42px; border-radius:12px;
+              background:#ffffff;
+              border:3px solid ${badgeBg};
+              box-shadow:0 4px 14px rgba(0,0,0,0.4);
+              display:flex; align-items:center; justify-content:center;
+              font-size:24px; line-height:1;
+            ">${st.emoji}</div>
+            <div style="
+              position:absolute; bottom:-20px; left:50%; transform:translateX(-50%);
+              background:${badgeBg}; color:#ffffff;
+              font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px;
+              white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.3);
+              max-width:140px; overflow:hidden; text-overflow:ellipsis;
+            ">${label}</div>
+          </div>`,
+        iconSize: [46, 42],
+        iconAnchor: [23, 21],
+      });
+
+      const tooltipHtml = `<b>${m.name}</b>${m.designation ? ` (${m.designation})` : ` (${st.label})`}<br/>
+        <span style="font-size:10px;color:${stale ? "#d97706" : "#059669"};">
+          ${stale ? "⚠️ पुरानो स्थान" : "🟢 लाइभ GPS सक्रिय"}</span>`;
+
+      const existing = teamMemberMarkersRef.current.get(markerId);
+      if (existing) {
+        existing.setLatLng([m.lat, m.lng]);
+        existing.setIcon(icon);
+        existing.setTooltipContent(tooltipHtml);
+      } else {
+        const marker = L.marker([m.lat, m.lng], { icon, zIndexOffset: 2200 })
+          .addTo(map)
+          .bindTooltip(tooltipHtml, { direction: "top", offset: [0, -24] });
+        teamMemberMarkersRef.current.set(markerId, marker);
+      }
+    });
+  }, [teamMembers, userId, activeEmployeeId]);
 
   // Driver (principal) marker
   useEffect(() => {
@@ -342,7 +434,7 @@ function TripDriverPage() {
             🛻
           </div>
           <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background-color: #1e3a8a; color: #ffffff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-            प्रमुख चालक / Principal
+            ${broadcasterName} (${broadcasterDesignation})
           </div>
         </div>
       `,
@@ -755,6 +847,33 @@ function TripDriverPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Ward filter dropdown */}
+          <select
+            aria-label="Filter ward"
+            className="h-8 rounded-md border bg-card px-2.5 text-xs font-bold text-foreground"
+            value={selectedWard}
+            onChange={(e) => setSelectedWard(e.target.value)}
+          >
+            <option value="all">सबै वडा (All Wards)</option>
+            {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
+              <option key={w} value={w}>
+                वडा नं. {w}
+              </option>
+            ))}
+          </select>
+
+          {/* Refresh Button */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => query.refetch()}
+            className="h-8 px-2.5 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
+            title="ग्राहक तथा ट्रिप विवरण ताजा गर्नुहोस् (Refresh)"
+          >
+            <RotateCw className="size-3.5" /> ताजा
+          </Button>
+
           <Button
             type="button"
             size="sm"

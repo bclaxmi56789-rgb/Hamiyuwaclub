@@ -4,7 +4,12 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useWorkspace, WorkspacePage, money } from "@/components/workspace";
 import { Button } from "@/components/ui/button";
-import { useTeamLocationBroadcast } from "@/lib/team-location";
+import {
+  useTeamLocationBroadcast,
+  useTeamLocationSubscribe,
+  TEAM_ROLE_STYLE,
+  type TeamMemberLocation,
+} from "@/lib/team-location";
 import {
   MapPin,
   Navigation,
@@ -24,6 +29,7 @@ import {
   Minimize2,
   EyeOff,
   Eye,
+  RotateCw,
 } from "lucide-react";
 import {
   todayBS,
@@ -81,7 +87,7 @@ interface CustomerWithDue extends Person {
 }
 
 function CollectionMapPage() {
-  const { query, ward, setWard, signedIn, userId } = useWorkspace();
+  const { query, ward, setWard, signedIn, userId, activeEmployeeId, employees } = useWorkspace();
   const navigate = useNavigate();
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -105,10 +111,27 @@ function CollectionMapPage() {
   const watchIdRef = useRef<number | null>(null);
   const firstFixRef = useRef(false);
 
+  // ── Live team locations from other workers (drivers etc.) ──────────────
+  const [teamMembers, setTeamMembers] = useState<TeamMemberLocation[]>([]);
+  const teamMemberMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  // Latched count of live members for the on-map legend (updates in real time)
+  useTeamLocationSubscribe(userId ?? null, setTeamMembers);
+
+  // Map instance generation — bumped whenever the Leaflet map is re-created
+  // (e.g. entering/exiting fullscreen) so marker effects re-add their layers.
+  const [mapReady, setMapReady] = useState(0);
+
+  // Compute broadcaster's actual employee name and designation
+  const activeEmployee = employees?.find((e) => e.id === activeEmployeeId);
+  const broadcasterName = activeEmployee?.name || (userId ? "संकलक (व्यवस्थापक)" : "संकलक");
+  const broadcasterDesignation = activeEmployee?.designation || "संकलक";
+
   // ── Broadcast this collector's live location to the dashboard map ──────
   const broadcastToDashboard = useTeamLocationBroadcast({
     userId: userId ?? null,
-    name: "संकलक",
+    employeeId: activeEmployeeId ?? "collector",
+    name: broadcasterName,
+    designation: broadcasterDesignation,
     role: "collector",
     active: trackingLocation,
   });
@@ -177,6 +200,7 @@ function CollectionMapPage() {
   }, [mapFull]);
 
   // Filter states; the section drawer (बक्यौता/थेली tabs) starts open on desktop
+  const [selectedWard, setSelectedWard] = useState<string>("all");
   const [filterOnlyDues, setFilterOnlyDues] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -235,7 +259,7 @@ function CollectionMapPage() {
   // Filtered customers for map and list
   const filteredCustomers = useMemo(() => {
     return customersWithDues.filter((c) => {
-      if (ward && c.ward !== ward) return false;
+      if (selectedWard !== "all" && c.ward !== selectedWard) return false;
       if (filterOnlyDues && c.dueAmount <= 0) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -249,7 +273,7 @@ function CollectionMapPage() {
       }
       return true;
     });
-  }, [customersWithDues, ward, filterOnlyDues, searchQuery]);
+  }, [customersWithDues, selectedWard, filterOnlyDues, searchQuery]);
 
   // Count exact GPS vs approximate Ward area
   const exactGpsCount = useMemo(() => {
@@ -326,8 +350,86 @@ function CollectionMapPage() {
         mapRef.current = null;
       }
       markersLayerRef.current = null;
+      driverMarkerRef.current = null;
+      routeLineRef.current = null;
+      teamMemberMarkersRef.current.clear();
+      setMapReady((v) => v + 1);
     };
   }, [query.isPending, mapFull]);
+
+  // Render live team members (other workers) as vehicle cards — real
+  // 🚚/🛻 vehicle markers, never plain pins.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const myKey = `${userId}:${activeEmployeeId ?? "collector"}`;
+    const liveIds = new Set(teamMembers.map((m) => m.id || `${m.userId}:${m.role}`));
+    for (const [id, marker] of teamMemberMarkersRef.current) {
+      if (!liveIds.has(id)) {
+        map.removeLayer(marker);
+        teamMemberMarkersRef.current.delete(id);
+      }
+    }
+
+    teamMembers.forEach((m) => {
+      const markerId = m.id || `${m.userId}:${m.role}`;
+      if (markerId === myKey) return; // own marker handled by driver marker effect
+
+      const st = TEAM_ROLE_STYLE[m.role] ?? TEAM_ROLE_STYLE.other;
+      const stale = Date.now() - m.updatedAt > 90_000;
+      const badgeBg = stale ? "#94a3b8" : st.color;
+      const label = m.designation ? `${m.name} (${m.designation})` : (m.name || st.label);
+
+      const icon = L.divIcon({
+        className: "team-vehicle-icon",
+        html: `
+          <div style="position:relative; width:46px; height:42px; cursor:pointer;">
+            ${
+              !stale
+                ? `<div style="position:absolute; inset:-6px; border-radius:12px; background:${st.color}; opacity:0.25; animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></div>`
+                : ""
+            }
+            <div style="
+              width:46px; height:42px; border-radius:12px;
+              background:#ffffff;
+              border:3px solid ${badgeBg};
+              box-shadow:0 4px 14px rgba(0,0,0,0.4);
+              display:flex; align-items:center; justify-content:center;
+              font-size:24px; line-height:1;
+            ">${st.emoji}</div>
+            <div style="
+              position:absolute; bottom:-20px; left:50%; transform:translateX(-50%);
+              background:${badgeBg}; color:#ffffff;
+              font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px;
+              white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.3);
+              max-width:140px; overflow:hidden; text-overflow:ellipsis;
+            ">${label}</div>
+          </div>`,
+        iconSize: [46, 42],
+        iconAnchor: [23, 21],
+      });
+
+      const tooltipHtml = `<b>${m.name}</b>${m.designation ? ` (${m.designation})` : ` (${st.label})`}<br/>
+        <span style="font-size:10px;color:${stale ? "#d97706" : "#059669"};">
+          ${stale ? "⚠️ पुरानो स्थान" : "🟢 लाइभ GPS सक्रिय"}</span>`;
+
+      const existing = teamMemberMarkersRef.current.get(markerId);
+      if (existing) {
+        existing.setLatLng([m.lat, m.lng]);
+        existing.setIcon(icon);
+        existing.setTooltipContent(tooltipHtml);
+      } else {
+        const marker = L.marker([m.lat, m.lng], { icon, zIndexOffset: 2200 })
+          .addTo(map)
+          .bindTooltip(tooltipHtml, { direction: "top", offset: [0, -24] });
+        teamMemberMarkersRef.current.set(markerId, marker);
+
+        // First sighting of a teammate: bring the view to them
+        map.setView([m.lat, m.lng], Math.max(map.getZoom(), 14));
+      }
+    });
+  }, [teamMembers, userId, activeEmployeeId, mapReady]);
 
   // Update Driver Marker on Map
   useEffect(() => {
@@ -351,7 +453,7 @@ function CollectionMapPage() {
             🚚
           </div>
           <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background-color: #1e3a8a; color: #ffffff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-            चालक / संकलक (तानेर सार्नुहोस्)
+            ${broadcasterName} (${broadcasterDesignation})
           </div>
         </div>
       `,
@@ -375,7 +477,7 @@ function CollectionMapPage() {
 
       driverMarkerRef.current = marker;
     }
-  }, [driverLocation]);
+  }, [driverLocation, mapReady]);
 
   // Update Customer Bubbles on Map (both exact GPS & Ward area)
   useEffect(() => {
@@ -548,8 +650,13 @@ function CollectionMapPage() {
         { padding: [70, 70], maxZoom: 16 },
       );
     }
-  }, [driverLocation, selectedCustomer]);
+  }, [driverLocation, selectedCustomer, mapReady]);
 
+  // Keep the live-team legend count fresh during fullscreen so it stays readable
+  const liveMembers = useMemo(
+    () => teamMembers.filter((m) => m.userId !== userId && Date.now() - m.updatedAt <= 90_000),
+    [teamMembers, userId],
+  );
   // Driver Location Tracking with 3-Stage Fallback (eliminates Timeout expired)
   const toggleLocationTracking = () => {
     if (trackingLocation) {
@@ -781,6 +888,33 @@ function CollectionMapPage() {
 
         {/* Right: Driver Location & Map Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Ward filter dropdown */}
+          <select
+            aria-label="Filter ward"
+            className="h-8 rounded-md border bg-card px-2 text-xs font-bold text-foreground"
+            value={selectedWard}
+            onChange={(e) => setSelectedWard(e.target.value)}
+          >
+            <option value="all">सबै वडा (All Wards)</option>
+            {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
+              <option key={w} value={w}>
+                वडा नं. {w}
+              </option>
+            ))}
+          </select>
+
+          {/* Refresh Button */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => query.refetch()}
+            className="h-8 px-2 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
+            title="ग्राहक तथा बक्यौता विवरण ताजा गर्नुहोस् (Refresh)"
+          >
+            <RotateCw className="size-3.5" /> ताजा
+          </Button>
+
           {/* Driver Location Toggle Button */}
           <Button
             type="button"
@@ -941,6 +1075,34 @@ function CollectionMapPage() {
             {mapFull ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
           </button>
         </div>
+
+        {/* Live team members on this route (updates in real time; works in fullscreen) */}
+        {liveMembers.length > 0 && !hideBoxes && (
+          <div className="absolute bottom-3 right-3 z-[1000] max-w-[220px] rounded-lg border border-border/80 bg-card/95 p-2.5 text-[11px] shadow-lg backdrop-blur-md">
+            <div className="mb-1.5 flex items-center gap-1 font-bold text-foreground">
+              <Car className="size-3.5 text-blue-600" />
+              <span>लाइभ टोली ({liveMembers.length})</span>
+            </div>
+            <div className="space-y-1 text-muted-foreground">
+              {liveMembers.map((m) => {
+                const st = TEAM_ROLE_STYLE[m.role] ?? TEAM_ROLE_STYLE.other;
+                return (
+                  <div key={m.userId} className="flex items-center gap-1.5">
+                    <span
+                      className="flex size-5 shrink-0 items-center justify-center rounded-md text-[10px]"
+                      style={{ background: st.color }}
+                    >
+                      {st.emoji}
+                    </span>
+                    <span className="truncate font-semibold text-foreground">
+                      {m.name || st.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Floating Bubble Legend on Top-Left */}
         {!hideBoxes && (

@@ -25,6 +25,7 @@ import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import {
   TEAM_LOCATION_CHANNEL,
+  useTeamLocationSubscribe,
   type TeamMemberLocation,
   type TeamMemberRole,
 } from "@/lib/team-location";
@@ -45,6 +46,7 @@ import {
   Car,
   Search,
   Check,
+  RotateCw,
 } from "lucide-react";
 import {
   BIRENDRANAGAR_CENTER,
@@ -100,6 +102,7 @@ interface Props {
   selectedWard?: string;
   currentYear?: number;
   currentMonth?: number; // 0-indexed BS month
+  onRefresh?: () => void;
 }
 
 export function DashboardLiveMap({
@@ -112,6 +115,7 @@ export function DashboardLiveMap({
   selectedWard,
   currentYear = 2081,
   currentMonth = 0,
+  onRefresh,
 }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -122,6 +126,7 @@ export function DashboardLiveMap({
   const [members, setMembers] = useState<TeamMemberLocation[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "driver" | "collector">("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "done">("all");
+  const [wardFilter, setWardFilter] = useState<string>(selectedWard || "all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPerson, setSelectedPerson] = useState<CustomerMapPin | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -144,7 +149,7 @@ export function DashboardLiveMap({
     const activePlans = plans;
 
     return people
-      .filter((p) => !selectedWard || p.ward === selectedWard)
+      .filter((p) => wardFilter === "all" || p.ward === wardFilter)
       .map((p) => {
         const loc = resolveCustomerLocation(p);
         const k = `${p.ward}:${p.card}`;
@@ -267,7 +272,7 @@ export function DashboardLiveMap({
     const map = mapRef.current;
     if (!map) return;
 
-    const liveIds = new Set(members.map((m) => m.userId));
+    const liveIds = new Set(members.map((m) => m.id || `${m.userId}:${m.role}`));
     for (const [id, marker] of teamMarkersRef.current) {
       if (!liveIds.has(id)) {
         map.removeLayer(marker);
@@ -277,8 +282,9 @@ export function DashboardLiveMap({
 
     members.forEach((m) => {
       const meta = ROLE_META[m.role] ?? ROLE_META.other;
-      const isMe = m.userId === userId;
+      const markerId = m.id || `${m.userId}:${m.role}`;
       const stale = Date.now() - m.updatedAt > 90_000;
+      const displayName = m.designation ? `${m.name} (${m.designation})` : m.name;
 
       const icon = L.divIcon({
         className: "team-member-icon",
@@ -301,27 +307,27 @@ export function DashboardLiveMap({
               position:absolute; bottom:-22px; left:50%; transform:translateX(-50%);
               background:${stale ? "#64748b" : meta.color}; color:#ffffff;
               font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px;
-              white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.3); max-width:110px; overflow:hidden; text-overflow:ellipsis;
-            ">${isMe ? "म / You" : m.name}</div>
+              white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.3); max-width:140px; overflow:hidden; text-overflow:ellipsis;
+            ">${displayName}</div>
           </div>`,
         iconSize: [44, 44],
         iconAnchor: [22, 22],
       });
 
-      const existing = teamMarkersRef.current.get(m.userId);
+      const tooltipContent = `<b>${m.name}</b>${m.designation ? ` (${m.designation})` : ` (${meta.label})`}<br/>
+        <span style="font-size:10px;color:${stale ? "#d97706" : "#059669"};">
+          ${stale ? "⚠️ पुरानो स्थान" : "🟢 लाइभ GPS सक्रिय"}</span>`;
+
+      const existing = teamMarkersRef.current.get(markerId);
       if (existing) {
         existing.setLatLng([m.lat, m.lng]);
         existing.setIcon(icon);
+        existing.setTooltipContent(tooltipContent);
       } else {
         const marker = L.marker([m.lat, m.lng], { icon, zIndexOffset: 2500 })
           .addTo(map)
-          .bindTooltip(
-            `<b>${m.name}</b> (${meta.label})<br/>
-             <span style="font-size:10px;color:${stale ? "#d97706" : "#059669"};">
-               ${stale ? "⚠️ पुरानो स्थान" : "🟢 लाइभ GPS सक्रिय"}</span>`,
-            { direction: "top", offset: [0, -26] },
-          );
-        teamMarkersRef.current.set(m.userId, marker);
+          .bindTooltip(tooltipContent, { direction: "top", offset: [0, -26] });
+        teamMarkersRef.current.set(markerId, marker);
       }
     });
   }, [members, userId]);
@@ -441,31 +447,8 @@ export function DashboardLiveMap({
     });
   }, [filteredCustomers, selectedPerson, activeTab]);
 
-  // 5. Subscribe to Supabase Realtime channel
-  useEffect(() => {
-    const channel = supabase.channel(TEAM_LOCATION_CHANNEL, {
-      config: { presence: { key: userId ?? "dashboard-guest" } },
-    });
-
-    const sync = () => {
-      const state = channel.presenceState<TeamMemberLocation>();
-      const list: TeamMemberLocation[] = [];
-      for (const presences of Object.values(state)) {
-        const latest = [...presences].sort(
-          (a, b) => (b as TeamMemberLocation).updatedAt - (a as TeamMemberLocation).updatedAt,
-        )[0] as TeamMemberLocation;
-        if (latest?.lat && latest?.lng) list.push(latest);
-      }
-      setMembers(list);
-    };
-
-    channel.on("presence", { event: "sync" }, sync);
-    channel.subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [userId]);
+  // 5. Subscribe to Supabase Realtime channel for live team members
+  useTeamLocationSubscribe(userId ?? null, setMembers);
 
   // Fullscreen toggle handler
   const toggleFullscreen = () => {
@@ -564,6 +547,21 @@ export function DashboardLiveMap({
             </button>
           </div>
 
+          {/* Ward Filter */}
+          <select
+            aria-label="Filter ward"
+            className="h-8 rounded-md border bg-background px-2 text-xs font-bold text-foreground"
+            value={wardFilter}
+            onChange={(e) => setWardFilter(e.target.value)}
+          >
+            <option value="all">सबै वडा (All Wards)</option>
+            {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
+              <option key={w} value={w}>
+                वडा नं. {w}
+              </option>
+            ))}
+          </select>
+
           {/* Status Filter */}
           <select
             aria-label="Filter status"
@@ -575,6 +573,20 @@ export function DashboardLiveMap({
             <option value="done">🟢 हरियो / पुगेको ({greenCount})</option>
             <option value="pending">🔴 रातो / बाँकी ({pendingCount})</option>
           </select>
+
+          {/* Refresh Button */}
+          {onRefresh && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              className="h-8 px-2.5 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
+              title="नक्सा तथा ग्राहक विवरण ताजा गर्नुहोस् (Refresh)"
+            >
+              <RotateCw className="size-3.5" /> ताजा
+            </Button>
+          )}
 
           {/* Fullscreen Toggle */}
           <Button

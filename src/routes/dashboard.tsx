@@ -382,13 +382,14 @@ function Dashboard() {
           <DashboardLiveMap
             userId={userId}
             userName={myName || `व्यवस्थापक-${userId.slice(0, 6)}`}
-            people={people}
+            people={query.data?.people ?? []}
             trips={query.data?.trips ?? []}
             receipts={query.data?.receipts ?? []}
             plans={plans}
-            selectedWard={ward}
+            selectedWard={ward || undefined}
             currentYear={year}
             currentMonth={Number(todayBS().split("/")[1] || 1) - 1}
+            onRefresh={() => query.refetch()}
           />
         </div>
       )}

@@ -40,3 +40,4 @@ DO $$ BEGIN
       WITH CHECK (owner_id = auth.uid());
   END IF;
 END $$;
+

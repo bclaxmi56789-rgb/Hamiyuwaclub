@@ -66,3 +66,4 @@ CREATE POLICY "club_events_owner_all" ON public.club_events
   WITH CHECK (owner_id = auth.uid());
 
 NOTIFY pgrst, 'reload schema';
+
