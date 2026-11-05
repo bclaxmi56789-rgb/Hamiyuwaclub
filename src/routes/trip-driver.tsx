@@ -222,6 +222,47 @@ function TripDriverPage() {
     return () => clearInterval(t);
   }, [tripStartedAt]);
 
+  // ── Screen Wake Lock: keep the phone screen on while GPS tracking runs so
+  // the browser never suspends the tab (which would kill live location sharing) ──
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  useEffect(() => {
+    let released = !trackingLocation;
+    const acquire = async () => {
+      try {
+        const nav = navigator as Navigator & { wakeLock?: WakeLock };
+        if (!released && wakeLockRef.current === null && nav.wakeLock) {
+          wakeLockRef.current = await nav.wakeLock.request("screen");
+          wakeLockRef.current.addEventListener("release", () => {
+            wakeLockRef.current = null;
+          });
+        }
+      } catch {
+        // wake lock unsupported — trip still works without it
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && trackingLocation) {
+        released = false;
+        void acquire();
+      }
+    };
+    if (trackingLocation) {
+      released = false;
+      void acquire();
+      document.addEventListener("visibilitychange", onVisibility);
+    } else {
+      released = true;
+      void wakeLockRef.current?.release();
+      wakeLockRef.current = null;
+    }
+    return () => {
+      released = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      void wakeLockRef.current?.release();
+      wakeLockRef.current = null;
+    };
+  }, [trackingLocation]);
+
   // Local ward filter (allows viewing all wards or specific ward independently)
   const [selectedWard, setSelectedWard] = useState<string>("all");
 
