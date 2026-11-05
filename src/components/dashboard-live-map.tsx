@@ -33,6 +33,7 @@ import {
 import {
   getTripSessions,
   getTripSessionPoints,
+  getLatestTravelledTripPoints,
   type TripSession,
   type TripPoint,
 } from "@/lib/workspace.functions";
@@ -163,6 +164,83 @@ export function DashboardLiveMap({
   const [tripTrail, setTripTrail] = useState<TripPoint[]>([]);
   const [tripTrailLoading, setTripTrailLoading] = useState(false);
   const tripTrailLayerRef = useRef<L.LayerGroup | null>(null);
+  const lastKnownLayerRef = useRef<L.LayerGroup | null>(null);
+
+  // Poll saved trip sessions every 30s so the LIVE badge and list stay fresh,
+  // and show a "last known position" pin for any unfinished trip whose driver
+  // dropped off the live presence channel (phone locked / app switched).
+  const getLatestTravelledTripPointsFn = useServerFn(getLatestTravelledTripPoints);
+  const [lastKnownPoints, setLastKnownPoints] = useState<Record<string, TripPoint | null>>({});
+  useEffect(() => {
+    const poll = async () => {
+      if (document.hidden) return;
+      try {
+        const data = await getTripSessionsFn({ data: {} });
+        setTripSessions(data.sessions);
+        setTripSessionsLoaded(true);
+        const latest = await getLatestTravelledTripPointsFn();
+        setLastKnownPoints(latest);
+      } catch {
+        // migration 0039 not applied yet — nothing to show
+      }
+    };
+    void poll();
+    const t = setInterval(poll, 30000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Draw last-known-position pins for live trips not currently on presence
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (lastKnownLayerRef.current) {
+      lastKnownLayerRef.current.clearLayers();
+      lastKnownLayerRef.current = null;
+    }
+
+    const liveEmployeeIds = new Set(
+      members.map((m) => m.employeeId).filter((v): v is string => Boolean(v)),
+    );
+    const layer = L.layerGroup().addTo(map);
+    lastKnownLayerRef.current = layer;
+    tripSessions
+      .filter((s) => s.status === "active" && !liveEmployeeIds.has(s.employee_id || ""))
+      .forEach((s) => {
+        const p = lastKnownPoints[s.id];
+        if (!p) return;
+        L.marker([p.lat, p.lng], {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="
+              position:relative; width:40px; height:40px; border-radius:9999px;
+              background:${s.trip_type === "dumping" ? "#d97706" : "#7c3aed"}; color:#fff;
+              display:flex; align-items:center; justify-content:center; font-size:17px;
+              border:3px solid #ffffff; box-shadow:0 3px 10px rgba(0,0,0,0.4);
+            ">🛻
+              <div style="
+                position:absolute; top:-6px; right:-4px; width:14px; height:14px; border-radius:9999px;
+                background:#d97706; border:2px solid #ffffff;"></div>
+            </div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          }),
+          zIndexOffset: 2000,
+        })
+          .bindTooltip(
+            `<b>${s.employee_name || "चालक"}${s.trip_type === "dumping" ? " — 🗑️ मल फाल्ने" : " — 🚚 संकलन"}</b><br/>
+             <span style="font-size:10px; color:#d97706;">⚠️ अन्तिम थाहा (फोन अफ्लाइन) — ${p.recorded_at ? new Date(p.recorded_at).toLocaleTimeString("en-GB", { hour12: true }) : ""}</span><br/>
+             <span style="font-size:9px; color:#64748b;">फोन अनलक हुनेबित्तिकै लाइभ स्थान आउँछ</span>`,
+            { direction: "top", offset: [0, -24] },
+          )
+          .addTo(layer);
+      });
+    if (layer.getLayers().length === 0) {
+      map.removeLayer(layer);
+      lastKnownLayerRef.current = null;
+    }
+  }, [tripSessions, lastKnownPoints, members]);
 
   // Load saved trip sessions (per-employee trips) once
   useEffect(() => {

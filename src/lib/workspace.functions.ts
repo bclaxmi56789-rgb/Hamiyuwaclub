@@ -547,6 +547,35 @@ export const getTripSessions = createServerFn({ method: "GET" })
     return { session: null, sessions: res.data as TripSession[] };
   });
 
+export const getLatestTravelledTripPoints = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    // All currently active (unfinished) trip sessions for this club
+    const actives = await context.supabase
+      .from("trip_sessions")
+      .select("id")
+      .eq("owner_id", context.userId)
+      .eq("status", "active")
+      .limit(50);
+    if (actives.error || !actives.data?.length) return {} as Record<string, TripPoint | null>;
+
+    const result: Record<string, TripPoint | null> = {};
+    await Promise.all(
+      actives.data.map(async (s: { id: string }) => {
+        const res = await context.supabase
+          .from("trip_points")
+          .select("lat,lng,accuracy,recorded_at")
+          .eq("owner_id", context.userId)
+          .eq("session_id", s.id)
+          .order("seq", { ascending: false })
+          .limit(1);
+        result[s.id] =
+          res.error || !res.data?.length ? null : (res.data[0] as unknown as TripPoint);
+      }),
+    );
+    return result;
+  });
+
 export const getTripSessionPoints = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ session_id: z.string() }))
