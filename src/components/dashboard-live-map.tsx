@@ -274,6 +274,7 @@ export function DashboardLiveMap({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPerson, setSelectedPerson] = useState<CustomerMapPin | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [legendOpenLeft, setLegendOpenLeft] = useState(false);
 
   // Proximity threshold to consider driver/collector "reaching that place" (meters)
   const REACHED_THRESHOLD_METERS = 75;
@@ -963,33 +964,53 @@ export function DashboardLiveMap({
       >
         <div ref={mapContainerRef} className="h-full w-full bg-muted" />
 
-        {/* Legend Overlay */}
-        <div className="absolute top-3 left-3 z-[800] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[220px]">
-          <div className="font-bold text-foreground mb-1 flex items-center gap-1">
-            <MapPin className="size-3.5 text-emerald-600" />
-            <span>नक्सा संकेत (Legend)</span>
+        {/* Legend Overlay — collapsed by default, click to open */}
+        {!legendOpenLeft && (
+          <button
+            type="button"
+            onClick={() => setLegendOpenLeft(true)}
+            className="absolute top-3 left-3 z-[800] rounded-full bg-card/95 backdrop-blur-md p-2 shadow-lg border border-border/80 text-foreground hover:bg-accent"
+            title="नक्सा संकेत (Legend) देखाउनुहोस्"
+          >
+            <MapPin className="size-4 text-emerald-600" />
+          </button>
+        )}
+        {legendOpenLeft && (
+          <div className="absolute top-3 left-3 z-[800] rounded-lg bg-card/95 backdrop-blur-md p-2.5 pl-6 shadow-lg border border-border/80 text-[11px] max-w-[220px]">
+            <button
+              type="button"
+              onClick={() => setLegendOpenLeft(false)}
+              className="absolute top-1.5 left-1.5 rounded-full p-0.5 text-muted-foreground hover:bg-muted"
+              title="लुकाउनुहोस्"
+            >
+              ✕
+            </button>
+            <div className="font-bold text-foreground mb-1 flex items-center gap-1">
+              <MapPin className="size-3.5 text-emerald-600" />
+              <span>नक्सा संकेत (Legend)</span>
+            </div>
+            <div className="space-y-1 text-muted-foreground text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <span className="size-3 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">
+                  ✓
+                </span>
+                <span>हरियो: काम सम्पन्न वा सवारी पुग्यो</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="size-3 rounded-full bg-red-500" />
+                <span>रातो: बाँकी वा सवारी पुग्न बाँकी</span>
+              </div>
+              <div className="flex items-center gap-1.5 pt-1 border-t">
+                <span>👤 🏨 🛒 💊</span>
+                <span>पिन भित्रको आइकन: ग्राहकको पेसा/व्यवसाय</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span>🚚 🛻</span>
+                <span>गाडी आइकन: प्रत्यक्ष GPS स्थान</span>
+              </div>
+            </div>
           </div>
-          <div className="space-y-1 text-muted-foreground text-[10px]">
-            <div className="flex items-center gap-1.5">
-              <span className="size-3 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">
-                ✓
-              </span>
-              <span>हरियो: काम सम्पन्न वा सवारी पुग्यो</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-3 rounded-full bg-red-500" />
-              <span>रातो: बाँकी वा सवारी पुग्न बाँकी</span>
-            </div>
-            <div className="flex items-center gap-1.5 pt-1 border-t">
-              <span>👤 🏨 🛒 💊</span>
-              <span>पिन भित्रको आइकन: ग्राहकको पेसा/व्यवसाय</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span>🚚 🛻</span>
-              <span>गाडी आइकन: प्रत्यक्ष GPS स्थान</span>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Live worker quick-jump overlay (always visible) */}
         <div className="absolute top-3 right-3 z-[820] flex flex-col gap-1.5 items-end">
