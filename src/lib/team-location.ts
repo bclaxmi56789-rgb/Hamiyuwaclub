@@ -65,7 +65,20 @@ export function useTeamLocationBroadcast({
 }: BroadcastOptions): (lat: number, lng: number) => void {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Join the channel once; leave on unmount
+  // Keep the latest options in refs so the returned `broadcast` function can be
+  // truly stable. This matters because geolocation watch callbacks capture the
+  // broadcast function once when tracking starts — if `broadcast` were recreated
+  // when `active` flips to true, those callbacks would keep calling the stale
+  // version (with `active: false`) and nothing would ever reach the dashboard.
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  const metaRef = useRef({ userId, name, role });
+  metaRef.current = { userId, name, role };
+  // Remember the last fix so it can be replayed once the channel actually joins
+  // (tracking can call broadcast() before the Realtime connection is ready).
+  const lastFixRef = useRef<TeamMemberLocation | null>(null);
+
+  // Join the channel once; leave on unmount or user change
   useEffect(() => {
     if (!userId) return;
 
@@ -73,8 +86,12 @@ export function useTeamLocationBroadcast({
       config: { presence: { key: userId } },
     });
 
-    // We only need the channel open — no need to subscribe to sync events here
-    channel.subscribe();
+    channel.subscribe((status) => {
+      // Replay the latest known fix once the presence connection is live
+      if (status === "SUBSCRIBED" && lastFixRef.current && activeRef.current) {
+        void channel.track(lastFixRef.current);
+      }
+    });
     channelRef.current = channel;
 
     return () => {
@@ -91,21 +108,21 @@ export function useTeamLocationBroadcast({
     }
   }, [active]);
 
-  // Stable broadcast function
-  const broadcast = useCallback(
-    (lat: number, lng: number) => {
-      if (!userId || !active || !channelRef.current) return;
-      void channelRef.current.track({
-        userId,
-        name: name || `Member-${userId.slice(0, 6)}`,
-        role,
-        lat,
-        lng,
-        updatedAt: Date.now(),
-      } satisfies TeamMemberLocation);
-    },
-    [userId, name, role, active],
-  );
+  // Stable broadcast function — reads live options from refs
+  const broadcast = useCallback((lat: number, lng: number) => {
+    const { userId: uid, name: nm, role: rl } = metaRef.current;
+    if (!uid || !activeRef.current || !channelRef.current) return;
+    const fix = {
+      userId: uid,
+      name: nm || `Member-${uid.slice(0, 6)}`,
+      role: rl,
+      lat,
+      lng,
+      updatedAt: Date.now(),
+    } satisfies TeamMemberLocation;
+    lastFixRef.current = fix;
+    void channelRef.current.track(fix);
+  }, []);
 
   return broadcast;
 }
@@ -131,4 +148,3 @@ export function useTeamLocationSubscribe(): TeamMemberLocation[] {
   //   DashboardLiveMap directly — the subscriber logic lives there.
   return [];
 }
-
