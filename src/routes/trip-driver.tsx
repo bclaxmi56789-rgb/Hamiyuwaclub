@@ -135,24 +135,32 @@ function TripDriverPage() {
   const toggleMapFullscreen = () => {
     const el = mapWrapperRef.current;
     if (!el) return;
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => {});
+    if (mapFull) {
+      // Exiting: close native fullscreen if active, clear the CSS fallback flag
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
       setMapFull(false);
     } else if (el.requestFullscreen) {
       void el.requestFullscreen()
         .then(() => setMapFull(true))
-        .catch(() => setMapFull(true));
+        .catch(() => setMapFull(true)); // API blocked (e.g. preview iframe): CSS fallback
     } else {
-      setMapFull(true); // Fallback: CSS full-viewport mode (mobile Safari)
+      setMapFull(true); // Fullscreen API unavailable (e.g. iOS Safari): CSS fallback
     }
     if (mapRef.current) setTimeout(() => mapRef.current!.invalidateSize(), 350);
   };
 
   useEffect(() => {
     const onFsChange = () => setMapFull(Boolean(document.fullscreenElement));
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mapFull && !document.fullscreenElement) setMapFull(false);
+    };
     document.addEventListener("fullscreenchange", onFsChange);
-    return () => document.removeEventListener("fullscreenchange", onFsChange);
-  }, []);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFsChange);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [mapFull]);
 
   const plans: PlanItem[] =
     query.data?.plans && query.data.plans.length > 0 ? query.data.plans : DEFAULT_PLANS;
