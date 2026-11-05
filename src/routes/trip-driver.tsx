@@ -128,9 +128,34 @@ function TripDriverPage() {
   const [tripErr, setTripErr] = useState("");
 
   // ─── Map view controls: fullscreen & hide overlay boxes ───
+  // Hidden-boxes preference is remembered for the browser session so switching
+  // tabs or reloading doesn't bring the info boxes back.
   const mapWrapperRef = useRef<HTMLDivElement>(null);
   const [mapFull, setMapFull] = useState(false);
-  const [hideBoxes, setHideBoxes] = useState(false);
+  const [hideBoxes, setHideBoxes] = useState(() => {
+    try {
+      return sessionStorage.getItem("hami_map_hide_boxes_v1") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("hami_map_hide_boxes_v1", hideBoxes ? "1" : "0");
+    } catch {}
+  }, [hideBoxes]);
+
+  // While the map is fullscreen, lock the page scroll so tabs underneath
+  // can't drift; restore when leaving.
+  useEffect(() => {
+    if (!mapFull) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mapFull]);
 
   const toggleMapFullscreen = () => {
     const el = mapWrapperRef.current;

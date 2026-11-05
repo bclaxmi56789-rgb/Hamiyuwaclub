@@ -65,11 +65,12 @@ export const getWorkspaceData = createServerFn({ method: "GET" })
       if (result.data.length < 1000) break;
     }
 
-    // Load plans from plan_master, with safe fallback to DEFAULT_PLANS
+    // Load plans from plan_master for this tenant
     try {
       const planRes = await context.supabase
         .from("plan_master")
         .select("*")
+        .eq("owner_id", context.userId)
         .order("created_at", { ascending: true });
       if (!planRes.error && planRes.data && planRes.data.length > 0) {
         plans.push(
@@ -87,19 +88,18 @@ export const getWorkspaceData = createServerFn({ method: "GET" })
             is_active: p.is_active ?? true,
           })),
         );
-      } else {
-        plans.push(...DEFAULT_PLANS);
       }
     } catch {
-      plans.push(...DEFAULT_PLANS);
+      // New club starts with blank plans until added in Plan Master
     }
 
-    // Load trip log; trips are optional data so a missing table falls back silently
+    // Load trip log scoped to this tenant
     try {
       for (let offset = 0; ; offset += 1000) {
         const tripRes = await context.supabase
           .from("trip_log")
           .select("*")
+          .eq("owner_id", context.userId)
           .order("logged_at", { ascending: false })
           .range(offset, offset + 999);
         if (tripRes.error) throw new Error(tripRes.error.message);
@@ -107,7 +107,7 @@ export const getWorkspaceData = createServerFn({ method: "GET" })
         if (tripRes.data.length < 1000) break;
       }
     } catch {
-      // trip_log migration 0009 not applied yet
+      // trip_log migration not applied or tenant has no trips yet
     }
 
     return { people, receipts, plans, trips, checkedAt: new Date().toISOString() };

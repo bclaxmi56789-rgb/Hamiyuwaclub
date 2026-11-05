@@ -50,14 +50,19 @@ export const getReceiptData = createServerFn({ method: "GET" })
         .order("card")
         .order("month")
         .range(0, 999),
-      supabase.from("plan_master").select("*").eq("is_active", true).order("chargeable_amount"),
+      supabase
+        .from("plan_master")
+        .select("*")
+        .eq("owner_id", context.userId)
+        .eq("is_active", true)
+        .order("chargeable_amount"),
     ]);
     if (receipts.error || counter.error || paid.error)
       throw new Error("Could not load receipt records.");
     const plans: PlanItem[] =
       plansRes.data && !plansRes.error && plansRes.data.length > 0
         ? (plansRes.data as PlanItem[])
-        : DEFAULT_PLANS;
+        : [];
     // Paginate all paid months; the recent receipt list intentionally shows only 15.
     const payments = paid.data.map((p) => ({ card: p.card, month: p.month, year: p.fiscal_year }));
     if (paid.data.length === 1000) {
