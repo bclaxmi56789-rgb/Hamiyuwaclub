@@ -377,25 +377,19 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* ─── LIVE TEAM LOCATION MAP ─── */}
+      {/* ─── LIVE TEAM & CUSTOMER LOCATION MAP ─── */}
       {signedIn && userId && (
         <div className="mt-6">
-          {/* Name input so team members can identify themselves on the map */}
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <label className="text-xs font-semibold text-muted-foreground">
-              नक्सामा मेरो नाम:
-            </label>
-            <input
-              type="text"
-              placeholder="जस्तै: राम बहादुर, Collector 1 …"
-              value={myName}
-              onChange={(e) => setMyName(e.target.value)}
-              className="h-7 rounded-md border bg-background px-2.5 text-xs font-semibold text-foreground placeholder:text-muted-foreground/50 w-48 focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
           <DashboardLiveMap
             userId={userId}
-            userName={myName || `सदस्य-${userId.slice(0, 6)}`}
+            userName={myName || `व्यवस्थापक-${userId.slice(0, 6)}`}
+            people={people}
+            trips={query.data?.trips ?? []}
+            receipts={query.data?.receipts ?? []}
+            plans={plans}
+            selectedWard={ward}
+            currentYear={year}
+            currentMonth={Number(todayBS().split("/")[1] || 1) - 1}
           />
         </div>
       )}

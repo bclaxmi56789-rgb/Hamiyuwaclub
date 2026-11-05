@@ -1,16 +1,25 @@
 /**
- * DashboardLiveMap — real-time team location map for the dashboard.
+ * DashboardLiveMap — real-time team location & customer tracking map for the dashboard.
  *
- * Subscribes to the shared Supabase Realtime Presence channel
- * "team-location-<projectId>" and shows every active collector/driver
- * who has enabled GPS on their Collection Map or Trip Driver page.
- *
- * Dashboard admins can ALSO optionally share their own location by
- * clicking the button — but the primary use-case is passive observation
- * of the collectors and drivers who are already broadcasting.
+ * Shows:
+ * 1. All registered customers/people pins on the map:
+ *    - With their profession / business nature icon (emoji + badge)
+ *    - Status color-coded:
+ *      * Green: Driver completed planned trips OR Collector collected dues (dueAmount <= 0)
+ *      * Orange/Yellow: Driver in-progress trip OR collector nearby / partial
+ *      * Red: Incomplete / pending trip OR pending dues
+ * 2. Active collectors (🚚) and drivers (🛻) broadcasting their real-time GPS locations
+ *    from /collection-map and /trip-driver.
+ * 3. Real-time proximity calculation:
+ *    - When a driver or collector comes within reach (~50m) of a customer pin,
+ *      or marks it completed, it dynamically updates / highlights green.
+ * 4. Filters & Toggle options:
+ *    - View by role (Driver view / Collector view / All)
+ *    - Filter by Ward / Status (All / Pending Red / Completed Green)
+ *    - Fullscreen & search
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,8 +29,44 @@ import {
   type TeamMemberRole,
 } from "@/lib/team-location";
 import { Button } from "@/components/ui/button";
-import { LocateFixed, Radio, Users, MapPin, Navigation, AlertTriangle, Eye } from "lucide-react";
-import { BIRENDRANAGAR_CENTER, NEPAL_CENTER } from "@/lib/geo";
+import {
+  LocateFixed,
+  Radio,
+  Users,
+  MapPin,
+  Navigation,
+  AlertTriangle,
+  Eye,
+  CheckCircle2,
+  Filter,
+  Maximize2,
+  Minimize2,
+  Truck,
+  Car,
+  Search,
+  Check,
+} from "lucide-react";
+import {
+  BIRENDRANAGAR_CENTER,
+  NEPAL_CENTER,
+  getDistanceInMeters,
+  formatDistance,
+  resolveCustomerLocation,
+} from "@/lib/geo";
+import { natureEmoji, natureLabel } from "@/lib/nature";
+import {
+  np,
+  tripStatus,
+  plannedTripsForPerson,
+  getDueMonths,
+  mergeOpeningDues,
+  getCustomerTotalRate,
+  DEFAULT_PLANS,
+  type Person,
+  type PlanItem,
+  type TripLogEntry,
+  type Receipt,
+} from "@/lib/receipt-rules";
 
 /** Role → emoji + color */
 const ROLE_META: Record<TeamMemberRole, { emoji: string; color: string; label: string }> = {
@@ -31,43 +76,162 @@ const ROLE_META: Record<TeamMemberRole, { emoji: string; color: string; label: s
   other: { emoji: "👤", color: "#64748b", label: "अन्य" },
 };
 
+interface CustomerMapPin extends Person {
+  displayLat: number;
+  displayLng: number;
+  isApproximateArea: boolean;
+  plannedTrips: number;
+  doneTrips: number;
+  isTripComplete: boolean;
+  dueAmount: number;
+  isDuePaid: boolean;
+  // Dynamic flags
+  isNearCollector: boolean;
+  isNearDriver: boolean;
+  nearestWorkerDistance?: number;
+}
+
 interface Props {
   userId: string | null;
   userName: string;
+  people: Person[];
+  trips: TripLogEntry[];
+  receipts: Receipt[];
+  plans?: PlanItem[];
+  selectedWard?: string;
+  currentYear?: number;
+  currentMonth?: number; // 0-indexed BS month
 }
 
-export function DashboardLiveMap({ userId, userName }: Props) {
+export function DashboardLiveMap({
+  userId,
+  userName,
+  people = [],
+  trips = [],
+  receipts = [],
+  plans = DEFAULT_PLANS,
+  selectedWard,
+  currentYear = 2081,
+  currentMonth = 0,
+}: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapWrapperRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<Map<string, L.Marker>>(new Map());
+  const teamMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const peopleMarkersLayerRef = useRef<L.LayerGroup | null>(null);
 
   const [members, setMembers] = useState<TeamMemberLocation[]>([]);
-  const [myRole, setMyRole] = useState<TeamMemberRole>("admin");
-  const [sharing, setSharing] = useState(false);
-  const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState("");
-  const [status, setStatus] = useState("");
+  const [activeTab, setActiveTab] = useState<"all" | "driver" | "collector">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "done">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPerson, setSelectedPerson] = useState<CustomerMapPin | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const watchIdRef = useRef<number | null>(null);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Proximity threshold to consider driver/collector "reaching that place" (meters)
+  const REACHED_THRESHOLD_METERS = 75;
 
-  // ── stable broadcast helper (tracks own position when sharing) ──────────
-  const broadcastPos = useCallback(
-    (lat: number, lng: number) => {
-      if (!userId || !channelRef.current) return;
-      void channelRef.current.track({
-        userId,
-        name: userName || `Member-${userId.slice(0, 6)}`,
-        role: myRole,
-        lat,
-        lng,
-        updatedAt: Date.now(),
-      } satisfies TeamMemberLocation);
-    },
-    [userId, userName, myRole],
-  );
+  // 1. Process customer map data with trips and dues
+  const customersWithStatus: CustomerMapPin[] = useMemo(() => {
+    // Trips keyed by ward:card for the active year and month
+    const tripCounts = new Map<string, number>();
+    for (const t of trips) {
+      if (t.fiscal_year === currentYear && t.month === currentMonth) {
+        const k = `${t.ward}:${t.card}`;
+        tripCounts.set(k, (tripCounts.get(k) ?? 0) + 1);
+      }
+    }
 
-  // ── Leaflet map initialisation ──────────────────────────────────────────
+    // Collector paid dues
+    const activePlans = plans && plans.length > 0 ? plans : DEFAULT_PLANS;
+
+    return people
+      .filter((p) => !selectedWard || p.ward === selectedWard)
+      .map((p) => {
+        const loc = resolveCustomerLocation(p);
+        const k = `${p.ward}:${p.card}`;
+        const doneTrips = tripCounts.get(k) ?? 0;
+        const plannedTrips = plannedTripsForPerson(p, activePlans);
+        const isTripComplete = doneTrips >= plannedTrips;
+
+        // Dues computation
+        const customerPaidSet = new Set(
+          receipts
+            .filter((r) => r.ward === p.ward && r.card.toLowerCase() === p.card.toLowerCase())
+            .flatMap((r) => r.months.map((m) => `${m.year ?? r.year}:${m.m}`)),
+        );
+        const autoDues = p.joining_date
+          ? getDueMonths(p.joining_date, customerPaidSet)
+          : [];
+        const dueMonths = mergeOpeningDues(autoDues, p.opening_dues, customerPaidSet);
+        const monthlyFee = getCustomerTotalRate(p, activePlans);
+        const dueAmount = dueMonths.reduce((s, dm) => s + (dm.amount ?? monthlyFee), 0);
+        const isDuePaid = dueAmount <= 0;
+
+        // Proximity detection with live active members
+        let isNearCollector = false;
+        let isNearDriver = false;
+        let minDistance: number | undefined = undefined;
+
+        for (const m of members) {
+          const dist = getDistanceInMeters(m.lat, m.lng, loc.lat, loc.lng);
+          if (minDistance === undefined || dist < minDistance) {
+            minDistance = dist;
+          }
+          if (dist <= REACHED_THRESHOLD_METERS) {
+            if (m.role === "collector") isNearCollector = true;
+            if (m.role === "driver") isNearDriver = true;
+          }
+        }
+
+        return {
+          ...p,
+          displayLat: loc.lat,
+          displayLng: loc.lng,
+          isApproximateArea: loc.isApproximateArea,
+          plannedTrips,
+          doneTrips,
+          isTripComplete,
+          dueAmount,
+          isDuePaid,
+          isNearCollector,
+          isNearDriver,
+          nearestWorkerDistance: minDistance,
+        };
+      });
+  }, [people, trips, receipts, plans, selectedWard, currentYear, currentMonth, members]);
+
+  // Filtered customers for map display
+  const filteredCustomers = useMemo(() => {
+    return customersWithStatus.filter((c) => {
+      // Role-based status evaluation:
+      // In Driver view: check trip progress
+      // In Collector view: check dues payment
+      // In All view: green if either trip complete OR dues paid OR worker reached
+      const isGreen =
+        activeTab === "driver"
+          ? c.isTripComplete || c.isNearDriver
+          : activeTab === "collector"
+            ? c.isDuePaid || c.isNearCollector
+            : c.isTripComplete || c.isDuePaid || c.isNearDriver || c.isNearCollector;
+
+      if (filterStatus === "done" && !isGreen) return false;
+      if (filterStatus === "pending" && isGreen) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matches =
+          c.name.toLowerCase().includes(q) ||
+          c.card.toLowerCase().includes(q) ||
+          c.tole.toLowerCase().includes(q) ||
+          (c.nature && c.nature.toLowerCase().includes(q)) ||
+          (c.phone && c.phone.includes(q));
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [customersWithStatus, activeTab, filterStatus, searchQuery]);
+
+  // 2. Leaflet map initialization
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
@@ -78,12 +242,18 @@ export function DashboardLiveMap({ userId, userName }: Props) {
       attributionControl: false,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+    }).addTo(map);
+
+    peopleMarkersLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
     setTimeout(() => {
-      if (mapRef.current) mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 13, { duration: 1.5 });
-    }, 600);
+      if (mapRef.current) {
+        mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 14, { duration: 1.5 });
+      }
+    }, 500);
 
     return () => {
       if (mapRef.current) {
@@ -93,86 +263,186 @@ export function DashboardLiveMap({ userId, userName }: Props) {
     };
   }, []);
 
-  // ── Redraw markers whenever member list changes ─────────────────────────
+  // 3. Render and update team members (Collectors & Drivers)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Remove departed members
     const liveIds = new Set(members.map((m) => m.userId));
-    for (const [id, marker] of markersRef.current) {
+    for (const [id, marker] of teamMarkersRef.current) {
       if (!liveIds.has(id)) {
         map.removeLayer(marker);
-        markersRef.current.delete(id);
+        teamMarkersRef.current.delete(id);
       }
     }
 
-    // Add / move markers
     members.forEach((m) => {
       const meta = ROLE_META[m.role] ?? ROLE_META.other;
       const isMe = m.userId === userId;
-      const stale = Date.now() - m.updatedAt > 90_000; // grey if >90 s old
+      const stale = Date.now() - m.updatedAt > 90_000;
 
       const icon = L.divIcon({
         className: "team-member-icon",
         html: `
-          <div style="position:relative;width:42px;height:42px;">
-            ${isMe || !stale ? `<div style="position:absolute;inset:-5px;border-radius:9999px;background:${meta.color};opacity:0.2;animation:ping 1.6s cubic-bezier(0,0,0.2,1) infinite;"></div>` : ""}
+          <div style="position:relative; width:44px; height:44px; cursor:pointer;">
+            ${
+              !stale
+                ? `<div style="position:absolute; inset:-6px; border-radius:9999px; background:${meta.color}; opacity:0.25; animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></div>`
+                : ""
+            }
             <div style="
-              width:42px;height:42px;border-radius:9999px;
+              width:44px; height:44px; border-radius:9999px;
               background:${stale ? "#94a3b8" : meta.color};
-              border:3px solid #fff;
-              box-shadow:0 3px 12px rgba(0,0,0,0.35);
-              display:flex;align-items:center;justify-content:center;
-              font-size:19px;
+              border:3px solid #ffffff;
+              box-shadow:0 4px 14px rgba(0,0,0,0.4);
+              display:flex; align-items:center; justify-content:center;
+              font-size:20px;
             ">${meta.emoji}</div>
             <div style="
-              position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
-              background:${stale ? "#64748b" : meta.color};color:#fff;
-              font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;
-              white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);max-width:100px;overflow:hidden;text-overflow:ellipsis;
+              position:absolute; bottom:-22px; left:50%; transform:translateX(-50%);
+              background:${stale ? "#64748b" : meta.color}; color:#ffffff;
+              font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px;
+              white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.3); max-width:110px; overflow:hidden; text-overflow:ellipsis;
             ">${isMe ? "म / You" : m.name}</div>
           </div>`,
-        iconSize: [42, 42],
-        iconAnchor: [21, 21],
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       });
 
-      const existing = markersRef.current.get(m.userId);
+      const existing = teamMarkersRef.current.get(m.userId);
       if (existing) {
         existing.setLatLng([m.lat, m.lng]);
         existing.setIcon(icon);
-        existing.setTooltipContent(
-          `<b>${m.name}</b> (${meta.label})<br/>
-           <span style="font-size:10px;color:${stale ? "#d97706" : "#059669"};">
-             ${stale ? "⚠️ पुरानो स्थान (>१.५ मिनेट)" : "🟢 लाइभ"}</span>`,
-        );
       } else {
-        const marker = L.marker([m.lat, m.lng], { icon, zIndexOffset: isMe ? 2000 : 1000 })
+        const marker = L.marker([m.lat, m.lng], { icon, zIndexOffset: 2500 })
           .addTo(map)
           .bindTooltip(
             `<b>${m.name}</b> (${meta.label})<br/>
              <span style="font-size:10px;color:${stale ? "#d97706" : "#059669"};">
-               ${stale ? "⚠️ पुरानो स्थान" : "🟢 लाइभ"}</span>`,
+               ${stale ? "⚠️ पुरानो स्थान" : "🟢 लाइभ GPS सक्रिय"}</span>`,
             { direction: "top", offset: [0, -26] },
           );
-        markersRef.current.set(m.userId, marker);
+        teamMarkersRef.current.set(m.userId, marker);
       }
     });
-
-    // Auto-fit to show all active members
-    if (members.length >= 2) {
-      const lls = members.map((m) => [m.lat, m.lng] as [number, number]);
-      try {
-        map.fitBounds(lls, { padding: [60, 60], maxZoom: 16, animate: false });
-      } catch {
-        /* ignore */
-      }
-    } else if (members.length === 1) {
-      map.setView([members[0].lat, members[0].lng], 15);
-    }
   }, [members, userId]);
 
-  // ── Subscribe to the shared team-location channel ───────────────────────
+  // 4. Render customer pins with profession, turning GREEN on task reach / completion
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = peopleMarkersLayerRef.current;
+    if (!map || !layer) return;
+
+    layer.clearLayers();
+
+    filteredCustomers.forEach((c) => {
+      const emoji = natureEmoji(c.nature) || "👤";
+      const isSelected = selectedPerson?.card === c.card && selectedPerson?.ward === c.ward;
+
+      // Determine Green conversion:
+      // - Driver perspective: Trip complete OR driver is physically at the location (<75m)
+      // - Collector perspective: Dues paid OR collector is physically at the location (<75m)
+      // - Combined view: either satisfied
+      let isGreen = false;
+      let statusText = "";
+
+      if (activeTab === "driver") {
+        isGreen = c.isTripComplete || c.isNearDriver;
+        statusText = c.isNearDriver
+          ? "चालक पुग्यो (Reached)"
+          : c.isTripComplete
+            ? "ट्रिप पूरा (Done)"
+            : `ट्रिप बाँकी (${c.doneTrips}/${c.plannedTrips})`;
+      } else if (activeTab === "collector") {
+        isGreen = c.isDuePaid || c.isNearCollector;
+        statusText = c.isNearCollector
+          ? "संकलक पुग्यो (Reached)"
+          : c.isDuePaid
+            ? "चुक्ता (Paid)"
+            : `बाँकी: रु. ${c.dueAmount.toLocaleString("en-IN")}`;
+      } else {
+        isGreen = c.isTripComplete || c.isDuePaid || c.isNearDriver || c.isNearCollector;
+        if (c.isNearDriver || c.isNearCollector) {
+          statusText = "टोली पुग्यो (Team Reached)";
+        } else if (c.isTripComplete && c.isDuePaid) {
+          statusText = "सबै पूरा (Completed)";
+        } else if (c.isTripComplete) {
+          statusText = "ट्रिप पूरा";
+        } else if (c.isDuePaid) {
+          statusText = "रकम चुक्ता";
+        } else {
+          statusText = "बाँकी (Pending)";
+        }
+      }
+
+      const bgColor = isGreen ? "#10b981" : "#ef4444"; // Green or Red
+      const size = isSelected ? 38 : isGreen ? 30 : 34;
+      const zIndex = isSelected ? 2000 : isGreen ? 200 : 500;
+
+      const pinIcon = L.divIcon({
+        className: "customer-person-pin",
+        html: `
+          <div style="position: relative; width: ${size}px; height: ${size}px; cursor: pointer; z-index: ${zIndex};">
+            ${
+              !isGreen
+                ? `<div style="position: absolute; inset: -4px; border-radius: 9999px; background-color: ${bgColor}; opacity: 0.3; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>`
+                : ""
+            }
+            <div style="
+              width: ${size}px; height: ${size}px; border-radius: 9999px;
+              background-color: ${bgColor};
+              border: ${isSelected ? "3px solid #1d4ed8" : c.isApproximateArea ? "2px dashed #fbbf24" : "2.5px solid #ffffff"};
+              box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+              display: flex; align-items: center; justify-content: center;
+              font-size: ${size >= 36 ? "18px" : "15px"};
+              color: #ffffff;
+            ">
+              ${emoji}
+            </div>
+            ${
+              isGreen
+                ? `<span style="position: absolute; bottom: -3px; right: -3px; display: flex; align-items: center; justify-content: center; width: 15px; height: 15px; background: #047857; color: #ffffff; border: 1.5px solid #ffffff; border-radius: 9999px; font-size: 10px; font-weight: 900;">✓</span>`
+                : ""
+            }
+            ${
+              c.isApproximateArea
+                ? `<div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background-color: #78350f; color: #fef3c7; font-size: 8px; font-weight: bold; padding: 1px 4px; border-radius: 3px; white-space: nowrap;">वडा ${c.ward}</div>`
+                : ""
+            }
+          </div>
+        `,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+      });
+
+      const marker = L.marker([c.displayLat, c.displayLng], { icon: pinIcon });
+      marker.on("click", () => {
+        setSelectedPerson(c);
+        if (mapRef.current) {
+          mapRef.current.flyTo([c.displayLat, c.displayLng], 16, { duration: 0.8 });
+        }
+      });
+
+      marker.bindTooltip(
+        `<b>${emoji} ${c.name}</b> (कार्ड: ${c.card})<br/>
+         💼 पेसा/व्यवसाय: <b>${natureLabel(c.nature) || "घरायसी / अन्य"}</b><br/>
+         वडा ${c.ward}, ${c.tole}${c.isApproximateArea ? ' <span style="color:#d97706;font-weight:bold;">(वडा क्षेत्र)</span>' : ""}<br/>
+         <span style="color:${isGreen ? "#059669" : "#dc2626"}; font-weight:bold;">
+           ${isGreen ? "🟢 " : "🔴 "}${statusText}
+         </span>
+         ${
+           c.nearestWorkerDistance !== undefined
+             ? `<br/><span style="color:#2563eb;font-size:10px;">📍 नजिकको सवारी: ${formatDistance(c.nearestWorkerDistance)}</span>`
+             : ""
+         }`,
+        { direction: "top", offset: [0, -size / 2 - 4] },
+      );
+
+      layer.addLayer(marker);
+    });
+  }, [filteredCustomers, selectedPerson, activeTab]);
+
+  // 5. Subscribe to Supabase Realtime channel
   useEffect(() => {
     const channel = supabase.channel(TEAM_LOCATION_CHANNEL, {
       config: { presence: { key: userId ?? "dashboard-guest" } },
@@ -182,268 +452,270 @@ export function DashboardLiveMap({ userId, userName }: Props) {
       const state = channel.presenceState<TeamMemberLocation>();
       const list: TeamMemberLocation[] = [];
       for (const presences of Object.values(state)) {
-        // Multiple tabs per key — take the freshest
         const latest = [...presences].sort(
           (a, b) => (b as TeamMemberLocation).updatedAt - (a as TeamMemberLocation).updatedAt,
         )[0] as TeamMemberLocation;
         if (latest?.lat && latest?.lng) list.push(latest);
       }
-      // Sort: collectors first, then drivers, then others
-      list.sort((a, b) => {
-        const order: Record<TeamMemberRole, number> = {
-          collector: 0,
-          driver: 1,
-          admin: 2,
-          other: 3,
-        };
-        return (order[a.role] ?? 3) - (order[b.role] ?? 3);
-      });
       setMembers(list);
     };
 
-    channelRef.current = channel;
-
-    // Presence callbacks must be registered before subscribe()
     channel.on("presence", { event: "sync" }, sync);
     channel.subscribe();
 
     return () => {
-      void channel.untrack();
       void supabase.removeChannel(channel);
-      channelRef.current = null;
     };
   }, [userId]);
 
-  // ── Optional: dashboard admin shares their own location ─────────────────
-  const toggleSharing = useCallback(() => {
-    if (sharing) {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      setSharing(false);
-      setMyLocation(null);
-      setStatus("");
-      void channelRef.current?.untrack();
-      return;
+  // Fullscreen toggle handler
+  const toggleFullscreen = () => {
+    const el = mapWrapperRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    } else if (el.requestFullscreen) {
+      void el
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => setIsFullscreen(true));
+    } else {
+      setIsFullscreen(!isFullscreen);
     }
+    if (mapRef.current) setTimeout(() => mapRef.current!.invalidateSize(), 300);
+  };
 
-    if (!navigator.geolocation) {
-      setLocationError("GPS उपलब्ध छैन।");
-      return;
-    }
+  const totalPeopleCount = customersWithStatus.length;
+  const greenCount = customersWithStatus.filter((c) =>
+    activeTab === "driver"
+      ? c.isTripComplete || c.isNearDriver
+      : activeTab === "collector"
+        ? c.isDuePaid || c.isNearCollector
+        : c.isTripComplete || c.isDuePaid || c.isNearDriver || c.isNearCollector,
+  ).length;
+  const pendingCount = totalPeopleCount - greenCount;
 
-    setLocationError("");
-    setStatus("GPS खोज्दैछ...");
-    setSharing(true);
-
-    const handlePos = (pos: GeolocationPosition) => {
-      const { latitude: lat, longitude: lng } = pos.coords;
-      setMyLocation({ lat, lng });
-      setStatus("✓ लोकेसन साझा भइरहेको छ");
-      broadcastPos(lat, lng);
-      if (mapRef.current && !myLocation) mapRef.current.flyTo([lat, lng], 15, { duration: 1 });
-    };
-
-    navigator.geolocation.getCurrentPosition(
-      handlePos,
-      () =>
-        navigator.geolocation.getCurrentPosition(
-          handlePos,
-          () => {
-            setSharing(false);
-            setStatus("");
-            setLocationError("GPS स्थान प्राप्त गर्न सकिएन।");
-          },
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
-        ),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
-    );
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      handlePos,
-      (err) => console.warn("Dashboard GPS watch:", err),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
-    );
-  }, [sharing, broadcastPos, myLocation]);
-
-  // Re-broadcast when role changes while sharing
-  useEffect(() => {
-    if (sharing && myLocation) broadcastPos(myLocation.lat, myLocation.lng);
-  }, [myRole, sharing, myLocation, broadcastPos]);
-
-  // Cleanup watch on unmount
-  useEffect(
-    () => () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    },
-    [],
-  );
-
-  const activeCount = members.length;
   const collectorCount = members.filter((m) => m.role === "collector").length;
   const driverCount = members.filter((m) => m.role === "driver").length;
 
   return (
-    <div className="rounded-xl border bg-card shadow-xs overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-5 py-3">
-        <div>
-          <h3 className="text-sm font-extrabold text-foreground flex items-center gap-2">
-            <Radio className="size-4 text-blue-600 animate-pulse" />
-            टोली लाइभ लोकेसन नक्सा (Live Team Map)
-          </h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            संकलन नक्सा र ट्रिप पृष्ठबाट GPS सुरु गरेका संकलक र चालकको स्थान यहाँ देखिन्छ
-          </p>
+    <div
+      ref={mapWrapperRef}
+      className={`rounded-xl border bg-card shadow-xs overflow-hidden transition-all ${
+        isFullscreen ? "fixed inset-0 z-50 rounded-none border-none h-screen w-screen" : ""
+      }`}
+    >
+      {/* ── Top Header & Tab Controls ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Radio className="size-4 text-emerald-600 animate-pulse" />
+          <div>
+            <h3 className="text-sm font-extrabold text-foreground flex items-center gap-2">
+              नक्सा: ग्राहक पेसा/व्यवसाय तथा लाइभ चालक/संकलक
+            </h3>
+            <p className="text-[11px] text-muted-foreground">
+              चालक वा संकलक पुग्दा वा कार्य सम्पन्न हुँदा पिन हरियो (🟢) मा परिवर्तन हुन्छ
+            </p>
+          </div>
         </div>
 
+        {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Active counters */}
+          {/* Active Broadcast Indicators */}
           {collectorCount > 0 && (
-            <div className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-              🚚 {collectorCount} संकलक
-            </div>
+            <span className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
+              🚚 {collectorCount} संकलक लाइभ
+            </span>
           )}
           {driverCount > 0 && (
-            <div className="flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 text-[11px] font-bold text-violet-700 dark:text-violet-300">
-              🛻 {driverCount} चालक
-            </div>
+            <span className="flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-300">
+              🛻 {driverCount} चालक लाइभ
+            </span>
           )}
 
-          {/* Optional: admin shares their own location */}
-          <div className="flex items-center gap-1.5">
-            <select
-              aria-label="मेरो भूमिका"
-              className="h-7 rounded-md border bg-background px-2 text-xs font-bold text-foreground"
-              value={myRole}
-              onChange={(e) => setMyRole(e.target.value as TeamMemberRole)}
-            >
-              <option value="admin">🏢 प्रशासक</option>
-              <option value="collector">🚚 संकलक</option>
-              <option value="driver">🛻 चालक</option>
-              <option value="other">👤 अन्य</option>
-            </select>
-            <Button
+          {/* Perspective Selector (Driver / Collector / All) */}
+          <div className="flex rounded-lg border bg-muted p-0.5 text-xs font-bold">
+            <button
               type="button"
-              size="sm"
-              variant={sharing ? "default" : "outline"}
-              onClick={toggleSharing}
-              className={`gap-1.5 text-xs font-bold ${
-                sharing
-                  ? "bg-blue-600 hover:bg-blue-700 text-white"
-                  : "border-blue-500/40 text-blue-700 hover:bg-blue-50 dark:text-blue-300"
+              onClick={() => setActiveTab("all")}
+              className={`rounded-md px-2.5 py-1 transition-colors ${
+                activeTab === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <LocateFixed className={`size-3.5 ${sharing ? "animate-spin" : ""}`} />
-              {sharing ? "साझा भइरहेको" : "मेरो लोकेसन साझा"}
-            </Button>
+              सबै दृश्य
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("driver")}
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors ${
+                activeTab === "driver" ? "bg-background text-violet-700 dark:text-violet-300 shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Truck className="size-3" /> चालक (Trips)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("collector")}
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors ${
+                activeTab === "collector" ? "bg-background text-blue-700 dark:text-blue-300 shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Car className="size-3" /> संकलक (Dues)
+            </button>
           </div>
 
-          {/* Total active badge */}
-          <div
-            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold border ${
-              activeCount > 0
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20"
-                : "bg-muted text-muted-foreground border-border"
-            }`}
+          {/* Status Filter */}
+          <select
+            aria-label="Filter status"
+            className="h-8 rounded-md border bg-background px-2 text-xs font-bold text-foreground"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as any)}
           >
-            <Users className="size-3" />
-            {activeCount} सक्रिय
+            <option value="all">सबै अवस्था ({totalPeopleCount})</option>
+            <option value="done">🟢 हरियो / पुगेको ({greenCount})</option>
+            <option value="pending">🔴 रातो / बाँकी ({pendingCount})</option>
+          </select>
+
+          {/* Fullscreen Toggle */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleFullscreen}
+            className="h-8 px-2.5"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Map"}
+          >
+            {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Search & Metrics Strip ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2 text-xs">
+        <div className="flex items-center gap-2 flex-1 max-w-sm">
+          <div className="relative w-full">
+            <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="नाम, कार्ड, टोल, पेसा खोज्नुहोस्..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 w-full rounded-md border bg-background pl-8 pr-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs font-bold">
+          <div className="flex items-center gap-1.5 text-emerald-600">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            <span>सम्पन्न/पुगेको: {greenCount}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-red-600">
+            <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+            <span>बाँकी/नपुगेको: {pendingCount}</span>
+          </div>
+          <div className="text-muted-foreground">
+            नक्सामा कुल: {filteredCustomers.length} जना
           </div>
         </div>
       </div>
 
-      {/* Status / error banners */}
-      {status && (
-        <div className="flex items-center gap-2 border-b bg-blue-500/5 px-4 py-1.5 text-xs text-blue-700 dark:text-blue-300 font-medium">
-          <LocateFixed className="size-3.5 shrink-0 animate-spin text-blue-600" />
-          <span>{status}</span>
-        </div>
-      )}
-      {locationError && (
-        <div className="flex items-center gap-2 border-b bg-amber-500/5 px-4 py-1.5 text-xs text-amber-800 dark:text-amber-200 font-medium">
-          <AlertTriangle className="size-3.5 shrink-0 text-amber-600" />
-          <span>{locationError}</span>
-        </div>
-      )}
-
-      {/* Map */}
-      <div className="leaflet-map-wrapper relative w-full" style={{ height: 360 }}>
+      {/* ── Leaflet Map Area ── */}
+      <div
+        className="leaflet-map-wrapper relative w-full"
+        style={{ height: isFullscreen ? "calc(100vh - 90px)" : 420 }}
+      >
         <div ref={mapContainerRef} className="h-full w-full bg-muted" />
 
-        {/* Legend overlay */}
-        <div className="absolute top-3 left-3 z-[800] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[210px]">
-          <div className="font-bold text-foreground mb-1.5 flex items-center gap-1.5">
-            <Eye className="size-3.5 text-blue-600" />
-            <span>सक्रिय टोली सदस्य</span>
+        {/* Legend Overlay */}
+        <div className="absolute top-3 left-3 z-[800] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[220px]">
+          <div className="font-bold text-foreground mb-1 flex items-center gap-1">
+            <MapPin className="size-3.5 text-emerald-600" />
+            <span>नक्सा संकेत (Legend)</span>
           </div>
-          {activeCount === 0 ? (
-            <p className="text-muted-foreground text-[10px] leading-relaxed">
-              अहिले कुनै संकलक वा चालकले GPS सुरु गरेका छैनन्।
-              <br />
-              <span className="font-semibold">संकलन नक्सा</span> वा{" "}
-              <span className="font-semibold">ट्रिप पृष्ठ</span>मा GPS ON गर्नुहोस्।
-            </p>
-          ) : (
-            <div className="space-y-1">
-              {members.map((m) => {
-                const meta = ROLE_META[m.role] ?? ROLE_META.other;
-                const stale = Date.now() - m.updatedAt > 90_000;
-                return (
-                  <button
-                    key={m.userId}
-                    type="button"
-                    className="flex w-full items-center gap-1.5 cursor-pointer hover:bg-muted/60 rounded px-1 py-0.5 text-left"
-                    onClick={() => {
-                      if (mapRef.current) mapRef.current.flyTo([m.lat, m.lng], 16, { duration: 1 });
-                    }}
-                  >
-                    <span>{meta.emoji}</span>
-                    <span className="truncate font-semibold text-foreground flex-1">
-                      {m.userId === userId ? "म (You)" : m.name}
-                    </span>
-                    <span
-                      className={`size-2 rounded-full shrink-0 ${
-                        stale ? "bg-amber-400" : "bg-emerald-500 animate-pulse"
-                      }`}
-                    />
-                  </button>
-                );
-              })}
+          <div className="space-y-1 text-muted-foreground text-[10px]">
+            <div className="flex items-center gap-1.5">
+              <span className="size-3 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">
+                ✓
+              </span>
+              <span>हरियो: काम सम्पन्न वा सवारी पुग्यो</span>
             </div>
-          )}
+            <div className="flex items-center gap-1.5">
+              <span className="size-3 rounded-full bg-red-500" />
+              <span>रातो: बाँकी वा सवारी पुग्न बाँकी</span>
+            </div>
+            <div className="flex items-center gap-1.5 pt-1 border-t">
+              <span>👤 🏨 🛒 💊</span>
+              <span>पिन भित्रको आइकन: ग्राहकको पेसा/व्यवसाय</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span>🚚 🛻</span>
+              <span>गाडी आइकन: प्रत्यक्ष GPS स्थान</span>
+            </div>
+          </div>
         </div>
 
-        {/* Empty state overlay */}
-        {activeCount === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[800]">
-            <div className="rounded-xl bg-card/90 backdrop-blur-sm border border-border/70 px-6 py-5 text-center shadow-xl max-w-xs">
-              <Navigation className="size-9 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-xs font-bold text-muted-foreground">
-                कुनै संकलक वा चालक अहिले लाइभ छैनन्
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-                <b>संकलन नक्सा (GPS)</b> वा <b>ट्रिप तथा चालक</b> पृष्ठमा गएर
-                <br />
-                <b>GPS सुरु गर्नुहोस्</b> बटन थिच्नुहोस् — स्थान यहाँ आउँछ।
-              </p>
+        {/* Selected Customer Floating Card */}
+        {selectedPerson && (
+          <div className="absolute bottom-3 left-3 right-3 sm:right-auto sm:max-w-sm z-[800] rounded-xl bg-card/95 backdrop-blur-md p-3.5 shadow-xl border-2 border-primary/50 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-start justify-between gap-2 border-b pb-2 mb-2">
+              <div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-base">{natureEmoji(selectedPerson.nature) || "👤"}</span>
+                  <h4 className="font-extrabold text-sm text-foreground">
+                    {selectedPerson.name}
+                  </h4>
+                  <span className="rounded bg-primary/10 border border-primary/30 px-1 py-0.2 font-mono text-[10px] font-bold text-primary">
+                    कार्ड: {selectedPerson.card}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  💼 पेसा: <b>{natureLabel(selectedPerson.nature) || "घरायसी / अन्य"}</b> • वडा {selectedPerson.ward}, {selectedPerson.tole}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPerson(null)}
+                className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground text-xs"
+              >
+                ✕
+              </button>
             </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg bg-muted/60 p-2">
+                <span className="block text-[10px] text-muted-foreground">मासिक ट्रिप स्थिति</span>
+                <span className={`font-bold ${selectedPerson.isTripComplete ? "text-emerald-600" : "text-amber-600"}`}>
+                  {selectedPerson.isTripComplete ? "✓ पूरा भयो" : `${selectedPerson.doneTrips}/${selectedPerson.plannedTrips} ट्रिप`}
+                </span>
+              </div>
+              <div className="rounded-lg bg-muted/60 p-2">
+                <span className="block text-[10px] text-muted-foreground">बक्यौता रकम</span>
+                <span className={`font-bold ${selectedPerson.isDuePaid ? "text-emerald-600" : "text-red-600"}`}>
+                  {selectedPerson.isDuePaid ? "✓ चुक्ता" : `रु. ${selectedPerson.dueAmount.toLocaleString("en-IN")}`}
+                </span>
+              </div>
+            </div>
+
+            {selectedPerson.nearestWorkerDistance !== undefined && (
+              <div className="mt-2 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                📍 नजिकको संकलक/चालक दुरी: {formatDistance(selectedPerson.nearestWorkerDistance)}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-5 py-2 text-[10px] text-muted-foreground">
+      {/* ── Footer Info Strip ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Supabase Realtime Presence — स्वतः अपडेट (~१ सेकेन्डभित्र)
+          GPS सक्रिय हुँदा स्वतः प्रत्यक्ष ट्र्याक भई नजिक पुग्दा वा कार्य सम्पन्न हुँदा हरियो (🟢) हुन्छ
         </span>
-        {myLocation && (
-          <span className="font-mono font-bold text-foreground">
-            📍 {myLocation.lat.toFixed(5)}, {myLocation.lng.toFixed(5)}
-          </span>
-        )}
+        <div className="flex items-center gap-2 font-mono text-[10px]">
+          <span>चालक ट्रिप + संकलक बक्यौता लाइभ सिंक</span>
+        </div>
       </div>
     </div>
   );
