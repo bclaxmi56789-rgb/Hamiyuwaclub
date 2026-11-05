@@ -20,6 +20,10 @@ import {
   Compass,
   AlertTriangle,
   MousePointer,
+  Maximize2,
+  Minimize2,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 import {
   todayBS,
@@ -112,6 +116,33 @@ function CollectionMapPage() {
 
   // Selected customer for navigation / route
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDue | null>(null);
+
+  // ─── Map view controls: fullscreen & hide overlay boxes ───
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
+  const [mapFull, setMapFull] = useState(false);
+  const [hideBoxes, setHideBoxes] = useState(false);
+
+  const toggleMapFullscreen = () => {
+    const el = mapWrapperRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+      setMapFull(false);
+    } else if (el.requestFullscreen) {
+      void el.requestFullscreen()
+        .then(() => setMapFull(true))
+        .catch(() => setMapFull(true));
+    } else {
+      setMapFull(true); // Fallback: CSS full-viewport mode (mobile Safari)
+    }
+    if (mapRef.current) setTimeout(() => mapRef.current!.invalidateSize(), 350);
+  };
+
+  useEffect(() => {
+    const onFsChange = () => setMapFull(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   // Filter states; the section drawer (बक्यौता/थेली tabs) starts open on desktop
   const [filterOnlyDues, setFilterOnlyDues] = useState(true);
@@ -828,14 +859,50 @@ function CollectionMapPage() {
       {/* Main Map View Area with Floating Overlay Panels */}
       {/* leaflet-map-wrapper creates an isolated stacking context so Leaflet's
           internal z-indexes don't bleed above the sticky app navbar on mobile. */}
-      <div className="leaflet-map-wrapper relative w-full overflow-hidden rounded-xl border-2 border-border shadow-lg">
+      <div
+        ref={mapWrapperRef}
+        className={`leaflet-map-wrapper relative w-full overflow-hidden rounded-xl border-2 border-border shadow-lg ${
+          mapFull ? "map-fullscreen" : ""
+        }`}
+      >
         {/* Leaflet Map Canvas */}
         <div
           ref={mapContainerRef}
           className={`h-full w-full bg-muted ${settingDriverMode ? "cursor-crosshair" : ""}`}
         />
 
+        {/* Map view controls: navigate, hide boxes, fullscreen */}
+        <div className="absolute top-3 right-3 z-[1001] flex flex-col gap-1.5">
+          {selectedCustomer && (
+            <button
+              type="button"
+              title="ग्राहकसम्म Google Maps navigation (Navigate)"
+              onClick={() => handleOpenDirections(selectedCustomer)}
+              className="rounded-full bg-primary p-2 text-white shadow-lg hover:bg-primary/90"
+            >
+              <Navigation className="size-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            title={hideBoxes ? "बक्सहरू देखाउनुहोस् (Show info boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide boxes)"}
+            onClick={() => setHideBoxes((v) => !v)}
+            className="rounded-full bg-card p-2 text-foreground shadow-lg border hover:bg-accent"
+          >
+            {hideBoxes ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+          </button>
+          <button
+            type="button"
+            title={mapFull ? "फुल स्क्रिन बन्द (Exit full screen)" : "फुल स्क्रिन (Full screen)"}
+            onClick={toggleMapFullscreen}
+            className="rounded-full bg-card p-2 text-foreground shadow-lg border hover:bg-accent"
+          >
+            {mapFull ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </button>
+        </div>
+
         {/* Floating Bubble Legend on Top-Left */}
+        {!hideBoxes && (
         <div className="absolute top-3 left-3 z-[1000] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[210px]">
           <div className="font-bold text-foreground mb-1.5 flex items-center gap-1">
             <span className="size-2 rounded-full bg-red-600" />
@@ -876,6 +943,7 @@ function CollectionMapPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Setting Driver Mode Alert Banner on Map */}
         {settingDriverMode && (

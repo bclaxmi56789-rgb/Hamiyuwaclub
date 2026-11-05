@@ -375,6 +375,20 @@
   height: 100%;
 }
 
+/* Full-viewport map mode (fallback where the Fullscreen API is unavailable,
+   e.g. iOS Safari): the wrapper detaches from the page layout. */
+.leaflet-map-wrapper.map-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  height: 100svh;
+  max-height: none;
+  min-height: 0;
+  border-radius: 0;
+  border-width: 0;
+  box-shadow: none;
+}
+
 /* Keep floating overlay panels (legend, customer cards) reachable above
    map tiles/markers (which sit at z:200-700 inside the isolated context) */
 .leaflet-map-wrapper .leaflet-overlay-panel {
