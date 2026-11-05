@@ -140,7 +140,8 @@ function useLocalityPhotoSrc(value: string): string {
 }
 
 function Masters() {
-  const { query, ward, signedIn } = useWorkspace();
+  const { query, ward: appWard, setWard, signedIn } = useWorkspace();
+  const [selectedWard, setSelectedWard] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [editingCard, setEditingCard] = useState<string | null>(null);
@@ -149,7 +150,7 @@ function Masters() {
   const [viewingCardPerson, setViewingCardPerson] = useState<Person | null>(null);
   const [viewingPerson, setViewingPerson] = useState<Person | null>(null);
   const plans: PlanItem[] = query.data?.plans ?? [];
-  const [form, setForm] = useState<Person>(getEmptyForm(ward ?? "1"));
+  const [form, setForm] = useState<Person>(getEmptyForm(appWard || "1"));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const queryClient = useQueryClient();
@@ -350,7 +351,7 @@ function Masters() {
 
   const people =
     query.data?.people.filter((p) => {
-      if (ward && p.ward !== ward) return false;
+      if (selectedWard !== "all" && p.ward !== selectedWard) return false;
       const term = search.toLowerCase();
       const planNames = p.plans?.map((x) => x.name).join(" ") || "";
       const text =
@@ -380,7 +381,7 @@ function Masters() {
   }, [query.data?.people, allReceipts, plans]);
 
   const handleOpenAdd = () => {
-    setForm(getEmptyForm(ward ?? "1"));
+    setForm(getEmptyForm(selectedWard !== "all" ? selectedWard : appWard || "1"));
     setIsCreatingPlan(false);
     setNewPlanForm({
       name: "",
@@ -715,7 +716,7 @@ function Masters() {
       await saveRecord({ data: form });
       await queryClient.invalidateQueries({ queryKey: ["workspace"] });
       setOpenModal(false);
-      setForm(getEmptyForm(ward ?? "1"));
+      setForm(getEmptyForm(selectedWard !== "all" ? selectedWard : appWard || "1"));
       setIsCreatingPlan(false);
       setEditingCard(null);
       setEditingWard(null);
@@ -762,7 +763,25 @@ function Masters() {
       </div>
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          {/* Ward filter dropdown */}
+          <div className="flex items-center gap-1.5 bg-card border rounded-md px-2 py-1.5 text-xs">
+            <span className="font-semibold text-muted-foreground">वडा (Ward):</span>
+            <select
+              aria-label="Filter by ward"
+              value={selectedWard}
+              onChange={(e) => setSelectedWard(e.target.value)}
+              className="bg-transparent font-bold text-foreground focus:outline-none cursor-pointer"
+            >
+              <option value="all">सबै वडा (All Wards)</option>
+              {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
+                <option key={w} value={w}>
+                  वडा नं. {w}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="relative max-w-md flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
