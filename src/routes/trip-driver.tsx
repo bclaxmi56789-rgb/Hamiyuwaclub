@@ -84,7 +84,7 @@ interface CustomerWithTrips extends Person {
 }
 
 function TripDriverPage() {
-  const { query, ward, year, userId, activeEmployeeId, employees } = useWorkspace();
+  const { query, ward, year, userId, userEmail, activeEmployeeId, employees } = useWorkspace();
   const queryClient = useQueryClient();
   const logTripFn = useServerFn(logTrip);
   const deleteTripFn = useServerFn(deleteTrip);
@@ -117,19 +117,38 @@ function TripDriverPage() {
   useTeamLocationSubscribe(userId ?? null, setTeamMembers);
 
   // Compute broadcaster's actual employee name and designation
-  const activeEmployee = employees?.find((e) => e.id === activeEmployeeId);
-  const broadcasterName = activeEmployee?.name || (userId ? "चालक (व्यवस्थापक)" : "चालक");
+  const activeEmployee = employees?.find(
+    (e) =>
+      e.id === activeEmployeeId ||
+      (userEmail && e.name.toLowerCase().includes("nirajan")) ||
+      (userEmail && userEmail.toLowerCase().includes("freefly")),
+  );
+  const broadcasterName =
+    activeEmployee?.name ||
+    (userEmail?.toLowerCase().includes("freefly")
+      ? "nirajanemployee"
+      : userEmail
+        ? userEmail.split("@")[0]
+        : "चालक");
   const broadcasterDesignation = activeEmployee?.designation || "चालक";
 
   // ── Broadcast this driver's live location to the dashboard map ──────────
   const broadcastToDashboard = useTeamLocationBroadcast({
     userId: userId ?? null,
-    employeeId: activeEmployeeId ?? "driver",
+    userEmail: userEmail ?? null,
+    employeeId: activeEmployee?.id || activeEmployeeId || "driver",
     name: broadcasterName,
     designation: broadcasterDesignation,
     role: "driver",
-    active: trackingLocation,
+    active: trackingLocation || Boolean(driverLocation),
   });
+
+  // Always keep dashboard updated whenever driver location updates (GPS, click or drag)
+  useEffect(() => {
+    if (driverLocation) {
+      broadcastToDashboard(driverLocation.latitude, driverLocation.longitude);
+    }
+  }, [driverLocation, broadcastToDashboard]);
 
   // Local ward filter (allows viewing all wards or specific ward independently)
   const [selectedWard, setSelectedWard] = useState<string>("all");

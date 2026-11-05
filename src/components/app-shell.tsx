@@ -82,6 +82,7 @@ type AppState = {
   setWard: (ward: string) => void;
   signedIn: boolean;
   userId: string | null;
+  userEmail: string | null;
   ready: boolean;
   year: number;
   setYear: (year: number) => void;
@@ -221,6 +222,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [year, setYear] = useState(0);
   const [signedIn, setSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -390,6 +392,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       transition = true;
       setSignedIn(Boolean(session));
       setUserId(session?.user.id ?? null);
+      setUserEmail(session?.user.email ?? null);
       // Name-space every private cache by the signed-in account so a new account starts blank
       setCacheScope(session?.user.id ?? null);
       setReady(true);
@@ -433,6 +436,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (active && !transition) {
           setSignedIn(!error && Boolean(data.user));
           setUserId(error ? null : (data.user?.id ?? null));
+          setUserEmail(error ? null : (data.user?.email ?? null));
           setCacheScope(error ? null : (data.user?.id ?? null));
           setReady(true);
         }
@@ -477,6 +481,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     // Name-spaced caches of the signed-out account stop being read; clear the active-worker key too
     setSignedIn(false);
     setUserId(null);
+    setUserEmail(null);
     try {
       localStorage.removeItem(hamiCacheKey("hami_active_employee_id"));
       localStorage.removeItem(hamiCacheKey("hami_employee_permissions"));
@@ -496,6 +501,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     setSignedIn(false);
     setUserId(null);
+    setUserEmail(null);
     setPinUnlocked(false);
     setGateEmpId("");
     setGatePin("");
@@ -523,6 +529,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           setYear,
           signedIn,
           userId,
+          userEmail,
           ready,
           signOut,
           activeEmployeeId,
@@ -554,6 +561,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           setYear,
           signedIn,
           userId,
+          userEmail,
           ready,
           signOut,
           activeEmployeeId,
@@ -587,6 +595,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           setYear,
           signedIn,
           userId,
+          userEmail,
           ready,
           signOut,
           activeEmployeeId,
@@ -619,6 +628,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           setYear,
           signedIn,
           userId,
+          userEmail,
           ready,
           signOut,
           activeEmployeeId,
@@ -826,6 +836,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         setYear,
         signedIn,
         userId,
+        userEmail,
         ready,
         signOut,
         activeEmployeeId,

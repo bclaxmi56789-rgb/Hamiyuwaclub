@@ -506,14 +506,30 @@ export function DashboardLiveMap({
         <div className="flex flex-wrap items-center gap-2">
           {/* Active Broadcast Indicators */}
           {collectorCount > 0 && (
-            <span className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300">
+            <button
+              type="button"
+              onClick={() => {
+                const c = members.find((m) => m.role === "collector");
+                if (c && mapRef.current) mapRef.current.flyTo([c.lat, c.lng], 16, { duration: 1 });
+              }}
+              className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 transition-colors cursor-pointer"
+              title="संकलक भएको ठाउँमा नक्सा लैजानुहोस्"
+            >
               🚚 {collectorCount} संकलक लाइभ
-            </span>
+            </button>
           )}
           {driverCount > 0 && (
-            <span className="flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-300">
+            <button
+              type="button"
+              onClick={() => {
+                const d = members.find((m) => m.role === "driver");
+                if (d && mapRef.current) mapRef.current.flyTo([d.lat, d.lng], 16, { duration: 1 });
+              }}
+              className="flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 transition-colors cursor-pointer animate-pulse"
+              title="चालक भएको ठाउँमा नक्सा लैजानुहोस्"
+            >
               🛻 {driverCount} चालक लाइभ
-            </span>
+            </button>
           )}
 
           {/* Perspective Selector (Driver / Collector / All) */}

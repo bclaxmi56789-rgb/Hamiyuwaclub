@@ -2,26 +2,29 @@
  * team-location.ts
  *
  * Shared Supabase Realtime Presence utility for broadcasting and subscribing
- * to live team member GPS positions with strict per-club tenant isolation.
+ * to live team member GPS positions.
  *
- * Channel name: "team-location-<userId>"
- *   — Strictly isolated per club account.
- *   — Collector, Driver, and Admin of the same club see each other's live
- *     positions and actual name + designation on all maps.
+ * Uses the project's shared channel "team-location-tjawgszwbozvxqugdnva" so that:
+ * - Drivers on their phones (e.g. logged in with freeflyplaying3214@gmail.com)
+ * - Collectors in the field
+ * - Admins and managers on the dashboard
+ * all join the exact same Realtime presence channel and see each other's live
+ * locations and actual names in real time without being blocked by differing user IDs.
  */
 
 import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export function getTeamLocationChannel(userId: string | null): string {
-  return userId ? `team-location-${userId}` : "team-location-guest";
-}
+/** The shared Supabase project ID — shared by all users of this project */
+const PROJECT_ID = "tjawgszwbozvxqugdnva";
+export const TEAM_LOCATION_CHANNEL = `team-location-${PROJECT_ID}`;
 
 export type TeamMemberRole = "collector" | "driver" | "admin" | "other";
 
 export interface TeamMemberLocation {
-  id: string; // unique member key e.g. `${userId}:${employeeId || role}`
-  userId: string; // club / owner account UUID
+  id: string; // unique member key e.g. `${userId || email}:${employeeId || role}`
+  userId: string;
+  email?: string;
   employeeId?: string | null;
   name: string;
   designation?: string;
@@ -49,6 +52,8 @@ export const TEAM_ROLE_STYLE: Record<
 interface BroadcastOptions {
   /** The signed-in user's Supabase auth UUID */
   userId: string | null;
+  /** Optional user email */
+  userEmail?: string | null;
   /** Optional active employee ID */
   employeeId?: string | null;
   /** Display name shown on the dashboard map */
@@ -62,12 +67,13 @@ interface BroadcastOptions {
 }
 
 /**
- * Joins the shared team-location Realtime channel for this club and returns a stable
+ * Joins the shared team-location Realtime channel and returns a stable
  * `broadcast(lat, lng)` function. Automatically unjoins on unmount or
  * when `active` becomes false.
  */
 export function useTeamLocationBroadcast({
   userId,
+  userEmail,
   employeeId,
   name,
   designation,
@@ -78,17 +84,14 @@ export function useTeamLocationBroadcast({
 
   const activeRef = useRef(active);
   activeRef.current = active;
-  const metaRef = useRef({ userId, employeeId, name, designation, role });
-  metaRef.current = { userId, employeeId, name, designation, role };
+  const metaRef = useRef({ userId, userEmail, employeeId, name, designation, role });
+  metaRef.current = { userId, userEmail, employeeId, name, designation, role };
   const lastFixRef = useRef<TeamMemberLocation | null>(null);
 
-  const memberKey = userId ? `${userId}:${employeeId || role}` : "guest";
-  const channelName = getTeamLocationChannel(userId);
+  const memberKey = `${userId || userEmail || "worker"}:${employeeId || role}`;
 
   useEffect(() => {
-    if (!userId) return;
-
-    const channel = supabase.channel(channelName, {
+    const channel = supabase.channel(TEAM_LOCATION_CHANNEL, {
       config: { presence: { key: memberKey } },
     });
 
@@ -104,7 +107,7 @@ export function useTeamLocationBroadcast({
       void supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [userId, channelName, memberKey]);
+  }, [memberKey]);
 
   useEffect(() => {
     if (!active) {
@@ -113,12 +116,13 @@ export function useTeamLocationBroadcast({
   }, [active]);
 
   const broadcast = useCallback((lat: number, lng: number) => {
-    const { userId: uid, employeeId: empId, name: nm, designation: desig, role: rl } = metaRef.current;
-    if (!uid || !activeRef.current || !channelRef.current) return;
-    const key = `${uid}:${empId || rl}`;
+    const { userId: uid, userEmail: uemail, employeeId: empId, name: nm, designation: desig, role: rl } = metaRef.current;
+    if (!activeRef.current || !channelRef.current) return;
+    const key = `${uid || uemail || "worker"}:${empId || rl}`;
     const fix: TeamMemberLocation = {
       id: key,
-      userId: uid,
+      userId: uid || "",
+      email: uemail || undefined,
       employeeId: empId || null,
       name: nm || (rl === "driver" ? "चालक" : "संकलक"),
       designation: desig || undefined,
@@ -139,7 +143,7 @@ export function useTeamLocationBroadcast({
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Subscribes to the club's team-location channel and pushes the up-to-date
+ * Subscribes to the shared team-location channel and pushes the up-to-date
  * list of active team members into `onMembers` whenever presence syncs.
  */
 export function useTeamLocationSubscribe(
@@ -149,14 +153,12 @@ export function useTeamLocationSubscribe(
   const cbRef = useRef(onMembers);
   cbRef.current = onMembers;
 
-  const channelName = getTeamLocationChannel(userId);
   const viewerKey = useRef(`viewer-${Math.random().toString(36).slice(2, 8)}`).current;
 
   useEffect(() => {
-    if (!userId) return;
     let cancelled = false;
 
-    const channel = supabase.channel(channelName, {
+    const channel = supabase.channel(TEAM_LOCATION_CHANNEL, {
       config: { presence: { key: viewerKey } },
     });
 
@@ -186,5 +188,5 @@ export function useTeamLocationSubscribe(
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [userId, channelName, viewerKey]);
+  }, [viewerKey]);
 }

@@ -87,7 +87,7 @@ interface CustomerWithDue extends Person {
 }
 
 function CollectionMapPage() {
-  const { query, ward, setWard, signedIn, userId, activeEmployeeId, employees } = useWorkspace();
+  const { query, ward, setWard, signedIn, userId, userEmail, activeEmployeeId, employees } = useWorkspace();
   const navigate = useNavigate();
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -123,18 +123,26 @@ function CollectionMapPage() {
 
   // Compute broadcaster's actual employee name and designation
   const activeEmployee = employees?.find((e) => e.id === activeEmployeeId);
-  const broadcasterName = activeEmployee?.name || (userId ? "संकलक (व्यवस्थापक)" : "संकलक");
+  const broadcasterName = activeEmployee?.name || (userEmail ? userEmail.split("@")[0] : (userId ? "संकलक" : "संकलक"));
   const broadcasterDesignation = activeEmployee?.designation || "संकलक";
 
   // ── Broadcast this collector's live location to the dashboard map ──────
   const broadcastToDashboard = useTeamLocationBroadcast({
     userId: userId ?? null,
+    userEmail: userEmail ?? null,
     employeeId: activeEmployeeId ?? "collector",
     name: broadcasterName,
     designation: broadcasterDesignation,
     role: "collector",
-    active: trackingLocation,
+    active: trackingLocation || Boolean(driverLocation),
   });
+
+  // Always keep dashboard updated whenever collector location updates
+  useEffect(() => {
+    if (driverLocation) {
+      broadcastToDashboard(driverLocation.latitude, driverLocation.longitude);
+    }
+  }, [driverLocation, broadcastToDashboard]);
 
   // Selected customer for navigation / route
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithDue | null>(null);
