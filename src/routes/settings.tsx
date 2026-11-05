@@ -435,6 +435,9 @@ function SettingsPage() {
       if (serverConfig) {
         const merged = saveStoredConfig(serverConfig as Partial<AppConfig>);
         setForm(ensureFiscalYearDefaults(merged));
+        // Keep the Admin PIN field in sync with the persisted value — it stays
+        // unchanged unless the admin explicitly updates it.
+        setAdminPinInput((merged.admin_pin || "").trim());
       }
     } catch {
       // Local fallback already in form
