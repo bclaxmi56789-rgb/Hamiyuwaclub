@@ -1628,6 +1628,18 @@ export const saveEvent = createServerFn({ method: "POST" })
       locality: z.string().trim().min(1, "Locality is required"),
       budget_required: z.number().min(0, "Budget must be positive"),
       budget_allocated: z.number().optional().default(0),
+      budget_breakdown: z
+        .array(
+          z.object({
+            id: z.string(),
+            category: z.string(),
+            description: z.string().optional().default(""),
+            estimated_amount: z.number().default(0),
+            allocated_amount: z.number().optional().default(0),
+          }),
+        )
+        .optional()
+        .default([]),
       commencing_date: z.string().trim().min(1, "Commencing date is required"),
       end_date: z.string().trim().optional().default(""),
       status: z.enum(["planned", "ongoing", "completed", "postponed"]).default("planned"),
@@ -1652,6 +1664,7 @@ export const saveEvent = createServerFn({ method: "POST" })
       locality: data.locality,
       budget_required: data.budget_required,
       budget_allocated: data.budget_allocated,
+      budget_breakdown: data.budget_breakdown,
       commencing_date: data.commencing_date,
       end_date: data.end_date,
       status: data.status,
@@ -1661,18 +1674,28 @@ export const saveEvent = createServerFn({ method: "POST" })
     };
 
     if (data.id && !data.id.startsWith("local-")) {
-      const res = await context.supabase
+      let res = await context.supabase
         .from("club_events")
         .update(payload)
         .eq("id", data.id)
         .eq("owner_id", context.userId)
         .select("*")
         .single();
+      if (res.error && res.error.message.includes("budget_breakdown")) {
+        const { budget_breakdown: _b, ...fallbackPayload } = payload;
+        res = await context.supabase
+          .from("club_events")
+          .update(fallbackPayload)
+          .eq("id", data.id)
+          .eq("owner_id", context.userId)
+          .select("*")
+          .single();
+      }
       if (res.error) throw new Error(res.error.message);
       return res.data as ClubEvent;
     } else {
       const newId = `evt-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-      const res = await context.supabase
+      let res = await context.supabase
         .from("club_events")
         .insert({
           id: newId,
@@ -1681,6 +1704,18 @@ export const saveEvent = createServerFn({ method: "POST" })
         })
         .select("*")
         .single();
+      if (res.error && res.error.message.includes("budget_breakdown")) {
+        const { budget_breakdown: _b, ...fallbackPayload } = payload;
+        res = await context.supabase
+          .from("club_events")
+          .insert({
+            id: newId,
+            owner_id: context.userId,
+            ...fallbackPayload,
+          })
+          .select("*")
+          .single();
+      }
       if (res.error) throw new Error(res.error.message);
       return res.data as ClubEvent;
     }

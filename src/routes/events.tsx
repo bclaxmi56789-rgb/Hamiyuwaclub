@@ -10,6 +10,7 @@ import {
   deleteEvent,
   getMembersData,
   getMinutesData,
+  getExpensesData,
 } from "@/lib/workspace.functions";
 import {
   np,
@@ -19,6 +20,8 @@ import {
   type Employee,
   type Member,
   type EventMinutes,
+  type ExpenseRecord,
+  type EventBudgetItem,
 } from "@/lib/receipt-rules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +53,14 @@ import {
   NotebookPen,
   ListChecks,
   ExternalLink,
+  Eye,
+  TrendingUp,
+  AlertTriangle,
+  Receipt,
+  Layers,
+  ArrowRight,
+  Info,
+  Check,
 } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
@@ -59,7 +70,7 @@ export const Route = createFileRoute("/events")({
       {
         name: "description",
         content:
-          "Manage community sanitation programmes, budget requirements, commencing days, and authorized personnel.",
+          "Manage community sanitation programmes, detailed budget breakdowns, expense tracking, and authorized personnel.",
       },
     ],
   }),
@@ -68,12 +79,128 @@ export const Route = createFileRoute("/events")({
 
 const money = (n: number) => "रु. " + (n || 0).toLocaleString("en-IN");
 
+/** Common budget implementation presets for community clubs & sanitation campaigns */
+const BUDGET_PRESETS: {
+  name: string;
+  icon: string;
+  items: Omit<EventBudgetItem, "id">[];
+}[] = [
+  {
+    name: "सरसफाइ अभियान",
+    icon: "🧹",
+    items: [
+      {
+        category: "सुरक्षा तथा व्यक्तिगत सामग्री",
+        description: "मास्क, पञ्जा, एप्रोन र गमबुट खरिद",
+        estimated_amount: 15000,
+        allocated_amount: 15000,
+      },
+      {
+        category: "ढुवानी तथा इन्धन",
+        description: "फोहोर संकलन टिपर/ट्र्याक्टर इन्धन तथा चालक ज्याला",
+        estimated_amount: 12000,
+        allocated_amount: 12000,
+      },
+      {
+        category: "खाजा तथा पानी",
+        description: "अभियानमा खटिने स्वयंसेवक तथा कर्मचारी खाजा",
+        estimated_amount: 10000,
+        allocated_amount: 10000,
+      },
+      {
+        category: "डस्टबिन तथा संकलन उपकरण",
+        description: "टोलमा वितरण गरिने डस्टबिन, बेल्चा तथा कुचो",
+        estimated_amount: 18000,
+        allocated_amount: 18000,
+      },
+      {
+        category: "प्रचारप्रसार तथा ब्यानर",
+        description: "फ्लेक्स ब्यानर, माइकिङ तथा सूचना पर्चा",
+        estimated_amount: 5000,
+        allocated_amount: 5000,
+      },
+    ],
+  },
+  {
+    name: "खेलकुद तथा सांस्कृतिक उत्सव",
+    icon: "🏆",
+    items: [
+      {
+        category: "मैदान तथा हल व्यवस्थापन",
+        description: "खेल मैदान तयारी, सरसफाइ र रेखांकन",
+        estimated_amount: 20000,
+        allocated_amount: 20000,
+      },
+      {
+        category: "पुरस्कार, मेडल तथा ट्रफी",
+        description: "प्रथम, दोस्रो, तेस्रो पुरस्कार, ट्रफी र प्रमाणपत्र",
+        estimated_amount: 25000,
+        allocated_amount: 25000,
+      },
+      {
+        category: "ध्वनि तथा मञ्च व्यवस्थापन",
+        description: "साउन्ड सिस्टम, माइक, मञ्च र टेन्ट भाडा",
+        estimated_amount: 15000,
+        allocated_amount: 15000,
+      },
+      {
+        category: "खाजा तथा स्वयंसेवक भत्ता",
+        description: "रेफ्री, निर्णायक र स्वयंसेवकहरूको खाजा भत्ता",
+        estimated_amount: 15000,
+        allocated_amount: 15000,
+      },
+      {
+        category: "ब्यानर तथा प्रचारप्रसार",
+        description: "उत्सव ब्यानर, प्रचार र आमन्त्रण पत्र",
+        estimated_amount: 5000,
+        allocated_amount: 5000,
+      },
+    ],
+  },
+  {
+    name: "तालिम, गोष्ठी तथा सचेतना",
+    icon: "🎓",
+    items: [
+      {
+        category: "प्रशिक्षक / स्रोत व्यक्ति भत्ता",
+        description: "विज्ञ सहजकर्ता तथा प्रशिक्षक पारिश्रमिक",
+        estimated_amount: 15000,
+        allocated_amount: 15000,
+      },
+      {
+        category: "हल भाडा तथा अडियो-भिडियो",
+        description: "प्रोजेक्टर, अडियो र तालिम हल भाडा",
+        estimated_amount: 10000,
+        allocated_amount: 10000,
+      },
+      {
+        category: "खाजा तथा चियापान",
+        description: "सहभागी, अतिथि तथा सहजकर्ता खाजा खर्च",
+        estimated_amount: 12000,
+        allocated_amount: 12000,
+      },
+      {
+        category: "स्टेशनरी तथा तालिम सामग्री",
+        description: "डायरी, कलम, फाइल फोल्डर र म्यानुअल प्रिन्ट",
+        estimated_amount: 8000,
+        allocated_amount: 8000,
+      },
+      {
+        category: "प्रमाणपत्र तथा ब्यानर",
+        description: "सहभागिता प्रमाणपत्र र मञ्च ब्यानर",
+        estimated_amount: 5000,
+        allocated_amount: 5000,
+      },
+    ],
+  },
+];
 
 const emptyEvent = (): ClubEvent => ({
   title: "",
   locality: "",
-  budget_required: 50000,
-  budget_allocated: 50000,
+  budget_required: 60000,
+  budget_allocated: 60000,
+  budget_breakdown: [],
   commencing_date: todayBS(),
   end_date: "",
   status: "planned",
@@ -90,6 +217,7 @@ function EventsPage() {
   const deleteEventFn = useServerFn(deleteEvent);
   const fetchMembersFn = useServerFn(getMembersData);
   const fetchMinutesFn = useServerFn(getMinutesData);
+  const fetchExpensesFn = useServerFn(getExpensesData);
 
   // Load events
   const query = useQuery({
@@ -108,6 +236,18 @@ function EventsPage() {
   const minutesList: EventMinutes[] = useMemo(
     () => minutesQuery.data?.minutes ?? [],
     [minutesQuery.data],
+  );
+
+  // Load expenses to track actual spent against event budgets
+  const expensesQuery = useQuery({
+    queryKey: ["expenses_data", app.userId],
+    queryFn: () => fetchExpensesFn(),
+    enabled: app.ready && app.signedIn,
+  });
+
+  const expensesList: ExpenseRecord[] = useMemo(
+    () => expensesQuery.data ?? [],
+    [expensesQuery.data],
   );
 
   // Helper for computing event's minutes, completed agendas and stage
@@ -141,8 +281,35 @@ function EventsPage() {
     };
   };
 
+  // Helper for computing event budget, linked expenses and burn rate
+  const getEventBudgetAndExpenseStats = (ev: ClubEvent) => {
+    const linkedExpenses = expensesList.filter((e) => e.linked_event_id === ev.id);
+    const actualSpent = linkedExpenses.reduce(
+      (sum, e) => sum + (Number(e.final_amount) || 0),
+      0,
+    );
+    const budgetTotal = Number(ev.budget_allocated || ev.budget_required) || 0;
+    const remainingBudget = budgetTotal - actualSpent;
+    const burnPercent =
+      budgetTotal > 0
+        ? Math.min(Math.round((actualSpent / budgetTotal) * 100), 100)
+        : 0;
+    const isOverspent = actualSpent > budgetTotal && budgetTotal > 0;
+    return {
+      linkedExpenses,
+      actualSpent,
+      budgetTotal,
+      remainingBudget,
+      burnPercent,
+      isOverspent,
+    };
+  };
+
   // State for previewing an event's minutes
   const [viewingMinutesEvent, setViewingMinutesEvent] = useState<ClubEvent | null>(null);
+
+  // State for viewing full programme details and linked expenses
+  const [viewingDetailEvent, setViewingDetailEvent] = useState<ClubEvent | null>(null);
 
   // Load employees and members for coordinator picker
   const membersQuery = useQuery({
@@ -172,7 +339,10 @@ function EventsPage() {
     if (query.data?.events && query.data.events.length > 0) {
       setEventsList(query.data.events);
       try {
-        localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(query.data.events));
+        localStorage.setItem(
+          hamiCacheKey("hami_events_cache"),
+          JSON.stringify(query.data.events),
+        );
       } catch {
         // storage unavailable
       }
@@ -220,9 +390,18 @@ function EventsPage() {
     const ongoing = eventsList.filter((e) => e.status === "ongoing").length;
     const planned = eventsList.filter((e) => e.status === "planned").length;
     const completed = eventsList.filter((e) => e.status === "completed").length;
-    const totalBudget = eventsList.reduce((acc, e) => acc + (e.budget_required || 0), 0);
-    return { total, ongoing, planned, completed, totalBudget };
-  }, [eventsList]);
+    const totalBudget = eventsList.reduce(
+      (acc, e) => acc + (Number(e.budget_allocated || e.budget_required) || 0),
+      0,
+    );
+    const totalSpent = eventsList.reduce((acc, e) => {
+      const spent = expensesList
+        .filter((x) => x.linked_event_id === e.id)
+        .reduce((s, x) => s + (Number(x.final_amount) || 0), 0);
+      return acc + spent;
+    }, 0);
+    return { total, ongoing, planned, completed, totalBudget, totalSpent };
+  }, [eventsList, expensesList]);
 
   // Handlers
   const handleOpenAdd = () => {
@@ -236,8 +415,89 @@ function EventsPage() {
     setForm({
       ...ev,
       authorized_persons: ev.authorized_persons ? [...ev.authorized_persons] : [],
+      budget_breakdown: ev.budget_breakdown ? [...ev.budget_breakdown] : [],
     });
     setModalOpen(true);
+  };
+
+  // Budget Breakdown row helpers
+  const handleAddBudgetItem = () => {
+    const newItem: EventBudgetItem = {
+      id: `bi-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      category: "",
+      description: "",
+      estimated_amount: 0,
+      allocated_amount: 0,
+    };
+    setForm((prev) => ({
+      ...prev,
+      budget_breakdown: [...(prev.budget_breakdown || []), newItem],
+    }));
+  };
+
+  const handleRemoveBudgetItem = (idx: number) => {
+    setForm((prev) => {
+      const updated = (prev.budget_breakdown || []).filter((_, i) => i !== idx);
+      const estSum = updated.reduce((s, it) => s + (Number(it.estimated_amount) || 0), 0);
+      const allocSum = updated.reduce(
+        (s, it) => s + (Number(it.allocated_amount ?? it.estimated_amount) || 0),
+        0,
+      );
+      return {
+        ...prev,
+        budget_breakdown: updated,
+        budget_required: updated.length > 0 ? estSum : prev.budget_required,
+        budget_allocated: updated.length > 0 ? allocSum : prev.budget_allocated,
+      };
+    });
+  };
+
+  const handleUpdateBudgetItem = (
+    idx: number,
+    field: keyof EventBudgetItem,
+    val: string | number,
+  ) => {
+    setForm((prev) => {
+      const updated = [...(prev.budget_breakdown || [])];
+      if (!updated[idx]) return prev;
+      updated[idx] = { ...updated[idx], [field]: val };
+
+      // Auto-sync totals when estimated/allocated changes
+      let req = prev.budget_required;
+      let alloc = prev.budget_allocated;
+      if (field === "estimated_amount" || field === "allocated_amount") {
+        req = updated.reduce((s, it) => s + (Number(it.estimated_amount) || 0), 0);
+        alloc = updated.reduce(
+          (s, it) => s + (Number(it.allocated_amount ?? it.estimated_amount) || 0),
+          0,
+        );
+      }
+
+      return {
+        ...prev,
+        budget_breakdown: updated,
+        budget_required: req,
+        budget_allocated: alloc,
+      };
+    });
+  };
+
+  const handleApplyBudgetPreset = (presetIndex: number) => {
+    const preset = BUDGET_PRESETS[presetIndex];
+    if (!preset) return;
+    const newItems: EventBudgetItem[] = preset.items.map((it, i) => ({
+      ...it,
+      id: `bi-preset-${Date.now()}-${i}`,
+    }));
+    const estSum = newItems.reduce((s, it) => s + it.estimated_amount, 0);
+    const allocSum = newItems.reduce((s, it) => s + (it.allocated_amount || it.estimated_amount), 0);
+
+    setForm((prev) => ({
+      ...prev,
+      budget_breakdown: newItems,
+      budget_required: estSum,
+      budget_allocated: allocSum,
+    }));
   };
 
   const handleAddAuthorizedPerson = () => {
@@ -299,6 +559,7 @@ function EventsPage() {
           locality: form.locality,
           budget_required: Number(form.budget_required) || 0,
           budget_allocated: Number(form.budget_allocated) || 0,
+          budget_breakdown: form.budget_breakdown || [],
           commencing_date: form.commencing_date,
           end_date: form.end_date,
           status: form.status,
@@ -312,7 +573,10 @@ function EventsPage() {
         : [res, ...eventsList];
       setEventsList(updated);
       try {
-        localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(updated));
+        localStorage.setItem(
+          hamiCacheKey("hami_events_cache"),
+          JSON.stringify(updated),
+        );
       } catch {
         // storage unavailable
       }
@@ -328,7 +592,10 @@ function EventsPage() {
         : [localItem, ...eventsList];
       setEventsList(updated);
       try {
-        localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(updated));
+        localStorage.setItem(
+          hamiCacheKey("hami_events_cache"),
+          JSON.stringify(updated),
+        );
       } catch {
         // storage unavailable
       }
@@ -346,7 +613,10 @@ function EventsPage() {
     const updated = eventsList.filter((e) => e.id !== id);
     setEventsList(updated);
     try {
-      localStorage.setItem(hamiCacheKey("hami_events_cache"), JSON.stringify(updated));
+      localStorage.setItem(
+        hamiCacheKey("hami_events_cache"),
+        JSON.stringify(updated),
+      );
     } catch {
       // storage unavailable
     }
@@ -401,11 +671,11 @@ function EventsPage() {
           <div className="flex items-center gap-2.5">
             <CalendarDays className="size-6 text-primary" />
             <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-              कार्यक्रम तथा योजनाहरू (Events & Programmes)
+              कार्यक्रम तथा उत्सवहरू (Events & Programmes)
             </h1>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            कार्यक्रम, बजेट तथा टोली व्यवस्थापन
+            विस्तृत कार्ययोजना, बजेट शीर्षक विनियोजन तथा सम्बन्धित खर्च ट्र्याकिङ
           </p>
         </div>
 
@@ -414,7 +684,7 @@ function EventsPage() {
           className="flex items-center gap-1.5 font-bold shadow-xs bg-primary text-primary-foreground"
         >
           <Plus className="size-4" />
-          <span>नयाँ कार्यक्रम थप्नुहोस्</span>
+          <span>नयाँ कार्यक्रम तथा बजेट दर्ता</span>
         </Button>
       </div>
 
@@ -423,20 +693,36 @@ function EventsPage() {
         <div className="rounded-xl border bg-card p-4 shadow-xs">
           <div className="text-xs text-muted-foreground font-medium">कुल कार्यक्रमहरू</div>
           <div className="mt-1 text-2xl font-extrabold text-foreground">{stats.total}</div>
-        </div>
-        <div className="rounded-xl border bg-card p-4 shadow-xs">
-          <div className="text-xs text-muted-foreground font-medium">सञ्चालित तथा आगामी</div>
-          <div className="mt-1 text-2xl font-extrabold text-blue-600">
-            {stats.ongoing + stats.planned}
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            जारी: <strong className="text-blue-600">{stats.ongoing}</strong> | योजना: {stats.planned}
           </div>
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-xs">
           <div className="text-xs text-muted-foreground font-medium">सम्पन्न कार्यक्रमहरू</div>
-          <div className="mt-1 text-2xl font-extrabold text-emerald-600">{stats.completed}</div>
+          <div className="mt-1 text-2xl font-extrabold text-emerald-600">
+            {stats.completed}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            सफलतापूर्वक सम्पन्न
+          </div>
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-xs">
-          <div className="text-xs text-muted-foreground font-medium">कुल आवश्यक बजेट</div>
-          <div className="mt-1 text-xl font-extrabold text-primary">{money(stats.totalBudget)}</div>
+          <div className="text-xs text-muted-foreground font-medium">कुल स्वीकृत बजेट</div>
+          <div className="mt-1 text-xl font-extrabold text-primary">
+            {money(stats.totalBudget)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            सबै कार्यक्रमका लागि
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-xs">
+          <div className="text-xs text-muted-foreground font-medium">वास्तविक खर्च (Actual Spent)</div>
+          <div className="mt-1 text-xl font-extrabold text-purple-600 dark:text-purple-400">
+            {money(stats.totalSpent)}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            खर्च प्रविष्टिबाट ट्र्याक
+          </div>
         </div>
       </div>
 
@@ -495,12 +781,16 @@ function EventsPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.length === 0 ? (
             <div className="col-span-full py-14 text-center text-muted-foreground rounded-xl border bg-card p-6">
-              कुनै कार्यक्रम फेला परेन। माथि 'नयाँ कार्यक्रम थप्नुहोस्' बटनबाट कार्यक्रम थप्न
+              कुनै कार्यक्रम फेला परेन। माथि 'नयाँ कार्यक्रम तथा बजेट दर्ता' बटनबाट कार्यक्रम थप्न
               सक्नुहुन्छ।
             </div>
           ) : (
             filteredEvents.map((ev) => {
               const badge = statusBadge(ev.status);
+              const bStats = getEventBudgetAndExpenseStats(ev);
+              const minSummary = getEventMinutesSummary(ev.id);
+              const breakdownCount = ev.budget_breakdown?.length || 0;
+
               return (
                 <div
                   key={ev.id}
@@ -524,18 +814,83 @@ function EventsPage() {
                     <h3 className="mt-3 text-base font-extrabold text-foreground leading-snug line-clamp-2">
                       {ev.title}
                     </h3>
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <MapPin className="size-3.5 shrink-0 text-primary" />
                       <span className="font-medium truncate">{ev.locality}</span>
                     </div>
 
-                    {/* Budget */}
-                    <div className="mt-3.5 flex items-center justify-between rounded-lg bg-primary/5 p-2.5">
-                      <div className="text-[11px] font-medium text-muted-foreground">
-                        आवश्यक बजेट:
+                    {/* Budget & Expense Tracking Box */}
+                    <div className="mt-3.5 rounded-xl border bg-muted/20 p-3 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-foreground">बजेट तथा खर्च स्थिति:</span>
+                        <span className="font-mono text-[11px] font-semibold text-muted-foreground">
+                          {breakdownCount > 0 ? `${breakdownCount} शीर्षक` : "एकमुष्ट बजेट"}
+                        </span>
                       </div>
-                      <div className="text-base font-extrabold text-primary">
-                        {money(ev.budget_required)}
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">स्वीकृत बजेट:</span>
+                        <span className="font-extrabold text-foreground">
+                          {money(bStats.budgetTotal)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">वास्तविक खर्च:</span>
+                        <span
+                          className={`font-black ${
+                            bStats.isOverspent ? "text-destructive" : "text-purple-600 dark:text-purple-400"
+                          }`}
+                        >
+                          {money(bStats.actualSpent)}
+                        </span>
+                      </div>
+
+                      {/* Burn Progress Bar */}
+                      <div className="space-y-1 pt-0.5">
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full transition-all ${
+                              bStats.isOverspent
+                                ? "bg-destructive"
+                                : bStats.burnPercent > 80
+                                  ? "bg-amber-500"
+                                  : "bg-primary"
+                            }`}
+                            style={{ width: `${Math.min(bStats.burnPercent, 100)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span
+                            className={
+                              bStats.isOverspent
+                                ? "font-bold text-destructive"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {bStats.isOverspent
+                              ? `बजेट नाघेको: ${money(Math.abs(bStats.remainingBudget))}`
+                              : `बाँकी: ${money(bStats.remainingBudget)}`}
+                          </span>
+                          <span className="font-mono font-bold text-muted-foreground">
+                            {bStats.burnPercent}% उपयोग
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Linked bills info */}
+                      <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Receipt className="size-3 text-primary" />
+                          <span>{bStats.linkedExpenses.length} खर्च बिल संलग्न</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setViewingDetailEvent(ev)}
+                          className="font-bold text-primary hover:underline"
+                        >
+                          खर्च हेर्नुहोस् →
+                        </button>
                       </div>
                     </div>
 
@@ -569,16 +924,8 @@ function EventsPage() {
                       </div>
                     </div>
 
-                    {/* Remarks */}
-                    {ev.remarks && (
-                      <p className="mt-3 text-xs text-muted-foreground line-clamp-2 border-t pt-2">
-                        {ev.remarks}
-                      </p>
-                    )}
-
                     {/* ── Meeting Minutes & Progress Section ── */}
                     {(() => {
-                      const minSummary = getEventMinutesSummary(ev.id);
                       if (minSummary) {
                         return (
                           <div className="mt-3.5 rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-2">
@@ -610,7 +957,9 @@ function EventsPage() {
                                 </strong>
                               </span>
                               {minSummary.latestDate && (
-                                <span className="font-mono">अन्तिम: {np(minSummary.latestDate)}</span>
+                                <span className="font-mono">
+                                  अन्तिम: {np(minSummary.latestDate)}
+                                </span>
                               )}
                             </div>
 
@@ -660,21 +1009,31 @@ function EventsPage() {
                   </div>
 
                   {/* Footer Actions */}
-                  <div className="mt-5 flex items-center justify-between border-t pt-3">
+                  <div className="mt-5 flex items-center justify-between border-t pt-3 gap-2">
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      className="h-7 text-xs flex items-center gap-1"
-                      onClick={() => setPrintPreviewEvent(ev)}
+                      className="h-8 text-xs font-bold flex items-center gap-1 bg-primary text-primary-foreground"
+                      onClick={() => setViewingDetailEvent(ev)}
                     >
-                      <FileText className="size-3.5" />
-                      <span>अख्तियारी पत्र</span>
+                      <Eye className="size-3.5" />
+                      <span>विस्तृत हेर्नुहोस् (View)</span>
                     </Button>
+
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-8"
+                        title="अख्तियारी पत्र प्रिन्ट"
+                        onClick={() => setPrintPreviewEvent(ev)}
+                      >
+                        <FileText className="size-3.5 text-muted-foreground" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-7"
+                        className="size-8"
                         title="सम्पादन गर्नुहोस्"
                         onClick={() => handleOpenEdit(ev)}
                       >
@@ -683,7 +1042,7 @@ function EventsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-7 text-destructive hover:bg-destructive/10"
+                        className="size-8 text-destructive hover:bg-destructive/10"
                         title="हटाउनुहोस्"
                         onClick={() => handleDelete(ev.id)}
                       >
@@ -707,10 +1066,10 @@ function EventsPage() {
                 <th className="px-4 py-3">सि.नं.</th>
                 <th className="px-4 py-3">कार्यक्रमको नाम (Programme Name)</th>
                 <th className="px-4 py-3">स्थान (Locality)</th>
-                <th className="px-4 py-3 text-right">अनुमानित बजेट</th>
+                <th className="px-4 py-3 text-right">बजेट तथा खर्च (Budget & Spent)</th>
                 <th className="px-4 py-3">सुरु हुने मिति</th>
-                <th className="px-4 py-3">अधिकृत व्यक्तिहरू (Authorized)</th>
-                <th className="px-4 py-3">बैठक मिनेट र अवस्था</th>
+                <th className="px-4 py-3">अधिकृत व्यक्तिहरू</th>
+                <th className="px-4 py-3">बैठक मिनेट</th>
                 <th className="px-4 py-3">अवस्था</th>
                 <th className="no-print px-4 py-3 text-right">कार्य</th>
               </tr>
@@ -725,12 +1084,20 @@ function EventsPage() {
               ) : (
                 filteredEvents.map((ev, idx) => {
                   const badge = statusBadge(ev.status);
+                  const bStats = getEventBudgetAndExpenseStats(ev);
                   const minSummary = getEventMinutesSummary(ev.id);
+
                   return (
                     <tr key={ev.id || idx} className="hover:bg-muted/15 transition-colors">
                       <td className="px-4 py-3 font-mono">{idx + 1}</td>
                       <td className="px-4 py-3">
-                        <div className="font-bold text-foreground">{ev.title}</div>
+                        <button
+                          type="button"
+                          onClick={() => setViewingDetailEvent(ev)}
+                          className="font-bold text-foreground text-left hover:text-primary transition-colors"
+                        >
+                          {ev.title}
+                        </button>
                         {ev.remarks && (
                           <div className="text-[10px] text-muted-foreground truncate max-w-xs">
                             {ev.remarks}
@@ -743,8 +1110,26 @@ function EventsPage() {
                           <span>{ev.locality}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-extrabold text-foreground">
-                        {money(ev.budget_required)}
+                      {/* Budget and Spent column */}
+                      <td className="px-4 py-3 text-right">
+                        <div className="font-extrabold text-foreground">
+                          {money(bStats.budgetTotal)}
+                        </div>
+                        <div className="flex items-center justify-end gap-1 text-[11px]">
+                          <span className="text-muted-foreground">खर्च:</span>
+                          <span
+                            className={`font-black ${
+                              bStats.isOverspent ? "text-destructive" : "text-purple-600 dark:text-purple-400"
+                            }`}
+                          >
+                            {money(bStats.actualSpent)}
+                          </span>
+                        </div>
+                        {bStats.isOverspent && (
+                          <div className="text-[10px] font-bold text-destructive">
+                            बजेट नाघेको!
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 font-mono">{np(ev.commencing_date)}</td>
                       <td className="px-4 py-3">
@@ -769,7 +1154,10 @@ function EventsPage() {
                               className="inline-flex items-center gap-1 rounded bg-primary/10 border border-primary/25 px-2 py-0.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
                             >
                               <NotebookPen className="size-3" />
-                              <span>{minSummary.count} मिनेट ({minSummary.completedAgendas}/{minSummary.totalAgendas})</span>
+                              <span>
+                                {minSummary.count} मिनेट ({minSummary.completedAgendas}/
+                                {minSummary.totalAgendas})
+                              </span>
                             </button>
                             <span className="text-[10px] text-muted-foreground font-semibold">
                               {minSummary.stage}
@@ -797,6 +1185,15 @@ function EventsPage() {
                       </td>
                       <td className="no-print px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="default"
+                            size="icon"
+                            className="size-7 bg-primary text-primary-foreground"
+                            title="विस्तृत विवरण हेर्नुहोस् (View)"
+                            onClick={() => setViewingDetailEvent(ev)}
+                          >
+                            <Eye className="size-3.5" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -836,15 +1233,482 @@ function EventsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* ADD / EDIT MODAL */}
+      {/* 1. VIEW PROGRAMME DETAILS & BUDGET EXPENSE TRACKING MODAL */}
+      {/* ========================================================================= */}
+      {viewingDetailEvent && (() => {
+        const ev = viewingDetailEvent;
+        const bStats = getEventBudgetAndExpenseStats(ev);
+        const minSummary = getEventMinutesSummary(ev.id);
+        const badge = statusBadge(ev.status);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-xs">
+            <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col rounded-2xl border bg-card p-6 shadow-2xl">
+              {/* Header */}
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${badge.bg}`}>
+                      {badge.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      सुरु: {np(ev.commencing_date)}
+                      {ev.end_date && ` — सम्पन्न: ${np(ev.end_date)}`}
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-black text-foreground tracking-tight">
+                    {ev.title}
+                  </h2>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <MapPin className="size-3.5 text-primary" />
+                    <span>स्थान / टोल: <strong>{ev.locality}</strong></span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs font-bold flex items-center gap-1"
+                    onClick={() => {
+                      setPrintPreviewEvent(ev);
+                    }}
+                  >
+                    <Printer className="size-3.5" />
+                    <span>अख्तियारी पत्र</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs font-bold flex items-center gap-1"
+                    onClick={() => {
+                      handleOpenEdit(ev);
+                      setViewingDetailEvent(null);
+                    }}
+                  >
+                    <Edit2 className="size-3.5" />
+                    <span>सम्पादन</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 rounded-lg"
+                    onClick={() => setViewingDetailEvent(null)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Scrollable Body */}
+              <div className="flex-1 overflow-y-auto py-4 space-y-6 text-xs">
+                {/* 4 Top KPI Cards */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-xl border bg-muted/20 p-3">
+                    <div className="text-[11px] text-muted-foreground font-medium">अनुमानित आवश्यक बजेट</div>
+                    <div className="mt-1 text-lg font-extrabold text-foreground">
+                      {money(ev.budget_required)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border bg-primary/5 border-primary/20 p-3">
+                    <div className="text-[11px] text-primary font-bold">स्वीकृत विनियोजित बजेट</div>
+                    <div className="mt-1 text-lg font-black text-primary">
+                      {money(bStats.budgetTotal)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border bg-purple-500/10 border-purple-500/20 p-3">
+                    <div className="text-[11px] text-purple-700 dark:text-purple-300 font-bold">
+                      वास्तविक भएको खर्च (Spent)
+                    </div>
+                    <div className="mt-1 text-lg font-black text-purple-700 dark:text-purple-300">
+                      {money(bStats.actualSpent)}
+                    </div>
+                  </div>
+                  <div
+                    className={`rounded-xl border p-3 ${
+                      bStats.isOverspent
+                        ? "bg-destructive/10 border-destructive/30"
+                        : "bg-emerald-500/10 border-emerald-500/20"
+                    }`}
+                  >
+                    <div
+                      className={`text-[11px] font-bold ${
+                        bStats.isOverspent ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"
+                      }`}
+                    >
+                      {bStats.isOverspent ? "बजेट नाघेको (Overspent)" : "बाँकी बजेट बचत"}
+                    </div>
+                    <div
+                      className={`mt-1 text-lg font-black ${
+                        bStats.isOverspent ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"
+                      }`}
+                    >
+                      {money(Math.abs(bStats.remainingBudget))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Burn Progress Bar */}
+                <div className="rounded-xl border bg-card p-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="flex items-center gap-1.5 text-foreground">
+                      <TrendingUp className="size-4 text-primary" />
+                      <span>बजेट उपयोग दर (Budget Burn Rate)</span>
+                    </span>
+                    <span
+                      className={`font-mono ${
+                        bStats.isOverspent ? "text-destructive" : "text-primary"
+                      }`}
+                    >
+                      {bStats.burnPercent}% उपयोग भएको
+                    </span>
+                  </div>
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full transition-all ${
+                        bStats.isOverspent
+                          ? "bg-destructive"
+                          : bStats.burnPercent > 80
+                            ? "bg-amber-500"
+                            : "bg-primary"
+                      }`}
+                      style={{ width: `${Math.min(bStats.burnPercent, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>खर्च गरिएको: <strong>{money(bStats.actualSpent)}</strong></span>
+                    <span>कुल बजेट सिमा: <strong>{money(bStats.budgetTotal)}</strong></span>
+                  </div>
+                </div>
+
+                {/* Section 1: Itemized Implementation & Budget Plan */}
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Layers className="size-4 text-primary" />
+                      <h3 className="text-sm font-extrabold text-foreground">
+                        विस्तृत कार्ययोजना तथा बजेट शीर्षकहरू (Itemized Budget Plan)
+                      </h3>
+                    </div>
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                      {(ev.budget_breakdown || []).length} शीर्षकहरू
+                    </span>
+                  </div>
+
+                  {ev.budget_breakdown && ev.budget_breakdown.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border">
+                        <thead className="bg-muted font-semibold">
+                          <tr>
+                            <th className="p-2 border">सि.नं.</th>
+                            <th className="p-2 border">बजेट शीर्षक (Category)</th>
+                            <th className="p-2 border">विवरण तथा कार्यान्वयन योजना</th>
+                            <th className="p-2 border text-right">अनुमानित रकम (रु.)</th>
+                            <th className="p-2 border text-right">विनियोजित बजेट (रु.)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {ev.budget_breakdown.map((item, idx) => (
+                            <tr key={item.id || idx} className="hover:bg-muted/20">
+                              <td className="p-2 border font-mono text-center">{idx + 1}</td>
+                              <td className="p-2 border font-bold text-foreground">
+                                {item.category}
+                              </td>
+                              <td className="p-2 border text-muted-foreground">
+                                {item.description || "—"}
+                              </td>
+                              <td className="p-2 border text-right font-mono font-medium">
+                                {money(item.estimated_amount)}
+                              </td>
+                              <td className="p-2 border text-right font-mono font-bold text-primary">
+                                {money(item.allocated_amount ?? item.estimated_amount)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-muted/40 font-extrabold border-t">
+                          <tr>
+                            <td colSpan={3} className="p-2 border text-right">
+                              कुल जम्मा (Total):
+                            </td>
+                            <td className="p-2 border text-right font-mono text-foreground">
+                              {money(
+                                ev.budget_breakdown.reduce(
+                                  (s, it) => s + (Number(it.estimated_amount) || 0),
+                                  0,
+                                ),
+                              )}
+                            </td>
+                            <td className="p-2 border text-right font-mono text-primary text-sm">
+                              {money(
+                                ev.budget_breakdown.reduce(
+                                  (s, it) =>
+                                    s + (Number(it.allocated_amount ?? it.estimated_amount) || 0),
+                                  0,
+                                ),
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground space-y-1">
+                      <p>यस कार्यक्रममा कुनै विस्तृत शीर्षक विभाजन गरिएको छैन (एकमुष्ट बजेट प्रविष्टि गरिएको छ)।</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleOpenEdit(ev);
+                          setViewingDetailEvent(null);
+                        }}
+                        className="text-xs font-bold text-primary hover:underline"
+                      >
+                        + सम्पादन गरी विस्तृत बजेट शीर्षकहरू थप्नुहोस्
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Linked Expenses Tracking */}
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Receipt className="size-4 text-primary" />
+                      <h3 className="text-sm font-extrabold text-foreground">
+                        सम्बन्धित खर्चहरूको विवरण (Linked Expenses Tracking)
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        कुल खर्च: <strong className="text-purple-600 dark:text-purple-400">{money(bStats.actualSpent)}</strong>
+                      </span>
+                      <Button
+                        size="sm"
+                        asChild
+                        variant="outline"
+                        className="h-7 px-2 text-[11px] font-bold text-primary border-primary/30 hover:bg-primary/10"
+                      >
+                        <Link to="/expenses" search={{ event_id: ev.id, new: "true" }}>
+                          <Plus className="size-3 mr-0.5" /> नयाँ खर्च प्रविष्टि
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {bStats.linkedExpenses.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border">
+                        <thead className="bg-muted font-semibold">
+                          <tr>
+                            <th className="p-2 border">सि.नं.</th>
+                            <th className="p-2 border">मिति (BS)</th>
+                            <th className="p-2 border">बिल नं.</th>
+                            <th className="p-2 border">खर्च प्रकार</th>
+                            <th className="p-2 border">भेन्डर / भुक्तानी पाउने</th>
+                            <th className="p-2 border text-right">रकम (रु.)</th>
+                            <th className="p-2 border">कैफियत</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {bStats.linkedExpenses.map((exp, idx) => (
+                            <tr key={exp.id || idx} className="hover:bg-muted/20">
+                              <td className="p-2 border font-mono text-center">{idx + 1}</td>
+                              <td className="p-2 border font-mono">{np(exp.date_bs)}</td>
+                              <td className="p-2 border font-mono font-medium">
+                                {exp.bill_number || "—"}
+                              </td>
+                              <td className="p-2 border">
+                                <span className="rounded bg-muted px-1.5 py-0.2 text-[10px] font-semibold">
+                                  {exp.expense_type === "fixed_asset"
+                                    ? "स्थिर सम्पत्ति"
+                                    : exp.expense_type === "item"
+                                      ? "जिन्सी सामान"
+                                      : "सञ्चालन खर्च"}
+                                </span>
+                              </td>
+                              <td className="p-2 border font-medium">
+                                {exp.vendor_name || "—"}
+                              </td>
+                              <td className="p-2 border text-right font-mono font-black text-purple-700 dark:text-purple-300">
+                                {money(exp.final_amount)}
+                              </td>
+                              <td className="p-2 border text-muted-foreground truncate max-w-xs">
+                                {exp.remarks || "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-muted/40 font-extrabold border-t">
+                          <tr>
+                            <td colSpan={5} className="p-2 border text-right">
+                              कुल खर्च रकम (Total Spent):
+                            </td>
+                            <td className="p-2 border text-right font-mono text-purple-700 dark:text-purple-300 text-sm">
+                              {money(bStats.actualSpent)}
+                            </td>
+                            <td className="p-2 border"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground space-y-1">
+                      <p>यस कार्यक्रमसँग हालसम्म कुनै खर्च बिल संलग्न गरिएको छैन।</p>
+                      <p className="text-[11px]">
+                        नयाँ खर्च प्रविष्टि गर्दा 'कार्यक्रम' फिल्डमा यो कार्यक्रम छनोट गर्नुहोस्।
+                      </p>
+                      <Button
+                        size="sm"
+                        asChild
+                        className="mt-2 h-7 px-3 text-xs font-bold"
+                      >
+                        <Link to="/expenses" search={{ event_id: ev.id, new: "true" }}>
+                          + यस कार्यक्रममा पहिलो खर्च थप्नुहोस्
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 3: Meeting Minutes & Decisions */}
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <NotebookPen className="size-4 text-primary" />
+                      <h3 className="text-sm font-extrabold text-foreground">
+                        सम्बन्धित बैठक तथा मिनेटहरू (Meeting Minutes & Decisions)
+                      </h3>
+                    </div>
+                    {minSummary && (
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        {minSummary.count} वटा बैठक | {minSummary.completedAgendas}/{minSummary.totalAgendas} एजेन्डा पूरा
+                      </span>
+                    )}
+                  </div>
+
+                  {minSummary ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between rounded-lg bg-primary/5 p-3">
+                        <div>
+                          <div className="font-bold text-foreground">
+                            अवस्था: {minSummary.stage}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            अन्तिम बैठक मिति: {np(minSummary.latestDate || "—")}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs font-bold"
+                          onClick={() => {
+                            setViewingMinutesEvent(ev);
+                          }}
+                        >
+                          सबै मिनेट हेर्नुहोस्
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed p-3 text-center text-muted-foreground text-xs">
+                      कुनै बैठक मिनेट दर्ता छैन।{" "}
+                      <Link
+                        to="/minutes"
+                        search={{ event_id: ev.id, new: "true" }}
+                        className="font-bold text-primary hover:underline ml-1"
+                      >
+                        + नयाँ बैठक मिनेट थप्नुहोस्
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 4: Authorized Team */}
+                <div className="rounded-xl border bg-card p-4 space-y-2">
+                  <div className="font-extrabold text-xs text-foreground uppercase tracking-wide">
+                    तोकिएका अधिकृत कर्मचारी तथा टोली (Authorized Personnel):
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {ev.authorized_persons && ev.authorized_persons.length > 0 ? (
+                      ev.authorized_persons.map((ap, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-1.5 text-xs"
+                        >
+                          <UserCheck className="size-4 text-primary" />
+                          <div>
+                            <div className="font-bold text-foreground">{ap.name}</div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {ap.role || "प्रतिनिधि"} {ap.phone && `• ${ap.phone}`}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">
+                        कुनै अधिकृत व्यक्ति तोकिएको छैन।
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 5: Remarks / Objectives */}
+                {ev.remarks && (
+                  <div className="rounded-xl border bg-muted/20 p-3 space-y-1">
+                    <div className="text-[11px] font-bold text-muted-foreground uppercase">
+                      उद्देश्य तथा संक्षिप्त विवरण:
+                    </div>
+                    <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+                      {ev.remarks}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between border-t pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setViewingDetailEvent(null)}
+                >
+                  बन्द गर्नुहोस्
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setPrintPreviewEvent(ev);
+                  }}
+                  className="font-bold flex items-center gap-1.5"
+                >
+                  <Printer className="size-4" />
+                  <span>अख्तियारी पत्र प्रिन्ट</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================================= */}
+      {/* 2. ADD / EDIT PROGRAMME WITH DETAILED BUDGET BREAKDOWN MODAL */}
       {/* ========================================================================= */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-xs">
-          <div className="relative w-full max-w-xl rounded-xl border bg-card p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-xs">
+          <div className="relative flex max-h-[92vh] w-full max-w-3xl flex-col rounded-2xl border bg-card p-6 shadow-2xl">
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-extrabold text-foreground">
-                {editingEvent ? "कार्यक्रम सम्पादन" : "नयाँ कार्यक्रम तथा योजना दर्ता"}
-              </h3>
+              <div>
+                <h3 className="text-base font-extrabold text-foreground">
+                  {editingEvent
+                    ? "कार्यक्रम सम्पादन तथा बजेट परिमार्जन"
+                    : "नयाँ कार्यक्रम तथा विस्तृत बजेट योजना दर्ता"}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  कार्यक्रमको आधारभूत विवरण, कार्ययोजना, बजेट शीर्षक र अधिकृत टोली प्रविष्टि गर्नुहोस्
+                </p>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -855,103 +1719,274 @@ function EventsPage() {
               </Button>
             </div>
 
-            <form onSubmit={handleSave} className="mt-4 space-y-4 text-xs">
-              <div>
-                <Label className="text-xs font-semibold">कार्यक्रमको नाम (Programme Name) *</Label>
-                <Input
-                  required
-                  placeholder="उदा: वडा सरसफाइ तथा डस्टबिन वितरण अभियान"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="mt-1 text-xs"
-                />
-              </div>
+            {/* Modal Scrollable Form */}
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto py-4 space-y-5 text-xs">
+              {/* ── खण्ड १: सामान्य तथा आधारभूत विवरण ── */}
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+                <div className="font-extrabold text-xs text-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <CalendarDays className="size-4 text-primary" />
+                  <span>१. कार्यक्रमको आधारभूत विवरण (General Details)</span>
+                </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <Label className="text-xs font-semibold">स्थान / टोल / वडा (Locality) *</Label>
+                  <Label className="text-xs font-semibold">कार्यक्रमको नाम (Programme Name) *</Label>
                   <Input
                     required
-                    placeholder="उदा: वीरेन्द्रनगर-४, भैरवस्थान"
-                    value={form.locality}
-                    onChange={(e) => setForm({ ...form, locality: e.target.value })}
+                    placeholder="उदा: वीरेन्द्रनगर वडा सरसफाइ, वृक्षारोपण तथा डस्टबिन वितरण अभियान"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
                     className="mt-1 text-xs"
                   />
                 </div>
 
-                <div>
-                  <Label className="text-xs font-semibold">
-                    अनुमानित आवश्यक बजेट (Expected Budget - रु.) *
-                  </Label>
-                  <Input
-                    type="number"
-                    required
-                    min="0"
-                    placeholder="75000"
-                    value={form.budget_required}
-                    onChange={(e) =>
-                      setForm({ ...form, budget_required: Number(e.target.value) || 0 })
-                    }
-                    className="mt-1 text-xs font-mono font-bold"
-                  />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label className="text-xs font-semibold">स्थान / टोल / वडा (Locality) *</Label>
+                    <Input
+                      required
+                      placeholder="उदा: वीरेन्द्रनगर-४, भैरवस्थान तथा मुख्य बजार क्षेत्र"
+                      value={form.locality}
+                      onChange={(e) => setForm({ ...form, locality: e.target.value })}
+                      className="mt-1 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-semibold">कार्यक्रम अवस्था (Status)</Label>
+                    <select
+                      value={form.status}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          status: e.target.value as "planned" | "ongoing" | "completed" | "postponed",
+                        })
+                      }
+                      className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
+                    >
+                      <option value="planned">योजना गरिएको (Planned)</option>
+                      <option value="ongoing">सञ्चालन भइरहेको (Ongoing)</option>
+                      <option value="completed">सम्पन्न (Completed)</option>
+                      <option value="postponed">स्थगित (Postponed)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label className="text-xs font-semibold">
+                      सुरु हुने मिति (Commencing Date - BS) *
+                    </Label>
+                    <Input
+                      required
+                      placeholder="२०८१-०८-१५"
+                      value={form.commencing_date}
+                      onChange={(e) => setForm({ ...form, commencing_date: e.target.value })}
+                      className="mt-1 text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-semibold">सम्पन्न हुने मिति (End Date - BS)</Label>
+                    <Input
+                      placeholder="२०८१-०८-१६"
+                      value={form.end_date || ""}
+                      onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                      className="mt-1 text-xs font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <Label className="text-xs font-semibold">
-                    सुरु हुने मिति (Commencing Date - BS) *
-                  </Label>
-                  <Input
-                    required
-                    placeholder="२०८१-०८-१५"
-                    value={form.commencing_date}
-                    onChange={(e) => setForm({ ...form, commencing_date: e.target.value })}
-                    className="mt-1 text-xs font-mono"
-                  />
+              {/* ── खण्ड २: विस्तृत बजेट कार्ययोजना ── */}
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                  <div>
+                    <div className="font-extrabold text-xs text-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <Coins className="size-4 text-primary" />
+                      <span>२. विस्तृत बजेट कार्ययोजना (Detailed Budget Plan)</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      शीर्षकअनुसार अनुमानित र विनियोजित बजेट प्रविष्टि गर्नुहोस् (यसबाट खर्च ट्र्याकिङ हुनेछ)
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAddBudgetItem}
+                      className="h-7 text-xs font-bold text-primary border-primary/30 hover:bg-primary/10"
+                    >
+                      <Plus className="size-3 mr-1" />
+                      शीर्षक थप्नुहोस्
+                    </Button>
+                  </div>
                 </div>
 
-                <div>
-                  <Label className="text-xs font-semibold">सम्पन्न हुने मिति (End Date - BS)</Label>
-                  <Input
-                    placeholder="२०८१-०८-१६"
-                    value={form.end_date || ""}
-                    onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                    className="mt-1 text-xs font-mono"
-                  />
+                {/* Preset Templates */}
+                <div className="rounded-lg bg-card border p-2.5">
+                  <div className="text-[11px] font-bold text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <Sparkles className="size-3 text-amber-500" />
+                    <span>छिटो भर्न टेम्प्लेट छान्नुहोस्:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BUDGET_PRESETS.map((preset, idx) => (
+                      <Button
+                        key={idx}
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleApplyBudgetPreset(idx)}
+                        className="h-6 px-2 text-[10px] font-bold"
+                      >
+                        <span className="mr-1">{preset.icon}</span>
+                        {preset.name}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
-                <div>
-                  <Label className="text-xs font-semibold">कार्यक्रम अवस्था (Status)</Label>
-                  <select
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        status: e.target.value as "planned" | "ongoing" | "completed" | "postponed",
-                      })
-                    }
-                    className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
-                  >
-                    <option value="planned">योजना गरिएको (Planned)</option>
-                    <option value="ongoing">सञ्चालन भइरहेको (Ongoing)</option>
-                    <option value="completed">सम्पन्न (Completed)</option>
-                    <option value="postponed">स्थगित (Postponed)</option>
-                  </select>
+                {/* Budget items table */}
+                <div className="space-y-2 pt-1">
+                  {(form.budget_breakdown || []).length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border rounded-lg overflow-hidden bg-card">
+                        <thead className="bg-muted font-semibold text-muted-foreground">
+                          <tr>
+                            <th className="p-2 border">बजेट शीर्षक (Category) *</th>
+                            <th className="p-2 border">विवरण तथा कार्ययोजना</th>
+                            <th className="p-2 border text-right w-28">अनुमानित (रु.)</th>
+                            <th className="p-2 border text-right w-28">विनियोजित (रु.)</th>
+                            <th className="p-2 border text-center w-8"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {(form.budget_breakdown || []).map((item, idx) => (
+                            <tr key={item.id || idx}>
+                              <td className="p-1.5 border">
+                                <Input
+                                  required
+                                  placeholder="उदा: खाजा, सामग्री, ढुवानी"
+                                  value={item.category}
+                                  onChange={(e) =>
+                                    handleUpdateBudgetItem(idx, "category", e.target.value)
+                                  }
+                                  className="h-7 text-xs"
+                                />
+                              </td>
+                              <td className="p-1.5 border">
+                                <Input
+                                  placeholder="विवरण वा योजना"
+                                  value={item.description || ""}
+                                  onChange={(e) =>
+                                    handleUpdateBudgetItem(idx, "description", e.target.value)
+                                  }
+                                  className="h-7 text-xs"
+                                />
+                              </td>
+                              <td className="p-1.5 border">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={item.estimated_amount || ""}
+                                  onChange={(e) =>
+                                    handleUpdateBudgetItem(
+                                      idx,
+                                      "estimated_amount",
+                                      Number(e.target.value) || 0,
+                                    )
+                                  }
+                                  className="h-7 text-xs font-mono text-right font-medium"
+                                />
+                              </td>
+                              <td className="p-1.5 border">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={
+                                    item.allocated_amount !== undefined
+                                      ? item.allocated_amount
+                                      : item.estimated_amount || ""
+                                  }
+                                  onChange={(e) =>
+                                    handleUpdateBudgetItem(
+                                      idx,
+                                      "allocated_amount",
+                                      Number(e.target.value) || 0,
+                                    )
+                                  }
+                                  className="h-7 text-xs font-mono text-right font-bold text-primary"
+                                />
+                              </td>
+                              <td className="p-1.5 border text-center">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-6 text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleRemoveBudgetItem(idx)}
+                                >
+                                  <Trash2 className="size-3" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed p-3 text-center text-muted-foreground text-[11px]">
+                      अहिलेसम्म कुनै विस्तृत बजेट शीर्षक थपिएको छैन। माथिको टेम्प्लेट छान्नुहोस् वा '+ शीर्षक थप्नुहोस्' थिच्नुहोस्।
+                    </div>
+                  )}
+                </div>
+
+                {/* Total Budget Summary Row */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-2 border-t">
+                  <div>
+                    <Label className="text-xs font-semibold">
+                      कुल अनुमानित आवश्यक बजेट (Expected Total - रु.) *
+                    </Label>
+                    <Input
+                      type="number"
+                      required
+                      min="0"
+                      value={form.budget_required}
+                      onChange={(e) =>
+                        setForm({ ...form, budget_required: Number(e.target.value) || 0 })
+                      }
+                      className="mt-1 text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-semibold">
+                      स्वीकृत विनियोजित बजेट (Approved Allocated - रु.) *
+                    </Label>
+                    <Input
+                      type="number"
+                      required
+                      min="0"
+                      value={form.budget_allocated || form.budget_required}
+                      onChange={(e) =>
+                        setForm({ ...form, budget_allocated: Number(e.target.value) || 0 })
+                      }
+                      className="mt-1 text-xs font-mono font-bold text-primary"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* ========================================================================= */}
-              {/* Authorized Persons Section */}
-              {/* ========================================================================= */}
-              <div className="rounded-xl border bg-muted/20 p-3.5 space-y-3">
+              {/* ── खण्ड ३: अधिकृत व्यक्तिहरू तथा टोली ── */}
+              <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
                 <div className="flex items-center justify-between border-b pb-1.5">
-                  <div className="font-bold text-foreground flex items-center gap-1.5">
+                  <div className="font-extrabold text-xs text-foreground uppercase tracking-wide flex items-center gap-1.5">
                     <UserCheck className="size-4 text-primary" />
-                    <span>अधिकृत व्यक्तिहरू तथा टोली (Authorized Personnel)</span>
+                    <span>३. अधिकृत व्यक्तिहरू तथा टोली (Authorized Personnel)</span>
                   </div>
                   <span className="text-[11px] text-muted-foreground">
-                    कर्मचारी, सदस्य वा अन्य थप्नुहोस्
+                    संयोजक तथा टोली सदस्य
                   </span>
                 </div>
 
@@ -1002,7 +2037,7 @@ function EventsPage() {
                   </div>
                 </div>
 
-                {/* Manual input inputs */}
+                {/* Manual input */}
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-4 items-end">
                   <div className="sm:col-span-2">
                     <Label className="text-[11px] text-muted-foreground">व्यक्तिको नाम:</Label>
@@ -1086,6 +2121,7 @@ function EventsPage() {
                 </div>
               </div>
 
+              {/* ── खण्ड ४: उद्देश्य तथा कैफियत ── */}
               <div>
                 <Label className="text-xs font-semibold">कैफियत / मुख्य उद्देश्य (Remarks)</Label>
                 <textarea
@@ -1097,7 +2133,8 @@ function EventsPage() {
                 />
               </div>
 
-              <div className="mt-5 flex justify-end gap-2 border-t pt-3">
+              {/* Submit Buttons */}
+              <div className="flex justify-end gap-2 border-t pt-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -1106,7 +2143,7 @@ function EventsPage() {
                 >
                   रद्द गर्नुहोस्
                 </Button>
-                <Button type="submit" size="sm" className="font-bold">
+                <Button type="submit" size="sm" className="font-bold bg-primary text-primary-foreground">
                   {editingEvent ? "परिवर्तन सुरक्षित गर्नुहोस्" : "कार्यक्रम सेभ गर्नुहोस्"}
                 </Button>
               </div>
@@ -1116,7 +2153,7 @@ function EventsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* PROGRAMME AUTHORIZATION SHEET / PRINT MODAL */}
+      {/* 3. PROGRAMME AUTHORIZATION SHEET / PRINT MODAL */}
       {/* ========================================================================= */}
       {printPreviewEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-xs">
@@ -1136,7 +2173,11 @@ function EventsPage() {
                   <Printer className="size-4" />
                   <span>प्रिन्ट गर्नुहोस्</span>
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => setPrintPreviewEvent(null)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setPrintPreviewEvent(null)}
+                >
                   <X className="size-4" />
                 </Button>
               </div>
@@ -1161,11 +2202,11 @@ function EventsPage() {
                         {config.entity_sub_name}
                       </div>
                     )}
-                    <div className="text-xs">
-                      {config.address || ""}
-                    </div>
+                    <div className="text-xs">{config.address || ""}</div>
                     {config.tagline && (
-                      <div className="text-[11px] text-muted-foreground">{config.tagline}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {config.tagline}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1197,9 +2238,12 @@ function EventsPage() {
                     </span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">अनुमानित आवश्यक बजेट: </span>
+                    <span className="text-muted-foreground">स्वीकृत विनियोजित बजेट: </span>
                     <span className="font-extrabold text-primary text-sm">
-                      {money(printPreviewEvent.budget_required)}
+                      {money(
+                        printPreviewEvent.budget_allocated ||
+                          printPreviewEvent.budget_required,
+                      )}
                     </span>
                   </div>
                   <div>
@@ -1218,6 +2262,40 @@ function EventsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Detailed Budget Breakdown Table if present */}
+              {printPreviewEvent.budget_breakdown &&
+                printPreviewEvent.budget_breakdown.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-xs font-bold text-foreground border-b pb-1.5">
+                      स्वीकृत विस्तृत बजेट शीर्षकहरू (Itemized Budget Breakdown):
+                    </div>
+                    <table className="mt-2 w-full text-left text-xs border">
+                      <thead className="bg-muted font-semibold">
+                        <tr>
+                          <th className="p-2 border">सि.नं.</th>
+                          <th className="p-2 border">बजेट शीर्षक</th>
+                          <th className="p-2 border">विवरण</th>
+                          <th className="p-2 border text-right">रकम (रु.)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {printPreviewEvent.budget_breakdown.map((item, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="p-2 border font-mono text-center">{i + 1}</td>
+                            <td className="p-2 border font-bold">{item.category}</td>
+                            <td className="p-2 border text-muted-foreground">
+                              {item.description || "—"}
+                            </td>
+                            <td className="p-2 border text-right font-mono font-bold">
+                              {money(item.allocated_amount ?? item.estimated_amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
               {/* Authorized Personnel Table */}
               <div className="mt-4">
@@ -1239,7 +2317,7 @@ function EventsPage() {
                     printPreviewEvent.authorized_persons.length > 0 ? (
                       printPreviewEvent.authorized_persons.map((p, i) => (
                         <tr key={i} className="border-b">
-                          <td className="p-2 border font-mono">{i + 1}</td>
+                          <td className="p-2 border font-mono text-center">{i + 1}</td>
                           <td className="p-2 border font-bold">{p.name}</td>
                           <td className="p-2 border">
                             {p.type === "employee"
@@ -1295,7 +2373,7 @@ function EventsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* EVENT MINUTES PREVIEW MODAL */}
+      {/* 4. EVENT MINUTES PREVIEW MODAL */}
       {/* ========================================================================= */}
       {viewingMinutesEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-xs">
@@ -1308,7 +2386,8 @@ function EventsPage() {
                     {viewingMinutesEvent.title} — बैठक तथा मिनेटहरू
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    स्थान: {viewingMinutesEvent.locality || "—"} | सुरु: {np(viewingMinutesEvent.commencing_date)}
+                    स्थान: {viewingMinutesEvent.locality || "—"} | सुरु:{" "}
+                    {np(viewingMinutesEvent.commencing_date)}
                   </p>
                 </div>
               </div>
@@ -1324,7 +2403,9 @@ function EventsPage() {
 
             <div className="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
               {(() => {
-                const evMinutes = minutesList.filter((m) => m.event_id === viewingMinutesEvent.id);
+                const evMinutes = minutesList.filter(
+                  (m) => m.event_id === viewingMinutesEvent.id,
+                );
                 if (evMinutes.length === 0) {
                   return (
                     <div className="py-10 text-center text-muted-foreground">
@@ -1333,7 +2414,10 @@ function EventsPage() {
                   );
                 }
                 return evMinutes.map((m, mIdx) => (
-                  <div key={m.id || mIdx} className="rounded-xl border bg-muted/20 p-4 space-y-3">
+                  <div
+                    key={m.id || mIdx}
+                    className="rounded-xl border bg-muted/20 p-4 space-y-3"
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-black bg-primary/10 text-primary px-2 py-0.5 rounded">
@@ -1354,17 +2438,26 @@ function EventsPage() {
                         एजेन्डा तथा पारित निर्णयहरू:
                       </div>
                       {(m.agenda || []).map((a, aIdx) => (
-                        <div key={a.id || aIdx} className="rounded-lg border bg-background p-3 space-y-1">
+                        <div
+                          key={a.id || aIdx}
+                          className="rounded-lg border bg-background p-3 space-y-1"
+                        >
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-xs text-foreground">
                               {aIdx + 1}. {a.text}
                             </span>
                             {a.done ? (
-                              <Badge variant="outline" className="text-[9px] font-bold bg-emerald-500/15 border-emerald-500/30 text-emerald-700">
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] font-bold bg-emerald-500/15 border-emerald-500/30 text-emerald-700"
+                              >
                                 ✓ पूरा भयो
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[9px] font-bold bg-amber-500/15 border-amber-500/30 text-amber-700">
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] font-bold bg-amber-500/15 border-amber-500/30 text-amber-700"
+                              >
                                 ⏳ जारी
                               </Badge>
                             )}
@@ -1380,7 +2473,9 @@ function EventsPage() {
 
                     {m.draft && (
                       <div className="rounded-lg bg-card border p-3 text-[11px] text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                        <div className="font-bold text-foreground mb-1">औपचारिक मिनेट ड्राफ्ट:</div>
+                        <div className="font-bold text-foreground mb-1">
+                          औपचारिक मिनेट ड्राफ्ट:
+                        </div>
                         {m.draft}
                       </div>
                     )}
@@ -1397,12 +2492,11 @@ function EventsPage() {
               >
                 बन्द गर्नुहोस्
               </Button>
-              <Button
-                size="sm"
-                asChild
-                className="font-bold text-xs"
-              >
-                <Link to="/minutes" search={{ event_id: viewingMinutesEvent.id, new: "true" }}>
+              <Button size="sm" asChild className="font-bold text-xs">
+                <Link
+                  to="/minutes"
+                  search={{ event_id: viewingMinutesEvent.id, new: "true" }}
+                >
                   <Plus className="size-3.5 mr-1" /> यस कार्यक्रमको नयाँ मिनेट थप्नुहोस्
                 </Link>
               </Button>

@@ -1152,9 +1152,24 @@ function AssetsPage() {
   const [stockSearch, setStockSearch] = useState("");
   const [stockFilterWard, setStockFilterWard] = useState<string>("all");
   const [stockFilterStatus, setStockFilterStatus] = useState<string>("all");
+  const [stockFilterFY, setStockFilterFY] = useState<string>("all");
+
+  // Unique fiscal years present in the theli data (newest first)
+  const theliFYOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const it of stockItems) if (it.fiscal_year) set.add(it.fiscal_year);
+    for (const b of stockBatches) if (b.fiscal_year) set.add(b.fiscal_year);
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [stockItems, stockBatches]);
+
+  const filteredStockBatches = useMemo(() => {
+    if (stockFilterFY === "all") return stockBatches;
+    return stockBatches.filter((b) => b.fiscal_year === stockFilterFY);
+  }, [stockBatches, stockFilterFY]);
 
   const filteredStockItems = useMemo(() => {
     return stockItems.filter((it) => {
+      if (stockFilterFY !== "all" && it.fiscal_year !== stockFilterFY) return false;
       if (stockFilterWard !== "all" && it.ward !== stockFilterWard) return false;
       if (stockFilterStatus !== "all" && it.status !== stockFilterStatus) return false;
       if (stockSearch.trim()) {
@@ -1167,7 +1182,7 @@ function AssetsPage() {
       }
       return true;
     });
-  }, [stockItems, stockFilterWard, stockFilterStatus, stockSearch]);
+  }, [stockItems, stockFilterWard, stockFilterStatus, stockSearch, stockFilterFY]);
 
   /* ─────────────────────────────────────────────────────────────
      TAB 5: DAILY THELI LOGS FILTER & SEARCH
@@ -1424,7 +1439,7 @@ function AssetsPage() {
                     दर्ता भएका थेली स्टक ब्याचहरू (Theli Stock Batches)
                   </h3>
                   <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.2 text-[10px] font-mono font-bold text-primary">
-                    {stockBatches.length} ब्याच
+                    {filteredStockBatches.length} ब्याच
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1440,7 +1455,7 @@ function AssetsPage() {
                 </div>
               </div>
 
-              {stockBatches.length === 0 ? (
+              {filteredStockBatches.length === 0 ? (
                 <div className="text-center py-4 text-xs text-muted-foreground bg-muted/20 rounded-lg">
                   कुनै स्टक ब्याच दर्ता भएको छैन। माथि 'नयाँ थेली स्टक दर्ता' बाट सुरु गर्नुहोस् वा नमुना स्टक लोड गर्नुहोस्।
                 </div>
@@ -1462,7 +1477,7 @@ function AssetsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {stockBatches.map((b, bIdx) => (
+                      {filteredStockBatches.map((b, bIdx) => (
                         <tr key={b.id || bIdx} className="hover:bg-muted/20 transition-colors">
                           <td className="px-3 py-2 font-mono text-muted-foreground">{bIdx + 1}</td>
                           <td className="px-3 py-2 font-bold text-foreground">
@@ -1516,6 +1531,19 @@ function AssetsPage() {
                     className={`${inputCls} pl-8`}
                   />
                 </div>
+
+                <select
+                  value={stockFilterFY}
+                  onChange={(e) => setStockFilterFY(e.target.value)}
+                  className={`${inputCls} w-auto`}
+                >
+                  <option value="all">सबै आ.व. (All FY)</option>
+                  {theliFYOptions.map((y) => (
+                    <option key={y} value={y}>
+                      आ.व. {y}
+                    </option>
+                  ))}
+                </select>
 
                 <select
                   value={stockFilterWard}
@@ -1627,6 +1655,7 @@ function AssetsPage() {
                               onClick={() => {
                                 setStockFilterWard("all");
                                 setStockFilterStatus("all");
+                                setStockFilterFY("all");
                                 setStockSearch("");
                               }}
                               className="text-xs font-bold"
@@ -1893,11 +1922,22 @@ function AssetsPage() {
                     onChange={(e) => setNewBatchFY(e.target.value)}
                     className={inputCls}
                   >
-                    {["2080/81", "2081/82", "2082/83", "2083/84", "2084/85"].map((y) => (
-                      <option key={y} value={y}>
-                        आ.व. {y}
-                      </option>
-                    ))}
+                    {Array.from(
+                      new Set([
+                        ...theliFYOptions,
+                        "2080/81",
+                        "2081/82",
+                        "2082/83",
+                        "2083/84",
+                        "2084/85",
+                      ]),
+                    )
+                      .sort((a, b) => b.localeCompare(a))
+                      .map((y) => (
+                        <option key={y} value={y}>
+                          आ.व. {y}
+                        </option>
+                      ))}
                   </select>
                 </div>
 

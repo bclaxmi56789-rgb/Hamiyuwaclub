@@ -598,12 +598,21 @@ export type AuthorizedPerson = {
 };
 
 /** Event or Programme record */
+export type EventBudgetItem = {
+  id: string;
+  category: string;
+  description?: string;
+  estimated_amount: number;
+  allocated_amount?: number;
+};
+
 export type ClubEvent = {
   id?: string;
   title: string;
   locality: string;
   budget_required: number;
   budget_allocated?: number;
+  budget_breakdown?: EventBudgetItem[];
   commencing_date: string;
   end_date?: string;
   status: "planned" | "ongoing" | "completed" | "postponed";
