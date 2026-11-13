@@ -33,6 +33,7 @@ import {
   Eye,
 } from "lucide-react";
 import { LocationMap } from "@/components/location-map";
+import { PhotoLightbox } from "@/components/photo-lightbox";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import {
   todayBS,
@@ -1934,10 +1935,10 @@ function Masters() {
                   )}
                   {form.locality_photo && (
                     <div className="mt-2">
-                      <img
+                      <PhotoLightbox
                         src={formPhotoSrc}
                         alt="टोल/घरको फोटो"
-                        className="max-h-44 w-full max-w-md rounded-lg border object-cover"
+                        className="w-full max-w-md"
                       />
                     </div>
                   )}
@@ -2324,10 +2325,10 @@ function Masters() {
                   <div className="text-[10px] font-semibold text-muted-foreground">
                     टोल/घरको फोटो
                   </div>
-                  <img
+                  <PhotoLightbox
                     src={viewPhotoSrc}
-                    alt="टोल/घरको फोटो"
-                    className="mt-1 max-h-44 w-full max-w-md rounded-lg border object-cover"
+                    alt={`टोल/घरको फोटो`}
+                    className="mt-1 max-h-44 w-full max-w-md"
                   />
                 </div>
               )}
@@ -2405,11 +2406,10 @@ function Masters() {
               <div>
                 <h3 className="text-base font-bold text-foreground">{viewingMapPerson.name}</h3>
                 {viewingMapPerson.locality_photo && (
-                  <img
+                  <PhotoLightbox
                     src={viewerPhotoSrc}
                     alt={`${viewingMapPerson.name} को टोल/घरको फोटो`}
-                    loading="lazy"
-                    className="mt-2 max-h-40 w-full max-w-xs rounded-lg border object-cover"
+                    className="mt-2 max-h-40 w-full max-w-xs"
                   />
                 )}
                 <p className="text-xs text-muted-foreground">

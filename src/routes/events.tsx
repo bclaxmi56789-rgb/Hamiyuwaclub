@@ -1,10 +1,16 @@
 import { hamiCacheKey } from "@/lib/hami-cache";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAppState, SignInPanel } from "@/components/app-shell";
-import { getEventsData, saveEvent, deleteEvent, getMembersData } from "@/lib/workspace.functions";
+import {
+  getEventsData,
+  saveEvent,
+  deleteEvent,
+  getMembersData,
+  getMinutesData,
+} from "@/lib/workspace.functions";
 import {
   np,
   todayBS,
@@ -12,10 +18,12 @@ import {
   type AuthorizedPerson,
   type Employee,
   type Member,
+  type EventMinutes,
 } from "@/lib/receipt-rules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useAppConfig } from "@/lib/app-config";
 import {
   CalendarDays,
@@ -39,6 +47,9 @@ import {
   Table as TableIcon,
   Tag,
   Phone,
+  NotebookPen,
+  ListChecks,
+  ExternalLink,
 } from "lucide-react";
 
 export const Route = createFileRoute("/events")({
@@ -78,6 +89,7 @@ function EventsPage() {
   const saveEventFn = useServerFn(saveEvent);
   const deleteEventFn = useServerFn(deleteEvent);
   const fetchMembersFn = useServerFn(getMembersData);
+  const fetchMinutesFn = useServerFn(getMinutesData);
 
   // Load events
   const query = useQuery({
@@ -85,6 +97,52 @@ function EventsPage() {
     queryFn: () => fetchEventsFn(),
     enabled: app.ready && app.signedIn,
   });
+
+  // Load minutes to show related meeting minutes and agenda stage
+  const minutesQuery = useQuery({
+    queryKey: ["minutes_data", app.userId],
+    queryFn: () => fetchMinutesFn(),
+    enabled: app.ready && app.signedIn,
+  });
+
+  const minutesList: EventMinutes[] = useMemo(
+    () => minutesQuery.data?.minutes ?? [],
+    [minutesQuery.data],
+  );
+
+  // Helper for computing event's minutes, completed agendas and stage
+  const getEventMinutesSummary = (eventId?: string) => {
+    if (!eventId) return null;
+    const evMinutes = minutesList.filter((m) => m.event_id === eventId);
+    if (evMinutes.length === 0) return null;
+    const allAgendas = evMinutes.flatMap((m) => m.agenda || []);
+    const totalAgendas = allAgendas.length;
+    const completedAgendas = allAgendas.filter((a) => a.done).length;
+    const pendingAgendas = totalAgendas - completedAgendas;
+    const latest = [...evMinutes].sort((a, b) =>
+      (b.meeting_date || "").localeCompare(a.meeting_date || ""),
+    )[0];
+    const stage =
+      totalAgendas === 0
+        ? "मिनेट दर्ता"
+        : completedAgendas === totalAgendas
+          ? "सबै निर्णय पूरा"
+          : `${pendingAgendas} एजेन्डा कार्यान्वयन जारी`;
+    const isAllDone = totalAgendas > 0 && completedAgendas === totalAgendas;
+    return {
+      count: evMinutes.length,
+      totalAgendas,
+      completedAgendas,
+      pendingAgendas,
+      latestDate: latest?.meeting_date,
+      stage,
+      isAllDone,
+      evMinutes,
+    };
+  };
+
+  // State for previewing an event's minutes
+  const [viewingMinutesEvent, setViewingMinutesEvent] = useState<ClubEvent | null>(null);
 
   // Load employees and members for coordinator picker
   const membersQuery = useQuery({
@@ -517,6 +575,88 @@ function EventsPage() {
                         {ev.remarks}
                       </p>
                     )}
+
+                    {/* ── Meeting Minutes & Progress Section ── */}
+                    {(() => {
+                      const minSummary = getEventMinutesSummary(ev.id);
+                      if (minSummary) {
+                        return (
+                          <div className="mt-3.5 rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="flex items-center gap-1.5 text-xs font-black text-foreground">
+                                <NotebookPen className="size-3.5 text-primary" />
+                                <span>{minSummary.count} वटा बैठक मिनेट</span>
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  "text-[10px] font-bold px-2 py-0.2 " +
+                                  (minSummary.isAllDone
+                                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                                    : minSummary.pendingAgendas > 0
+                                      ? "bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                                      : "bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-300")
+                                }
+                              >
+                                {minSummary.stage}
+                              </Badge>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                              <span>
+                                एजेन्डा प्रगति:{" "}
+                                <strong className="text-foreground">
+                                  {minSummary.completedAgendas}/{minSummary.totalAgendas} पूरा
+                                </strong>
+                              </span>
+                              {minSummary.latestDate && (
+                                <span className="font-mono">अन्तिम: {np(minSummary.latestDate)}</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 pt-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-[11px] font-bold flex-1 bg-background hover:bg-muted"
+                                onClick={() => setViewingMinutesEvent(ev)}
+                              >
+                                <FileText className="size-3 mr-1 text-primary" />
+                                मिनेट हेर्नुहोस्
+                              </Button>
+                              <Button
+                                size="sm"
+                                asChild
+                                variant="ghost"
+                                className="h-7 px-2 text-[11px] font-bold text-primary hover:bg-primary/10"
+                              >
+                                <Link to="/minutes" search={{ event_id: ev.id, new: "true" }}>
+                                  <Plus className="size-3 mr-0.5" /> थप बैठक
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="mt-3.5 flex items-center justify-between rounded-xl border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-xs">
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <NotebookPen className="size-3 text-muted-foreground" />
+                            मिनेट दर्ता छैन
+                          </span>
+                          <Button
+                            size="sm"
+                            asChild
+                            variant="outline"
+                            className="h-6 px-2 text-[10px] font-bold text-primary border-primary/30 hover:bg-primary/10"
+                          >
+                            <Link to="/minutes" search={{ event_id: ev.id, new: "true" }}>
+                              <Plus className="size-2.5 mr-0.5" /> मिनेट तयार गर्नुहोस्
+                            </Link>
+                          </Button>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Footer Actions */}
@@ -570,6 +710,7 @@ function EventsPage() {
                 <th className="px-4 py-3 text-right">अनुमानित बजेट</th>
                 <th className="px-4 py-3">सुरु हुने मिति</th>
                 <th className="px-4 py-3">अधिकृत व्यक्तिहरू (Authorized)</th>
+                <th className="px-4 py-3">बैठक मिनेट र अवस्था</th>
                 <th className="px-4 py-3">अवस्था</th>
                 <th className="no-print px-4 py-3 text-right">कार्य</th>
               </tr>
@@ -577,13 +718,14 @@ function EventsPage() {
             <tbody className="divide-y">
               {filteredEvents.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="py-12 text-center text-muted-foreground">
                     कुनै कार्यक्रम फेला परेन।
                   </td>
                 </tr>
               ) : (
                 filteredEvents.map((ev, idx) => {
                   const badge = statusBadge(ev.status);
+                  const minSummary = getEventMinutesSummary(ev.id);
                   return (
                     <tr key={ev.id || idx} className="hover:bg-muted/15 transition-colors">
                       <td className="px-4 py-3 font-mono">{idx + 1}</td>
@@ -616,6 +758,35 @@ function EventsPage() {
                             </span>
                           ))}
                         </div>
+                      </td>
+                      {/* Minutes & Stage */}
+                      <td className="px-4 py-3">
+                        {minSummary ? (
+                          <div className="flex flex-col gap-1 items-start">
+                            <button
+                              type="button"
+                              onClick={() => setViewingMinutesEvent(ev)}
+                              className="inline-flex items-center gap-1 rounded bg-primary/10 border border-primary/25 px-2 py-0.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors"
+                            >
+                              <NotebookPen className="size-3" />
+                              <span>{minSummary.count} मिनेट ({minSummary.completedAgendas}/{minSummary.totalAgendas})</span>
+                            </button>
+                            <span className="text-[10px] text-muted-foreground font-semibold">
+                              {minSummary.stage}
+                            </span>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            asChild
+                            variant="ghost"
+                            className="h-6 px-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary"
+                          >
+                            <Link to="/minutes" search={{ event_id: ev.id, new: "true" }}>
+                              + मिनेट थप्नुहोस्
+                            </Link>
+                          </Button>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -1117,6 +1288,123 @@ function EventsPage() {
               <Button onClick={() => window.print()} className="font-bold">
                 <Printer className="mr-1.5 size-4" />
                 प्रिन्ट गर्नुहोस्
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* EVENT MINUTES PREVIEW MODAL */}
+      {/* ========================================================================= */}
+      {viewingMinutesEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-xs">
+          <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <NotebookPen className="size-5 text-primary" />
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground">
+                    {viewingMinutesEvent.title} — बैठक तथा मिनेटहरू
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    स्थान: {viewingMinutesEvent.locality || "—"} | सुरु: {np(viewingMinutesEvent.commencing_date)}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-lg"
+                onClick={() => setViewingMinutesEvent(null)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
+              {(() => {
+                const evMinutes = minutesList.filter((m) => m.event_id === viewingMinutesEvent.id);
+                if (evMinutes.length === 0) {
+                  return (
+                    <div className="py-10 text-center text-muted-foreground">
+                      यस कार्यक्रमका लागि कुनै बैठक मिनेट दर्ता भएको छैन।
+                    </div>
+                  );
+                }
+                return evMinutes.map((m, mIdx) => (
+                  <div key={m.id || mIdx} className="rounded-xl border bg-muted/20 p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-black bg-primary/10 text-primary px-2 py-0.5 rounded">
+                          बैठक #{mIdx + 1}
+                        </span>
+                        <span className="font-bold text-sm text-foreground">
+                          मिति: {np(m.meeting_date)}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        उपस्थिति: {(m.attendees || []).length} जना
+                      </span>
+                    </div>
+
+                    {/* Agendas */}
+                    <div className="space-y-2">
+                      <div className="font-extrabold text-xs text-foreground uppercase tracking-wide">
+                        एजेन्डा तथा पारित निर्णयहरू:
+                      </div>
+                      {(m.agenda || []).map((a, aIdx) => (
+                        <div key={a.id || aIdx} className="rounded-lg border bg-background p-3 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-foreground">
+                              {aIdx + 1}. {a.text}
+                            </span>
+                            {a.done ? (
+                              <Badge variant="outline" className="text-[9px] font-bold bg-emerald-500/15 border-emerald-500/30 text-emerald-700">
+                                ✓ पूरा भयो
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] font-bold bg-amber-500/15 border-amber-500/30 text-amber-700">
+                                ⏳ जारी
+                              </Badge>
+                            )}
+                          </div>
+                          {a.decision && (
+                            <div className="text-[11px] text-muted-foreground pl-3 border-l-2 border-primary/40 mt-1">
+                              <strong>निर्णय:</strong> {a.decision}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {m.draft && (
+                      <div className="rounded-lg bg-card border p-3 text-[11px] text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        <div className="font-bold text-foreground mb-1">औपचारिक मिनेट ड्राफ्ट:</div>
+                        {m.draft}
+                      </div>
+                    )}
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="flex items-center justify-between border-t pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewingMinutesEvent(null)}
+              >
+                बन्द गर्नुहोस्
+              </Button>
+              <Button
+                size="sm"
+                asChild
+                className="font-bold text-xs"
+              >
+                <Link to="/minutes" search={{ event_id: viewingMinutesEvent.id, new: "true" }}>
+                  <Plus className="size-3.5 mr-1" /> यस कार्यक्रमको नयाँ मिनेट थप्नुहोस्
+                </Link>
               </Button>
             </div>
           </div>
