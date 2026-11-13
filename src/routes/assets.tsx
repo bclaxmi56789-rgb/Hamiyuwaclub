@@ -920,7 +920,7 @@ function AssetsPage() {
     if (!reportingItem?.issued_to_id) return 0;
     const empLogs = dailyLogs
       .filter((l) => l.employee_id === reportingItem.issued_to_id)
-      .sort((a, b) => b.log_date.localeCompare(a.log_date));
+      .sort((a, b) => (b.log_date ?? "").localeCompare(a.log_date ?? ""));
     return empLogs[0] ? theliTotals(empLogs[0]).balance : 0;
   }, [reportingItem, dailyLogs]);
 
@@ -1089,7 +1089,7 @@ function AssetsPage() {
       // Latest carried balance
       const empLogs = dailyLogs
         .filter((l) => l.employee_id === emp.id)
-        .sort((a, b) => b.log_date.localeCompare(a.log_date));
+        .sort((a, b) => (b.log_date ?? "").localeCompare(a.log_date ?? ""));
       const carryBalance = empLogs[0] ? theliTotals(empLogs[0]).balance : 0;
 
       const totalBooked = allEmpItems.reduce((s, it) => s + (Number(it.amount_booked) || 0), 0);
@@ -1138,9 +1138,9 @@ function AssetsPage() {
       if (stockSearch.trim()) {
         const q = stockSearch.toLowerCase();
         const matchesRange =
-          it.range_from.toLowerCase().includes(q) || it.range_to.toLowerCase().includes(q);
+          (it.range_from ?? "").toLowerCase().includes(q) || (it.range_to ?? "").toLowerCase().includes(q);
         const matchesEmp = it.issued_to_name?.toLowerCase().includes(q);
-        const matchesWard = it.ward.includes(q);
+        const matchesWard = (it.ward ?? "").includes(q);
         if (!matchesRange && !matchesEmp && !matchesWard) return false;
       }
       return true;
