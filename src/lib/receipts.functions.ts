@@ -237,12 +237,20 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
         alreadyConverted = (res.data as { converted_to_receipt?: boolean }).converted_to_receipt === true;
         if (alreadyConverted)
           throw new Error("यो थेली पहिले नै रूपान्तरित भइसकेको छ (रूपान्तरित)। दोब्बा रूपान्तरण गर्न सकिँदैन।");
-        balance = Math.round(Number(res.data.amount_booked) * 100) / 100;
-        if (balance <= 0) throw new Error("यो थेलीमा काटिएको रकम छैन। केही गर्नु पर्दैन।");
+        const dbBooked = Math.round(Number(res.data.amount_booked) * 100) / 100;
+        if (dbBooked > 0) {
+          balance = dbBooked;
+        } else if (data.amount > 0) {
+          balance = Math.round(data.amount * 100) / 100;
+        }
       }
     } catch (e) {
       if (e instanceof Error && (e.message.includes("काटिएको रकम") || e.message.includes("रूपान्तरित")))
         throw e;
+    }
+
+    if (balance <= 0) {
+      throw new Error("भुक्तानी गर्नका लागि रकम शून्य भन्दा ठूलो हुनुपर्छ।");
     }
 
     // Allocation split must cover the whole booked amount
@@ -357,22 +365,56 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
     try {
       const current = await supabase
         .from("theli_stock_items")
-        .select("amount_booked,amount_obtained")
+        .select("amount_booked,amount_obtained,issued_to_id,issued_to_name,supervisor_name,ward,range_from,range_to,theli_no")
         .eq("id", data.item_id)
         .eq("owner_id", context.userId)
         .maybeSingle();
       if (!current.error && current.data) {
-        const booked = Math.round(Number(current.data.amount_booked) * 100) / 100;
+        const booked = Math.max(
+          Math.round(Number(current.data.amount_booked) * 100) / 100,
+          balance,
+        );
         await supabase
           .from("theli_stock_items")
           .update({
+            amount_booked: booked,
             amount_obtained: booked,
             balance: 0,
             converted_to_receipt: true,
+            status: "completed",
+            last_voucher_booked: data.last_voucher_booked || data.range_to,
             updated_at: new Date().toISOString(),
           })
           .eq("id", data.item_id)
           .eq("owner_id", context.userId);
+
+        // Also add entry to theli_logs for the daily ledger
+        try {
+          await supabase.from("theli_logs").insert({
+            id: `th-conv-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+            owner_id: context.userId,
+            log_date: data.date,
+            ward: current.data.ward || data.ward,
+            employee_id: current.data.issued_to_id || "",
+            employee_name: current.data.issued_to_name || data.issued_to_name || "काउन्टर दाखिला",
+            supervisor_name: current.data.supervisor_name || "",
+            opening_balance: 0,
+            out_entries: [
+              {
+                from: data.range_from || current.data.range_from || "",
+                to: data.range_to || current.data.range_to || "",
+                count: 0,
+              },
+            ],
+            closing_serial: data.last_voucher_booked || data.range_to || "",
+            amount: booked,
+            cleared_amount: booked,
+            remarks: `थेली भुक्तानी दाखिला (रसिद नं. ${receipt.receipt_no}): ${data.range_from}–${data.range_to}`,
+            cancelled_count: 0,
+            net_valid_count: 0,
+            updated_at: new Date().toISOString(),
+          });
+        } catch {}
       }
     } catch {}
 

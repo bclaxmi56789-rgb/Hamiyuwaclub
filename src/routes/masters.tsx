@@ -98,8 +98,19 @@ const getEmptyForm = (defaultWard = "1"): Person => {
     locality_photo: "",
     nature: "",
     place_detail: "",
+    home_area_sqft: null,
+    no_of_floors: null,
+    no_of_rooms: null,
+    no_of_rental_rooms: null,
+    ghardhani_name: "",
+    ghardhani_ref: "",
   };
 };
+
+// Ghardhani (house owner) is required for company-type natures and rented premises.
+function needsGhardhani(f: { nature?: string; no_of_rental_rooms?: number | null }): boolean {
+  return (f.nature || "").toLowerCase().includes("company") || (Number(f.no_of_rental_rooms) || 0) > 0;
+}
 
 function placeDetailLabel(p: Person): string {
   return p.place_detail?.trim() || "";
@@ -462,6 +473,12 @@ function Masters() {
       locality_photo: p.locality_photo || "",
       nature: p.nature || "",
       place_detail: p.place_detail || "",
+      home_area_sqft: p.home_area_sqft ?? null,
+      no_of_floors: p.no_of_floors ?? null,
+      no_of_rooms: p.no_of_rooms ?? null,
+      no_of_rental_rooms: p.no_of_rental_rooms ?? null,
+      ghardhani_name: p.ghardhani_name || "",
+      ghardhani_ref: p.ghardhani_ref || "",
     });
     setIsCreatingPlan(false);
     setNewPlanForm({
@@ -665,6 +682,26 @@ function Masters() {
         );
         return;
       }
+    }
+
+    if (needsGhardhani(form)) {
+      if (!form.ghardhani_ref || !form.ghardhani_name?.trim()) {
+        setErr(
+          "कम्पनी वा भाडाको घरभाडामा घरधनी अनिवार्य छ — ग्राहक मास्टरबाट छान्नुहोस् (Ghardhani is required for companies/rentals — select from People Master).",
+        );
+        return;
+      }
+      const [gWard, gCard] = form.ghardhani_ref.split(":");
+      const ghardhani = (query.data?.people ?? []).find(
+        (p) => p.ward === gWard && p.card === gCard,
+      );
+      if (!ghardhani) {
+        setErr(
+          "छानिएको घरधनी ग्राहक मास्टरमा फेला परेन (Selected ghardhani was not found in People Master).",
+        );
+        return;
+      }
+      form.ghardhani_name = ghardhani.name;
     }
 
     setBusy(true);
@@ -1971,6 +2008,149 @@ function Masters() {
                       डेलिभरी तथा संकलनको लागि घरको मुख्य ढोका, तल्ला र कोठा संख्या अनिवार्य छन्।
                     </p>
                   </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div>
+                      <label
+                        htmlFor="home-area-sqft"
+                        className="block text-xs font-semibold text-muted-foreground"
+                      >
+                        घर क्षेत्रफल (व.फि.) (Home Area, Sq ft)
+                      </label>
+                      <input
+                        id="home-area-sqft"
+                        type="number"
+                        min={0}
+                        step="any"
+                        value={form.home_area_sqft ?? ""}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            home_area_sqft: e.target.value === "" ? null : Number(e.target.value),
+                          }))
+                        }
+                        placeholder="उदा: 1200"
+                        className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="no-of-floors"
+                        className="block text-xs font-semibold text-muted-foreground"
+                      >
+                        तल्ला संख्या (No. of Floors)
+                      </label>
+                      <input
+                        id="no-of-floors"
+                        type="number"
+                        min={0}
+                        step="1"
+                        value={form.no_of_floors ?? ""}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            no_of_floors: e.target.value === "" ? null : Number(e.target.value),
+                          }))
+                        }
+                        placeholder="उदा: 2"
+                        className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="no-of-rooms"
+                        className="block text-xs font-semibold text-muted-foreground"
+                      >
+                        कोठा संख्या (No. of Rooms)
+                      </label>
+                      <input
+                        id="no-of-rooms"
+                        type="number"
+                        min={0}
+                        step="1"
+                        value={form.no_of_rooms ?? ""}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            no_of_rooms: e.target.value === "" ? null : Number(e.target.value),
+                          }))
+                        }
+                        placeholder="उदा: 6"
+                        className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="no-of-rental-rooms"
+                        className="block text-xs font-semibold text-muted-foreground"
+                      >
+                        भाडा कोठा संख्या (No. of Rental Rooms)
+                      </label>
+                      <input
+                        id="no-of-rental-rooms"
+                        type="number"
+                        min={0}
+                        step="1"
+                        value={form.no_of_rental_rooms ?? ""}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            no_of_rental_rooms: e.target.value === "" ? null : Number(e.target.value),
+                          }))
+                        }
+                        placeholder="उदा: 2"
+                        className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                      />
+                    </div>
+                  </div>
+                  {needsGhardhani(form) && (
+                    <div className="mt-3">
+                      <label
+                        htmlFor="ghardhani-ref"
+                        className="block text-xs font-bold text-foreground"
+                      >
+                        🧑‍💼 घरधनीको नाम (House Owner / Ghardhani) *{" "}
+                        <span className="font-normal text-muted-foreground">
+                          (ग्राहक मास्टरबाट छान्नुहोस् / from People Master)
+                        </span>
+                      </label>
+                      <select
+                        id="ghardhani-ref"
+                        className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                        value={form.ghardhani_ref || ""}
+                        onChange={(e) => {
+                          const ref = e.target.value;
+                          if (!ref) {
+                            setForm((prev) => ({ ...prev, ghardhani_ref: "", ghardhani_name: "" }));
+                            return;
+                          }
+                          const [gWard, gCard] = ref.split(":");
+                          const ghardhani = (query.data?.people ?? []).find(
+                            (p) => p.ward === gWard && p.card === gCard,
+                          );
+                          setForm((prev) => ({
+                            ...prev,
+                            ghardhani_ref: ref,
+                            ghardhani_name: ghardhani?.name || prev.ghardhani_name || "",
+                          }));
+                        }}
+                      >
+                        <option value="">— छान्नुहोस् (Select from People Master) —</option>
+                        {(query.data?.people ?? [])
+                          .slice()
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((p) => (
+                            <option key={`${p.ward}-${p.card}`} value={`${p.ward}:${p.card}`}>
+                              {p.name} — वडा {p.ward}, कार्ड नं. {p.card}
+                            </option>
+                          ))}
+                      </select>
+                      {form.ghardhani_name && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          घरधनी: {form.ghardhani_name}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2067,6 +2247,34 @@ function Masters() {
                     ["न.पा./गा.पा. (Municipality)", viewingPerson.municipality],
                     ["टोल (Tole)", viewingPerson.tole],
                     ["घर/तल्ला/कोठा विवरण (House/Room)", viewingPerson.place_detail],
+                    [
+                      "घर क्षेत्रफल (Home Area)",
+                      viewingPerson.home_area_sqft != null
+                        ? `${viewingPerson.home_area_sqft} व.फि. (sq ft)`
+                        : undefined,
+                    ],
+                    [
+                      "तल्ला संख्या (Floors)",
+                      viewingPerson.no_of_floors != null ? String(viewingPerson.no_of_floors) : undefined,
+                    ],
+                    [
+                      "कोठा संख्या (Rooms)",
+                      viewingPerson.no_of_rooms != null ? String(viewingPerson.no_of_rooms) : undefined,
+                    ],
+                    [
+                      "भाडा कोठा संख्या (Rental Rooms)",
+                      viewingPerson.no_of_rental_rooms != null
+                        ? String(viewingPerson.no_of_rental_rooms)
+                        : undefined,
+                    ],
+                    [
+                      "घरधनी (House Owner / Ghardhani)",
+                      viewingPerson.ghardhani_name
+                        ? viewingPerson.ghardhani_ref
+                          ? `${viewingPerson.ghardhani_name} (वडा ${viewingPerson.ghardhani_ref.split(":")[0]}, कार्ड नं. ${viewingPerson.ghardhani_ref.split(":")[1]})`
+                          : viewingPerson.ghardhani_name
+                        : undefined,
+                    ],
                     ["विस्तृत ठेगाना (Full Address)", viewingPerson.full_address],
                     ["प्यान (PAN)", viewingPerson.pan],
                     ["व्यवसाय मुख्ति (Nature)", viewingPerson.nature],

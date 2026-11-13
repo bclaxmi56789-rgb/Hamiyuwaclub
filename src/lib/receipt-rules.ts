@@ -185,6 +185,12 @@ export type Person = {
   locality_photo?: string; // photo of the customer's locality/house
   nature?: string; // business nature (from BUSINESS_NATURES master list)
   place_detail?: string | null; // house / floor / room-level location detail
+  home_area_sqft?: number | null; // home area in square feet
+  no_of_floors?: number | null;
+  no_of_rooms?: number | null;
+  no_of_rental_rooms?: number | null;
+  ghardhani_name?: string; // house owner (landlord) name — for companies / rentals, from People Master
+  ghardhani_ref?: string; // "ward:card" reference of the ghardhani in People Master
 };
 export type ReceiptMonthItem = { m: number; amt: number; year?: number };
 export type Receipt = Person & {

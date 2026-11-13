@@ -108,19 +108,19 @@ export const DEFAULT_THELI_BATCHES: TheliStockBatch[] = [
 
 export const DEFAULT_THELI_ITEMS: TheliStockItem[] = [
   {
-    id: "th-def-rem",
+    id: "th-def-1",
     batch_id: "tsb-default-1",
     municipality: "वीरेन्द्रनगर नगरपालिका",
     ward: "4",
     fiscal_year: "2081/82",
     theli_no: 1,
-    range_from: "GT-0031",
+    range_from: "GT-0001",
     range_to: "GT-0050",
-    total_vouchers: 20,
-    status: "returned_remaining",
-    is_remaining_open: true,
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
     booked_vouchers_count: 0,
-    remaining_vouchers_count: 20,
+    remaining_vouchers_count: 50,
     amount_booked: 0,
     amount_obtained: 0,
     balance: 0,
@@ -199,8 +199,8 @@ export const DEFAULT_THELI_ITEMS: TheliStockItem[] = [
   },
 ];
 
-const SEED_BATCHES: TheliStockBatch[] = [];
-const SEED_ITEMS: TheliStockItem[] = [];
+const SEED_BATCHES: TheliStockBatch[] = DEFAULT_THELI_BATCHES;
+const SEED_ITEMS: TheliStockItem[] = DEFAULT_THELI_ITEMS;
 
 /* ── Legacy row helper ───────────────────────────────────────── */
 function TheliRangeRows({
@@ -326,6 +326,10 @@ function AssetsPage() {
   >([]);
   const [convertDate, setConvertDate] = useState(todayBS ? todayBS() : "2083/07/15");
 
+  // Conversion target & inputs
+  const [convertCustomAmount, setConvertCustomAmount] = useState<number>(0);
+  const [convertLastVoucher, setConvertLastVoucher] = useState<string>("");
+
   // Cash & bank accounts for the कुन खातामा भित्रियो picker
   const rpAccountsQuery = useQuery({
     queryKey: ["rp_accounts", userId],
@@ -338,26 +342,33 @@ function AssetsPage() {
     account_type: "cash" | "bank";
   }> = rpAccountsQuery.data || [];
 
+  // Effective booked/payment amount
+  const convertEffectiveAmount = useMemo(() => {
+    if (!convertTarget) return 0;
+    if (convertCustomAmount > 0) return convertCustomAmount;
+    return Number(convertTarget.amount_booked) || 0;
+  }, [convertTarget, convertCustomAmount]);
+
   // Amount still unallocated across accounts
-  const convertRemaining = convertTarget
-    ? Math.round(
-        ((convertTarget.amount_booked || 0) -
-          convertAllocations.reduce((s, a) => s + (Number(a.amount) || 0), 0)) *
-          100,
-      ) / 100
-    : 0;
+  const convertRemaining = useMemo(() => {
+    const allocated = convertAllocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+    return Math.round((convertEffectiveAmount - allocated) * 100) / 100;
+  }, [convertEffectiveAmount, convertAllocations]);
 
   const openConvertDialog = (item: TheliStockItem) => {
     setConvertTarget(item);
-    setConvertAllocations([{ account_id: "", amount: Number(item.amount_booked) || 0 }]);
+    const initialAmt = Number(item.amount_booked) > 0 ? Number(item.amount_booked) : 0;
+    setConvertCustomAmount(initialAmt);
+    setConvertLastVoucher(item.last_voucher_booked || item.range_to || "");
+    setConvertAllocations([{ account_id: "", amount: initialAmt }]);
     setConvertDate(item.issued_date || (todayBS ? todayBS() : ""));
   };
 
   const handleConfirmConvertToReceipt = async () => {
     if (!convertTarget) return;
-    const booked = Number(convertTarget.amount_booked) || 0;
+    const booked = convertEffectiveAmount;
     if (booked <= 0) {
-      setConvertTarget(null);
+      alert("कृपया भुक्तानी / संकलित रकम भर्नुहोस्।");
       return;
     }
     if (convertRemaining !== 0) {
@@ -376,7 +387,7 @@ function AssetsPage() {
           theli_no: convertTarget.theli_no || 0,
           range_from: convertTarget.range_from || "",
           range_to: convertTarget.range_to || "",
-          last_voucher_booked: convertTarget.last_voucher_booked || "",
+          last_voucher_booked: convertLastVoucher || convertTarget.last_voucher_booked || "",
           issued_to_name: convertTarget.issued_to_name || "",
           municipality: convertTarget.municipality || "",
           amount: booked,
@@ -397,9 +408,12 @@ function AssetsPage() {
         it.id === convertTarget.id
           ? {
               ...it,
-              amount_obtained: Number(it.amount_booked) || 0,
+              status: "completed" as const,
+              amount_booked: booked,
+              amount_obtained: booked,
               balance: 0,
               converted_to_receipt: true,
+              last_voucher_booked: convertLastVoucher || it.last_voucher_booked,
             }
           : it,
       );
@@ -461,26 +475,49 @@ function AssetsPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
-  // Sync server data
+  // Sync server data safely with merge
   useEffect(() => {
     if (theliStockQuery.data) {
       const bList = theliStockQuery.data.batches || [];
       const iList = theliStockQuery.data.items || [];
       const lList = theliStockQuery.data.logs || [];
-      if (bList.length > 0 || iList.length > 0) {
-        setStockBatches(bList);
-        setStockItems(iList);
-        try {
-          localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList));
-          localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList));
-        } catch {}
+
+      if (bList.length > 0) {
+        setStockBatches((prev) => {
+          const map = new Map(prev.map((b) => [b.id, b]));
+          bList.forEach((b) => map.set(b.id, b));
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
+
+      if (iList.length > 0) {
+        setStockItems((prev) => {
+          const map = new Map(prev.map((it) => [it.id, it]));
+          iList.forEach((it) => map.set(it.id, it));
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+
       if (lList.length > 0) {
-        setDailyLogs(lList);
-        try {
-          localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList));
-        } catch {}
+        setDailyLogs((prev) => {
+          const map = new Map(prev.map((l) => [l.id || `${l.log_date}-${l.employee_id}`, l]));
+          lList.forEach((l) => map.set(l.id || `${l.log_date}-${l.employee_id}`, l));
+          const merged = Array.from(map.values());
+          try {
+            localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
+
       if (theliStockQuery.data.employees) {
         setEmployees(theliStockQuery.data.employees);
       }
@@ -489,6 +526,28 @@ function AssetsPage() {
       }
     }
   }, [theliStockQuery.data]);
+
+  const handleDeleteStockBatch = async (batchId: string) => {
+    if (
+      !window.confirm(
+        "के तपाईं यो थेली स्टक ब्याच र यसअन्तर्गतका सम्पूर्ण थेलीहरू मेटाउन निश्चित हुनुहुन्छ?",
+      )
+    )
+      return;
+    try {
+      await deleteStockBatchFn({ data: { id: batchId } });
+    } catch {}
+    const updatedBatches = stockBatches.filter((b) => b.id !== batchId);
+    const updatedItems = stockItems.filter((it) => it.batch_id !== batchId);
+    setStockBatches(updatedBatches);
+    setStockItems(updatedItems);
+    try {
+      localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(updatedBatches));
+      localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
+    } catch {}
+    setNotice({ type: "success", text: "थेली स्टक ब्याच सफलतापूर्वक मेटाइयो।" });
+    refreshAll();
+  };
 
   // Notifications
   const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -1356,6 +1415,94 @@ function AssetsPage() {
               </div>
             </div>
 
+            {/* ── Registered Stock Batches Section ── */}
+            <div className="rounded-xl border bg-card p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b pb-2">
+                <div className="flex items-center gap-2">
+                  <Package className="size-4 text-primary" />
+                  <h3 className="text-xs font-extrabold text-foreground">
+                    दर्ता भएका थेली स्टक ब्याचहरू (Theli Stock Batches)
+                  </h3>
+                  <span className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.2 text-[10px] font-mono font-bold text-primary">
+                    {stockBatches.length} ब्याच
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSubTab("add_stock")}
+                    className="h-7 px-2 text-[11px] font-bold"
+                  >
+                    <Plus className="size-3 mr-1" />
+                    <span>नयाँ ब्याच थप्नुहोस्</span>
+                  </Button>
+                </div>
+              </div>
+
+              {stockBatches.length === 0 ? (
+                <div className="text-center py-4 text-xs text-muted-foreground bg-muted/20 rounded-lg">
+                  कुनै स्टक ब्याच दर्ता भएको छैन। माथि 'नयाँ थेली स्टक दर्ता' बाट सुरु गर्नुहोस् वा नमुना स्टक लोड गर्नुहोस्।
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b bg-muted/30 text-muted-foreground font-semibold">
+                      <tr>
+                        <th className="px-3 py-2">सि.नं.</th>
+                        <th className="px-3 py-2">पालिका र वडा</th>
+                        <th className="px-3 py-2">आ.व.</th>
+                        <th className="px-3 py-2 font-mono">सुरु सिरियल (Starts From)</th>
+                        <th className="px-3 py-2 font-mono">सम्म सिरियल (Ends To)</th>
+                        <th className="px-3 py-2 text-center">प्रति थेली</th>
+                        <th className="px-3 py-2 text-center">कुल रसिद</th>
+                        <th className="px-3 py-2 text-center">कुल थेली</th>
+                        <th className="px-3 py-2">कैफियत</th>
+                        <th className="no-print px-3 py-2 text-right">कार्य</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {stockBatches.map((b, bIdx) => (
+                        <tr key={b.id || bIdx} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-3 py-2 font-mono text-muted-foreground">{bIdx + 1}</td>
+                          <td className="px-3 py-2 font-bold text-foreground">
+                            वडा {b.ward} <span className="text-[10px] font-normal text-muted-foreground">({b.municipality || "—"})</span>
+                          </td>
+                          <td className="px-3 py-2 font-mono font-semibold">{b.fiscal_year}</td>
+                          <td className="px-3 py-2 font-mono font-extrabold text-blue-700 bg-blue-500/5 rounded">
+                            {b.start_from}
+                          </td>
+                          <td className="px-3 py-2 font-mono font-extrabold text-purple-700 bg-purple-500/5 rounded">
+                            {b.end_to}
+                          </td>
+                          <td className="px-3 py-2 text-center font-mono">{b.vouchers_per_theli}</td>
+                          <td className="px-3 py-2 text-center font-mono font-bold text-emerald-700">
+                            {b.total_vouchers}
+                          </td>
+                          <td className="px-3 py-2 text-center font-mono font-extrabold text-primary">
+                            {b.total_theli} थेली
+                          </td>
+                          <td className="px-3 py-2 text-[11px] text-muted-foreground max-w-[140px] truncate">
+                            {b.remarks || "—"}
+                          </td>
+                          <td className="no-print px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStockBatch(b.id)}
+                              className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="ब्याच मेटाउनुहोस्"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
             {/* Filter and Search Bar */}
             <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3 shadow-2xs">
               <div className="flex flex-wrap items-center gap-2">
@@ -1625,15 +1772,30 @@ function AssetsPage() {
                                 </Button>
                               )}
                               {(item.status === "issued" || item.status === "partially_booked") && (
-                                <Button
-                                  size="sm"
-                                  className="h-7 px-2 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
-                                  onClick={() => handleOpenReportModal(item)}
-                                >
-                                  रिपोर्टिङ
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1"
+                                    onClick={() => handleOpenReportModal(item)}
+                                    title="दैनिक संकलन र क्लोजिङ रिपोर्टिङ"
+                                  >
+                                    <PenLine className="size-3" />
+                                    <span>रिपोर्टिङ</span>
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={converting}
+                                    className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 flex items-center gap-1"
+                                    onClick={() => openConvertDialog(item)}
+                                    title="संकलित रकम भुक्तानी दाखिला / रसिद रूपान्तरण"
+                                  >
+                                    <HandCoins className="size-3" />
+                                    <span>भुक्तानी / दाखिला</span>
+                                  </Button>
+                                </>
                               )}
-                              {item.status === "completed" && (item.amount_booked || 0) > 0 && (
+                              {item.status === "completed" && (
                                 <>
                                   {item.converted_to_receipt ? (
                                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 text-[10px] font-bold text-emerald-700">
@@ -1644,10 +1806,11 @@ function AssetsPage() {
                                       size="sm"
                                       variant="outline"
                                       disabled={converting}
-                                      className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10"
+                                      className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 flex items-center gap-1"
                                       onClick={() => openConvertDialog(item)}
                                     >
-                                      रसिदमा रूपान्तरण
+                                      <HandCoins className="size-3" />
+                                      <span>रसिदमा रूपान्तरण</span>
                                     </Button>
                                   )}
                                 </>
@@ -2677,16 +2840,49 @@ function AssetsPage() {
                   थेली <strong className="font-mono">
                     {convertTarget?.range_from} – {convertTarget?.range_to}
                   </strong>{" "}
-                  (वडा {convertTarget?.ward}, आ.व. {convertTarget?.fiscal_year}) को काटिएको रकम{" "}
-                  <strong className="text-emerald-700">
-                    रु. {(convertTarget?.amount_booked || 0).toLocaleString("en-IN")}
-                  </strong>{" "}
-                  एउटा रसिद (receipt) मा रूपान्तरण गरिनेछ र बाँकी अन्तर शून्य हुनेछ।
+                  (वडा {convertTarget?.ward}, आ.व. {convertTarget?.fiscal_year}) को संकलित रकम रसिद
+                  मा रूपान्तरण गरिनेछ।
                 </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3">
+            {/* Custom amount input */}
+            <div>
+              <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                काटिएको / संकलित रकम (रु.) *
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={convertCustomAmount || ""}
+                placeholder={`${Number(convertTarget?.amount_booked) > 0 ? Number(convertTarget?.amount_booked) : 0}`}
+                onChange={(e) => {
+                  const val = Number(e.target.value) || 0;
+                  setConvertCustomAmount(val);
+                  setConvertAllocations([{ account_id: convertAllocations[0]?.account_id ?? "", amount: val }]);
+                }}
+                className={`${inputCls} font-mono`}
+              />
+              {convertCustomAmount <= 0 && Number(convertTarget?.amount_booked) <= 0 && (
+                <p className="mt-1 text-[10px] text-amber-600 font-semibold">
+                  रिपोर्टिङ नभएकोले रकम थाहा छैन — माथि संकलित रकम हाल्नुहोस्।
+                </p>
+              )}
+            </div>
+            {/* Last voucher booked */}
+            <div>
+              <label className="block text-[11px] font-bold text-muted-foreground mb-1">
+                अन्तिम काटिएको रसिद नं. (Last Voucher)
+              </label>
+              <input
+                type="text"
+                value={convertLastVoucher}
+                placeholder={convertTarget?.range_to || "GT-XXXX"}
+                onChange={(e) => setConvertLastVoucher(e.target.value)}
+                className={inputCls}
+              />
+            </div>
             <div>
               <label className="block text-[11px] font-bold text-muted-foreground mb-1">
                 कुन खातामा भित्रियो? * (नगद र बैंकमा बाँड्न मिल्छ)

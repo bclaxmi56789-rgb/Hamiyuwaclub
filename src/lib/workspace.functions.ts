@@ -153,6 +153,18 @@ export const saveCustomer = createServerFn({ method: "POST" })
       locality_photo: z.string().trim().max(600).optional().default(""),
       nature: z.string().trim().max(80).optional().default(""),
       place_detail: z.string().trim().max(200).optional().default(""),
+      home_area_sqft: z.number().min(0).nullable().optional(),
+      no_of_floors: z.number().int().min(0).nullable().optional(),
+      no_of_rooms: z.number().int().min(0).nullable().optional(),
+      no_of_rental_rooms: z.number().int().min(0).nullable().optional(),
+      ghardhani_name: z.string().trim().max(100).optional().default(""),
+      ghardhani_ref: z
+        .string()
+        .trim()
+        .max(40)
+        .regex(/^([1-9][0-9]*:[0-9]{1,20})?$/, "Invalid ghardhani reference")
+        .optional()
+        .default(""),
       opening_dues: z
         .array(
           z.object({
@@ -223,6 +235,12 @@ export const saveCustomer = createServerFn({ method: "POST" })
     if (data.locality_photo) upsertPayload.locality_photo = data.locality_photo;
     if (data.nature) upsertPayload.nature = data.nature;
     if (data.place_detail) upsertPayload.place_detail = data.place_detail;
+    if (data.home_area_sqft != null) upsertPayload.home_area_sqft = data.home_area_sqft;
+    if (data.no_of_floors != null) upsertPayload.no_of_floors = data.no_of_floors;
+    if (data.no_of_rooms != null) upsertPayload.no_of_rooms = data.no_of_rooms;
+    if (data.no_of_rental_rooms != null) upsertPayload.no_of_rental_rooms = data.no_of_rental_rooms;
+    if (data.ghardhani_name) upsertPayload.ghardhani_name = data.ghardhani_name;
+    if (data.ghardhani_ref) upsertPayload.ghardhani_ref = data.ghardhani_ref;
     if (data.opening_dues !== undefined) upsertPayload.opening_dues = data.opening_dues;
 
     let insertRes = await context.supabase
@@ -3042,6 +3060,11 @@ export const saveTheliStockBatch = createServerFn({ method: "POST" })
       const itemRes = await context.supabase.from("theli_stock_items").upsert(itemsToSave);
       if (itemRes.error) {
         console.warn("theli_stock_items upsert notice:", itemRes.error.message);
+        // If foreign key constraint failed because theli_stock_batches wasn't found, retry without batch_id
+        if (itemRes.error.message.includes("batch_id") || itemRes.error.message.includes("foreign key")) {
+          const itemsWithoutBatchFk = itemsToSave.map((it) => ({ ...it, batch_id: null }));
+          await context.supabase.from("theli_stock_items").upsert(itemsWithoutBatchFk);
+        }
       }
     } catch (e: any) {
       console.warn("theli_stock_items exception:", e);
