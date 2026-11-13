@@ -447,22 +447,10 @@ function AssetsPage() {
     void queryClient.invalidateQueries({ queryKey: ["theli"] });
   };
 
-  // State with LocalStorage fallback
-  const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>(() => {
-    try {
-      const s = localStorage.getItem(hamiCacheKey("hami_theli_stock_batches"));
-      if (s) return JSON.parse(s);
-    } catch {}
-    return SEED_BATCHES;
-  });
-
-  const [stockItems, setStockItems] = useState<TheliStockItem[]>(() => {
-    try {
-      const s = localStorage.getItem(hamiCacheKey("hami_theli_stock_items"));
-      if (s) return JSON.parse(s);
-    } catch {}
-    return SEED_ITEMS;
-  });
+  // State — start empty; Supabase data replaces once query resolves.
+  // Never fall back to SEED_BATCHES/SEED_ITEMS so demo data doesn't mask real DB state.
+  const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>([]);
+  const [stockItems, setStockItems] = useState<TheliStockItem[]>([]);
 
   const [dailyLogs, setDailyLogs] = useState<TheliLog[]>(() => {
     try {
@@ -475,48 +463,23 @@ function AssetsPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
-  // Sync server data safely with merge
+  // Sync server data — ALWAYS replace with authoritative DB data once query resolves.
+  // This prevents seed/stale localStorage data from masking what Supabase actually has.
   useEffect(() => {
     if (theliStockQuery.data) {
       const bList = theliStockQuery.data.batches || [];
       const iList = theliStockQuery.data.items || [];
       const lList = theliStockQuery.data.logs || [];
 
-      if (bList.length > 0) {
-        setStockBatches((prev) => {
-          const map = new Map(prev.map((b) => [b.id, b]));
-          bList.forEach((b) => map.set(b.id, b));
-          const merged = Array.from(map.values());
-          try {
-            localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(merged));
-          } catch {}
-          return merged;
-        });
-      }
+      // Always overwrite state with server truth (even if empty arrays — that's the real answer)
+      setStockBatches(bList);
+      try { localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList)); } catch {}
 
-      if (iList.length > 0) {
-        setStockItems((prev) => {
-          const map = new Map(prev.map((it) => [it.id, it]));
-          iList.forEach((it) => map.set(it.id, it));
-          const merged = Array.from(map.values());
-          try {
-            localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(merged));
-          } catch {}
-          return merged;
-        });
-      }
+      setStockItems(iList);
+      try { localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList)); } catch {}
 
-      if (lList.length > 0) {
-        setDailyLogs((prev) => {
-          const map = new Map(prev.map((l) => [l.id || `${l.log_date}-${l.employee_id}`, l]));
-          lList.forEach((l) => map.set(l.id || `${l.log_date}-${l.employee_id}`, l));
-          const merged = Array.from(map.values());
-          try {
-            localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(merged));
-          } catch {}
-          return merged;
-        });
-      }
+      setDailyLogs(lList);
+      try { localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList)); } catch {}
 
       if (theliStockQuery.data.employees) {
         setEmployees(theliStockQuery.data.employees);
@@ -1455,9 +1418,14 @@ function AssetsPage() {
                 </div>
               </div>
 
-              {filteredStockBatches.length === 0 ? (
+              {theliStockQuery.isLoading ? (
+                <div className="text-center py-6 text-xs text-muted-foreground">
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent mr-2 align-middle" />
+                  डेटा लोड हुँदैछ...
+                </div>
+              ) : filteredStockBatches.length === 0 ? (
                 <div className="text-center py-4 text-xs text-muted-foreground bg-muted/20 rounded-lg">
-                  कुनै स्टक ब्याच दर्ता भएको छैन। माथि 'नयाँ थेली स्टक दर्ता' बाट सुरु गर्नुहोस् वा नमुना स्टक लोड गर्नुहोस्।
+                  थेली स्टक दर्ता भएको छैन। माथि &apos;नयाँ थेली स्टक दर्ता&apos; बटन थिचेर नयाँ स्टक दर्ता गर्नुहोस्।
                 </div>
               ) : (
                 <div className="overflow-x-auto">

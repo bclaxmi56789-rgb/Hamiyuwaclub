@@ -3414,10 +3414,13 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
       const logPayload = {
         id: `th-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
         owner_id: context.userId,
+        fiscal_year: currentItem.fiscal_year || "",
         log_date: data.log_date,
         ward: currentItem.ward,
         employee_id: currentItem.issued_to_id || "",
         employee_name: currentItem.issued_to_name || "",
+        supervisor_type: "employee" as const,
+        supervisor_id: "",
         supervisor_name: currentItem.supervisor_name || "",
         opening_balance: data.carried_balance,
         out_entries: [
@@ -3427,7 +3430,9 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
             count: currentItem.total_vouchers,
           },
         ],
+        in_entries: [] as { from: string; to: string; count: number }[],
         closing_serial: data.last_voucher_booked,
+        settled: false,
         amount: calc.amountBooked,
         cleared_amount: calc.amountObtained,
         remarks: data.remarks || `थेली रिपोर्ट: ${data.last_voucher_booked} सम्म काटियो`,
@@ -3435,8 +3440,13 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
         net_valid_count: calc.netValidCount ?? calc.bookedCount,
         updated_at: now,
       };
-      await context.supabase.from("theli_logs").insert(logPayload);
-    } catch {}
+      const logRes = await context.supabase.from("theli_logs").insert(logPayload);
+      if (logRes.error) {
+        console.warn("theli_logs auto-insert error:", logRes.error.message);
+      }
+    } catch (e: any) {
+      console.warn("theli_logs auto-insert exception:", e?.message);
+    }
 
     return {
       success: true,
