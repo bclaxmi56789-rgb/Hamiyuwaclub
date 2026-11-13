@@ -3,3 +3,4 @@ ALTER TABLE IF EXISTS public.club_events
 ADD COLUMN IF NOT EXISTS budget_breakdown jsonb DEFAULT '[]'::jsonb;
 
 NOTIFY pgrst, 'reload schema';
+
