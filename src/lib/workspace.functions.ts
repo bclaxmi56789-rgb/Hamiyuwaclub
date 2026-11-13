@@ -3013,9 +3013,11 @@ export const saveTheliStockBatch = createServerFn({ method: "POST" })
         .single();
       if (!res.error && res.data) {
         savedBatch = res.data as TheliStockBatch;
+      } else if (res.error) {
+        console.warn("theli_stock_batches upsert notice:", res.error.message);
       }
-    } catch {
-      // Table may not be migrated yet
+    } catch (e: any) {
+      console.warn("theli_stock_batches exception:", e);
     }
 
     // Generate individual theli items
@@ -3037,12 +3039,29 @@ export const saveTheliStockBatch = createServerFn({ method: "POST" })
     }));
 
     try {
-      await context.supabase.from("theli_stock_items").upsert(itemsToSave);
-    } catch {
-      // Table may not be migrated yet
+      const itemRes = await context.supabase.from("theli_stock_items").upsert(itemsToSave);
+      if (itemRes.error) {
+        console.warn("theli_stock_items upsert notice:", itemRes.error.message);
+      }
+    } catch (e: any) {
+      console.warn("theli_stock_items exception:", e);
     }
 
     return { batch: savedBatch, items: generatedItems };
+  });
+
+export const deleteTheliStockItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string() }))
+  .handler(async ({ data, context }) => {
+    try {
+      await context.supabase
+        .from("theli_stock_items")
+        .delete()
+        .eq("id", data.id)
+        .eq("owner_id", context.userId);
+    } catch {}
+    return true;
   });
 
 export const issueTheliStockItem = createServerFn({ method: "POST" })

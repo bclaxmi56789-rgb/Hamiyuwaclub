@@ -66,6 +66,7 @@ import {
   issueMultipleTheliStockItems,
   reportTheliStockClosing,
   deleteTheliStockBatch,
+  deleteTheliStockItem,
   clearAllTheliData,
 } from "@/lib/workspace.functions";
 import { convertTheliBalanceToReceipt } from "@/lib/receipts.functions";
@@ -89,8 +90,116 @@ const inputCls =
   "w-full rounded-md border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary shadow-2xs";
 
 /* ── Seed sample stock if brand new ──────────────────────────── */
-const SEED_BATCHES: TheliStockBatch[] = [];
+export const DEFAULT_THELI_BATCHES: TheliStockBatch[] = [
+  {
+    id: "tsb-default-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    start_from: "GT-0001",
+    end_to: "GT-0250",
+    vouchers_per_theli: 50,
+    total_vouchers: 250,
+    total_theli: 5,
+    remarks: "आ.व. २०८१/८२ वडा नं. ४ पहिलो लट थेली स्टक",
+    created_at: new Date().toISOString(),
+  },
+];
 
+export const DEFAULT_THELI_ITEMS: TheliStockItem[] = [
+  {
+    id: "th-def-rem",
+    batch_id: "tsb-default-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 1,
+    range_from: "GT-0031",
+    range_to: "GT-0050",
+    total_vouchers: 20,
+    status: "returned_remaining",
+    is_remaining_open: true,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 20,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-def-2",
+    batch_id: "tsb-default-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 2,
+    range_from: "GT-0051",
+    range_to: "GT-0100",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-def-3",
+    batch_id: "tsb-default-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 3,
+    range_from: "GT-0101",
+    range_to: "GT-0150",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-def-4",
+    batch_id: "tsb-default-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 4,
+    range_from: "GT-0151",
+    range_to: "GT-0200",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+  {
+    id: "th-def-5",
+    batch_id: "tsb-default-1",
+    municipality: "वीरेन्द्रनगर नगरपालिका",
+    ward: "4",
+    fiscal_year: "2081/82",
+    theli_no: 5,
+    range_from: "GT-0201",
+    range_to: "GT-0250",
+    total_vouchers: 50,
+    status: "available",
+    is_remaining_open: false,
+    booked_vouchers_count: 0,
+    remaining_vouchers_count: 50,
+    amount_booked: 0,
+    amount_obtained: 0,
+    balance: 0,
+  },
+];
+
+const SEED_BATCHES: TheliStockBatch[] = [];
 const SEED_ITEMS: TheliStockItem[] = [];
 
 /* ── Legacy row helper ───────────────────────────────────────── */
@@ -201,6 +310,7 @@ function AssetsPage() {
   const issueMultipleFn = useServerFn(issueMultipleTheliStockItems);
   const reportStockClosingFn = useServerFn(reportTheliStockClosing);
   const deleteStockBatchFn = useServerFn(deleteTheliStockBatch);
+  const deleteStockItemFn = useServerFn(deleteTheliStockItem);
 
   const fetchLegacyTheliFn = useServerFn(getTheliData);
   const saveLegacyTheliFn = useServerFn(saveTheliLog);
@@ -357,14 +467,20 @@ function AssetsPage() {
       const bList = theliStockQuery.data.batches || [];
       const iList = theliStockQuery.data.items || [];
       const lList = theliStockQuery.data.logs || [];
-      setStockBatches(bList);
-      setStockItems(iList);
-      setDailyLogs(lList);
-      try {
-        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList));
-        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList));
-        localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList));
-      } catch {}
+      if (bList.length > 0 || iList.length > 0) {
+        setStockBatches(bList);
+        setStockItems(iList);
+        try {
+          localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList));
+          localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList));
+        } catch {}
+      }
+      if (lList.length > 0) {
+        setDailyLogs(lList);
+        try {
+          localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList));
+        } catch {}
+      }
       if (theliStockQuery.data.employees) {
         setEmployees(theliStockQuery.data.employees);
       }
@@ -419,6 +535,119 @@ function AssetsPage() {
       });
     } finally {
       setClearingData(false);
+    }
+  };
+
+  const handleLoadDefaultTheliStock = async () => {
+    setNotice(null);
+    try {
+      const res = await saveStockBatchFn({
+        data: {
+          municipality: "वीरेन्द्रनगर नगरपालिका",
+          ward: ward && ward !== "all" ? ward : "4",
+          fiscal_year: year || "2081/82",
+          start_from: "GT-0001",
+          end_to: "GT-0250",
+          vouchers_per_theli: 50,
+          remarks: "आ.व. २०८१/८२ पहिलो लट थेली स्टक (GT-0001 देखि GT-0250)",
+        },
+      });
+
+      const updatedBatches = [res.batch, ...stockBatches.filter((b) => b.id !== res.batch.id)];
+      const updatedItems = [...res.items, ...stockItems];
+
+      setStockBatches(updatedBatches);
+      setStockItems(updatedItems);
+      try {
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(updatedBatches));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
+      } catch {}
+
+      setNotice({
+        type: "success",
+        text: "नमुना थेली स्टक सफलतापूर्वक लोड भयो! (GT-0001 देखि GT-0250 सम्मका ५ वटा थेलीहरू स्टकमा थपिए)",
+      });
+      refreshAll();
+    } catch (e: any) {
+      // Local fallback
+      const batchId = `tsb-default-${Date.now()}`;
+      const newBatch: TheliStockBatch = {
+        id: batchId,
+        municipality: "वीरेन्द्रनगर नगरपालिका",
+        ward: ward && ward !== "all" ? ward : "4",
+        fiscal_year: year || "2081/82",
+        start_from: "GT-0001",
+        end_to: "GT-0250",
+        vouchers_per_theli: 50,
+        total_vouchers: 250,
+        total_theli: 5,
+        remarks: "आ.व. २०८१/८२ पहिलो लट थेली स्टक",
+        created_at: new Date().toISOString(),
+      };
+      const genItems = generateTheliRanges({
+        id: batchId,
+        municipality: "वीरेन्द्रनगर नगरपालिका",
+        ward: ward && ward !== "all" ? ward : "4",
+        fiscal_year: year || "2081/82",
+        start_from: "GT-0001",
+        end_to: "GT-0250",
+        vouchers_per_theli: 50,
+      });
+
+      const updatedBatches = [newBatch, ...stockBatches];
+      const updatedItems = [...genItems, ...stockItems];
+      setStockBatches(updatedBatches);
+      setStockItems(updatedItems);
+      try {
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(updatedBatches));
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
+      } catch {}
+      setNotice({
+        type: "success",
+        text: "नमुना थेली स्टक लोड भयो!",
+      });
+    }
+  };
+
+  const handleDeleteStockItem = async (itemId: string) => {
+    if (!window.confirm("के तपाईं यो थेली दायरा स्टकबाट मेटाउन निश्चित हुनुहुन्छ?")) return;
+    try {
+      await deleteStockItemFn({ data: { id: itemId } });
+      const updated = stockItems.filter((it) => it.id !== itemId);
+      setStockItems(updated);
+      try {
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updated));
+      } catch {}
+      setNotice({ type: "success", text: "थेली दायरा सफलतापूर्वक मेटाइयो।" });
+      refreshAll();
+    } catch (e: any) {
+      const updated = stockItems.filter((it) => it.id !== itemId);
+      setStockItems(updated);
+      try {
+        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updated));
+      } catch {}
+      setNotice({ type: "success", text: "थेली दायरा स्थानीय स्टकबाट मेटाइयो।" });
+    }
+  };
+
+  const handleDeleteDailyLog = async (logId: string) => {
+    if (!window.confirm("के तपाईं यो दैनिक थेली रेकर्ड मेटाउन निश्चित हुनुहुन्छ?")) return;
+    try {
+      await deleteLegacyTheliFn({ data: { id: logId } });
+      const updated = dailyLogs.filter((l) => l.id !== logId);
+      setDailyLogs(updated);
+      try {
+        localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(updated));
+      } catch {}
+      setNotice({ type: "success", text: "दैनिक थेली रेकर्ड मेटाइयो।" });
+      refreshAll();
+    } catch (e: any) {
+      const updated = dailyLogs.filter((l) => l.id !== logId);
+      setDailyLogs(updated);
+      try {
+        localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(updated));
+      } catch {}
+      setNotice({ type: "success", text: "दैनिक थेली रेकर्ड स्थानीय सूचीबाट मेटाइयो।" });
     }
   };
 
@@ -532,7 +761,7 @@ function AssetsPage() {
      ───────────────────────────────────────────────────────────── */
   const [issueEmployeeId, setIssueEmployeeId] = useState("");
   const [issueSupervisorName, setIssueSupervisorName] = useState("");
-  const [issueWard, setIssueWard] = useState(ward || "4");
+  const [issueWard, setIssueWard] = useState<string>("all");
   const [issueMunicipality, setIssueMunicipality] = useState("");
   const [issueDate, setIssueDate] = useState("2083/07/15");
   const [selectedStockItemIds, setSelectedStockItemIds] = useState<string[]>([]);
@@ -543,7 +772,7 @@ function AssetsPage() {
     const unissued = stockItems.filter(
       (it) =>
         (it.status === "available" || it.status === "returned_remaining") &&
-        (!issueWard || it.ward === issueWard),
+        (!issueWard || issueWard === "all" || it.ward === issueWard),
     );
     return sortTheliAvailableRanges(unissued);
   }, [stockItems, issueWard]);
@@ -881,6 +1110,29 @@ function AssetsPage() {
     });
   }, [stockItems, stockFilterWard, stockFilterStatus, stockSearch]);
 
+  /* ─────────────────────────────────────────────────────────────
+     TAB 5: DAILY THELI LOGS FILTER & SEARCH
+     ───────────────────────────────────────────────────────────── */
+  const [dailyLogSearch, setDailyLogSearch] = useState("");
+  const [dailyLogEmpFilter, setDailyLogEmpFilter] = useState("all");
+  const [dailyLogWardFilter, setDailyLogWardFilter] = useState("all");
+
+  const filteredDailyLogs = useMemo(() => {
+    return dailyLogs.filter((log) => {
+      if (dailyLogEmpFilter !== "all" && log.employee_id !== dailyLogEmpFilter) return false;
+      if (dailyLogWardFilter !== "all" && log.ward !== dailyLogWardFilter) return false;
+      if (dailyLogSearch.trim()) {
+        const q = dailyLogSearch.toLowerCase();
+        const matchesEmp = log.employee_name?.toLowerCase().includes(q);
+        const matchesDate = log.log_date?.includes(q);
+        const matchesSerial = log.closing_serial?.toLowerCase().includes(q);
+        const matchesRemarks = log.remarks?.toLowerCase().includes(q);
+        if (!matchesEmp && !matchesDate && !matchesSerial && !matchesRemarks) return false;
+      }
+      return true;
+    });
+  }, [dailyLogs, dailyLogEmpFilter, dailyLogWardFilter, dailyLogSearch]);
+
   // Overall Stock KPI totals
   const stockSummary = useMemo(() => {
     const total = stockItems.length;
@@ -1034,6 +1286,22 @@ function AssetsPage() {
                 {employees.length}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setSubTab("daily_log")}
+              className={`pb-2.5 border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                subTab === "daily_log"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <BookOpen className="size-3.5" />
+              <span>दैनिक लेजर सूची (Daily Logs)</span>
+              <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono font-bold">
+                {dailyLogs.length}
+              </span>
+            </button>
           </div>
 
           {(stockItems.length > 0 || dailyLogs.length > 0) && (
@@ -1172,7 +1440,55 @@ function AssetsPage() {
                   {filteredStockItems.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="py-12 text-center text-muted-foreground">
-                        कुनै थेली फेला परेन। माथिको 'नयाँ थेली स्टक दर्ता' बाट स्टक थप्नुहोस्।
+                        {stockItems.length === 0 ? (
+                          <div className="max-w-md mx-auto space-y-3">
+                            <div className="size-12 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center">
+                              <Package className="size-6" />
+                            </div>
+                            <h4 className="font-bold text-foreground text-sm">
+                              कुनै थेली स्टक रेकर्ड फेला परेन (No Theli Records)
+                            </h4>
+                            <p className="text-xs text-muted-foreground">
+                              तपाईं नयाँ छापिएको थेली स्टक दर्ता गर्न सक्नुहुन्छ वा पूर्वनिर्धारित नमुना थेली तुरुन्त लोड गर्न सक्नुहुन्छ।
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                              <Button
+                                size="sm"
+                                onClick={() => setSubTab("add_stock")}
+                                className="font-bold text-xs"
+                              >
+                                <Plus className="size-3.5 mr-1" />
+                                <span>नयाँ थेली स्टक दर्ता गर्नुहोस्</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleLoadDefaultTheliStock}
+                                className="font-bold text-xs border-primary/30 text-primary hover:bg-primary/10"
+                              >
+                                <Sparkles className="size-3.5 mr-1" />
+                                <span>नमुना थेली स्टक लोड गर्नुहोस् (GT-0001 देखि GT-0250)</span>
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <p>छानिएको फिल्टर (वडा वा अवस्था) अनुसार कुनै थेली भेटिएन।</p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setStockFilterWard("all");
+                                setStockFilterStatus("all");
+                                setStockSearch("");
+                              }}
+                              className="text-xs font-bold"
+                            >
+                              <RotateCcw className="size-3.5 mr-1" />
+                              <span>सबै फिल्टर हटाउनुहोस् (Reset Filters)</span>
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -1336,6 +1652,14 @@ function AssetsPage() {
                                   )}
                                 </>
                               )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStockItem(item.id)}
+                                className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                title="थेली मेटाउनुहोस्"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1605,6 +1929,7 @@ function AssetsPage() {
                     onChange={(e) => setIssueWard(e.target.value)}
                     className={inputCls}
                   >
+                    <option value="all">सबै वडा (All Wards)</option>
                     {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
                       <option key={w} value={w}>
                         वडा नं. {w}
@@ -1876,8 +2201,239 @@ function AssetsPage() {
         )}
 
         {/* ═════════════════════════════════════════════════════════════ */}
-        {/* REPORTING MODAL DIALOG (अन्तिम काटिएको रसिद रिपोर्टिङ)         */}
+        {/* SUB-TAB 5: DAILY THELI LOGS (दैनिक थेली रेकर्ड तथा लेजर)      */}
         {/* ═════════════════════════════════════════════════════════════ */}
+        {subTab === "daily_log" && (
+          <div className="space-y-4">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border bg-card p-3 shadow-2xs">
+                <span className="text-[11px] text-muted-foreground font-semibold">कुल दैनिक रेकर्ड</span>
+                <div className="text-xl font-extrabold text-foreground mt-0.5">{dailyLogs.length} दिन</div>
+                <div className="text-[10px] text-muted-foreground">फिल्ड संकलन रेकर्डहरू</div>
+              </div>
+
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-blue-700 font-semibold">कुल काटिएको रकम</span>
+                <div className="text-xl font-extrabold text-blue-700 mt-0.5">
+                  {money(dailyLogs.reduce((s, l) => s + (Number(l.amount) || 0), 0))}
+                </div>
+                <div className="text-[10px] text-blue-600 font-semibold">रसिदबाट उठेको रकम</div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-emerald-700 font-semibold">कुल बुझाइएको रकम</span>
+                <div className="text-xl font-extrabold text-emerald-700 mt-0.5">
+                  {money(dailyLogs.reduce((s, l) => s + (Number(l.cleared_amount) || 0), 0))}
+                </div>
+                <div className="text-[10px] text-emerald-600 font-semibold">संस्थामा दाखिला भएको</div>
+              </div>
+
+              <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-rose-700 font-semibold">कुल बाँकी क्यारी अन्तर</span>
+                <div className="text-xl font-extrabold text-rose-700 mt-0.5">
+                  {money(
+                    dailyLogs.reduce(
+                      (s, l) =>
+                        s + (Number(l.new_balance ?? l.balance ?? (Number(l.amount) || 0) - (Number(l.cleared_amount) || 0)) || 0),
+                      0,
+                    ),
+                  )}
+                </div>
+                <div className="text-[10px] text-rose-600 font-semibold">कर्मचारीहरूको खातामा</div>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-3 shadow-2xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[200px]">
+                  <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="कर्मचारी, मिति, सिरियल खोज्नुहोस्…"
+                    value={dailyLogSearch}
+                    onChange={(e) => setDailyLogSearch(e.target.value)}
+                    className={`${inputCls} pl-8`}
+                  />
+                </div>
+
+                <select
+                  value={dailyLogEmpFilter}
+                  onChange={(e) => setDailyLogEmpFilter(e.target.value)}
+                  className={`${inputCls} w-auto`}
+                >
+                  <option value="all">सबै कर्मचारी (All Employees)</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.designation})
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={dailyLogWardFilter}
+                  onChange={(e) => setDailyLogWardFilter(e.target.value)}
+                  className={`${inputCls} w-auto`}
+                >
+                  <option value="all">सबै वडा</option>
+                  {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
+                    <option key={w} value={w}>
+                      वडा {w}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setSubTab("boxes")}
+                  className="text-xs font-bold bg-primary text-primary-foreground shadow-2xs flex items-center gap-1.5"
+                >
+                  <PenLine className="size-3.5" />
+                  <span>दैनिक रिपोर्टिङ भर्नुहोस्</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto rounded-xl border bg-card shadow-2xs">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b bg-muted/40 font-semibold text-muted-foreground">
+                  <tr>
+                    <th className="px-3.5 py-3">सि.नं.</th>
+                    <th className="px-3.5 py-3">मिति (Date)</th>
+                    <th className="px-3.5 py-3">कर्मचारी (Employee)</th>
+                    <th className="px-3.5 py-3">वडा</th>
+                    <th className="px-3.5 py-3">निकालिएको दायरा (Out Ranges)</th>
+                    <th className="px-3.5 py-3">अन्तिम काटिएको</th>
+                    <th className="px-3.5 py-3 text-right">काटिएको रकम</th>
+                    <th className="px-3.5 py-3 text-right">बुझाएको रकम</th>
+                    <th className="px-3.5 py-3 text-right">बाँकी अन्तर</th>
+                    <th className="px-3.5 py-3">कैफियत</th>
+                    <th className="no-print px-3.5 py-3 text-right">कार्य</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredDailyLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="py-12 text-center text-muted-foreground">
+                        {dailyLogs.length === 0 ? (
+                          <div className="max-w-md mx-auto space-y-3">
+                            <div className="size-12 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center">
+                              <BookOpen className="size-6" />
+                            </div>
+                            <h4 className="font-bold text-foreground text-sm">
+                              कुनै दैनिक थेली रेकर्ड फेला परेन
+                            </h4>
+                            <p className="text-xs text-muted-foreground">
+                              कर्मचारीले फिल्डबाट रसिद काटेर ल्याएपछि 'कर्मचारी अनुसार थेली बक्स' बाट दैनिक रिपोर्टिङ भर्नुहोस्।
+                            </p>
+                            <Button
+                              size="sm"
+                              onClick={() => setSubTab("boxes")}
+                              className="font-bold text-xs"
+                            >
+                              <HandCoins className="size-3.5 mr-1" />
+                              <span>कर्मचारी बक्समा जानुहोस्</span>
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <p>छानिएको फिल्टर अनुसार कुनै दैनिक थेली रेकर्ड भेटिएन।</p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setDailyLogEmpFilter("all");
+                                setDailyLogWardFilter("all");
+                                setDailyLogSearch("");
+                              }}
+                              className="text-xs font-bold"
+                            >
+                              <RotateCcw className="size-3.5 mr-1" />
+                              <span>फिल्टर हटाउनुहोस्</span>
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDailyLogs.map((log, idx) => {
+                      const outStr =
+                        log.out_entries && log.out_entries.length > 0
+                          ? log.out_entries.map((e) => `${e.from}–${e.to}`).join(", ")
+                          : log.theli_number || "—";
+                      const diff = Number(
+                        log.new_balance ??
+                          log.balance ??
+                          (Number(log.amount) || 0) - (Number(log.cleared_amount) || 0),
+                      );
+                      return (
+                        <tr key={log.id || idx} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-3.5 py-3 font-mono text-muted-foreground">{idx + 1}</td>
+                          <td className="px-3.5 py-3 font-mono font-bold whitespace-nowrap">
+                            {log.log_date}
+                          </td>
+                          <td className="px-3.5 py-3">
+                            <span className="font-bold text-foreground">{log.employee_name}</span>
+                            {log.supervisor_name && (
+                              <div className="text-[10px] text-muted-foreground">
+                                सुपरभाइजर: {log.supervisor_name}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3">
+                            <span className="rounded bg-primary/10 px-2 py-0.5 font-bold text-primary text-[11px]">
+                              {log.ward ? `वडा ${log.ward}` : "—"}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-3 font-mono text-xs">{outStr}</td>
+                          <td className="px-3.5 py-3 font-mono font-bold text-blue-700">
+                            {log.closing_serial || "—"}
+                          </td>
+                          <td className="px-3.5 py-3 text-right font-mono font-semibold">
+                            {money(log.amount || 0)}
+                          </td>
+                          <td className="px-3.5 py-3 text-right font-mono text-emerald-700 font-semibold">
+                            {money(log.cleared_amount || 0)}
+                          </td>
+                          <td className="px-3.5 py-3 text-right font-mono">
+                            <span
+                              className={`rounded px-1.5 py-0.5 font-bold ${
+                                diff > 0
+                                  ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {money(diff)}
+                            </span>
+                          </td>
+                          <td className="px-3.5 py-3 text-[11px] text-muted-foreground max-w-[180px] truncate">
+                            {log.remarks || "—"}
+                          </td>
+                          <td className="no-print px-3.5 py-3 text-right">
+                            {log.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDailyLog(log.id!)}
+                                className="rounded p-1 text-red-500 hover:bg-red-500/10 transition-colors"
+                                title="दैनिक रेकर्ड मेटाउनुहोस्"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {reportingItem && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
             <div className="relative w-full max-w-lg rounded-2xl border bg-card p-5 shadow-2xl space-y-4">

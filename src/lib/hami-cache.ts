@@ -34,6 +34,20 @@ export function clearLegacySharedCaches() {
   if (typeof window === "undefined") return;
   for (const key of LEGACY_SHARED_KEYS) {
     try {
+      // If legacy key has data and current scoped key is empty, preserve it into current scope
+      if (cacheScope && cacheScope !== "anon") {
+        const scopedKey = `${key}:${cacheScope}`;
+        const existingScoped = localStorage.getItem(scopedKey);
+        const legacyVal = localStorage.getItem(key);
+        if (
+          legacyVal &&
+          legacyVal !== "[]" &&
+          legacyVal !== "null" &&
+          (!existingScoped || existingScoped === "[]" || existingScoped === "null")
+        ) {
+          localStorage.setItem(scopedKey, legacyVal);
+        }
+      }
       localStorage.removeItem(key);
     } catch {}
   }
