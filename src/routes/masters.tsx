@@ -23,7 +23,6 @@ import {
   ExternalLink,
   Calendar as CalendarIcon,
   Layers,
-  Users,
   Check,
   Minus,
   CreditCard,
@@ -776,20 +775,7 @@ function Masters() {
   return (
     <WorkspacePage title="People Master">
       {/* Top Header & Navigation Tabs */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-        <div className="flex items-center gap-2">
-          <Button variant="default" size="sm" className="gap-1.5 text-xs font-semibold">
-            <Users className="size-4" />
-            People Master (ग्राहक सूची)
-          </Button>
-          <Button variant="outline" size="sm" asChild className="gap-1.5 text-xs">
-            <Link to="/plans">
-              <Layers className="size-4 text-muted-foreground" />
-              Plan Master (योजना दर)
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <div className="mb-5 border-b pb-3" />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-1 flex-wrap items-center gap-2">
