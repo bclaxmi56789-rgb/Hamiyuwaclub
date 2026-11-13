@@ -107,10 +107,7 @@ const getEmptyForm = (defaultWard = "1"): Person => {
   };
 };
 
-// Ghardhani (house owner) is required for company-type natures and rented premises.
-function needsGhardhani(f: { nature?: string; no_of_rental_rooms?: number | null }): boolean {
-  return (f.nature || "").toLowerCase().includes("company") || (Number(f.no_of_rental_rooms) || 0) > 0;
-}
+// Ghardhani (house owner) is optional and always selectable from People Master.
 
 function placeDetailLabel(p: Person): string {
   return p.place_detail?.trim() || "";
@@ -684,13 +681,7 @@ function Masters() {
       }
     }
 
-    if (needsGhardhani(form)) {
-      if (!form.ghardhani_ref || !form.ghardhani_name?.trim()) {
-        setErr(
-          "कम्पनी वा भाडाको घरभाडामा घरधनी अनिवार्य छ — ग्राहक मास्टरबाट छान्नुहोस् (Ghardhani is required for companies/rentals — select from People Master).",
-        );
-        return;
-      }
+    if (form.ghardhani_ref) {
       const [gWard, gCard] = form.ghardhani_ref.split(":");
       const ghardhani = (query.data?.people ?? []).find(
         (p) => p.ward === gWard && p.card === gCard,
@@ -2102,55 +2093,53 @@ function Masters() {
                       />
                     </div>
                   </div>
-                  {needsGhardhani(form) && (
-                    <div className="mt-3">
-                      <label
-                        htmlFor="ghardhani-ref"
-                        className="block text-xs font-bold text-foreground"
-                      >
-                        🧑‍💼 घरधनीको नाम (House Owner / Ghardhani) *{" "}
-                        <span className="font-normal text-muted-foreground">
-                          (ग्राहक मास्टरबाट छान्नुहोस् / from People Master)
-                        </span>
-                      </label>
-                      <select
-                        id="ghardhani-ref"
-                        className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
-                        value={form.ghardhani_ref || ""}
-                        onChange={(e) => {
-                          const ref = e.target.value;
-                          if (!ref) {
-                            setForm((prev) => ({ ...prev, ghardhani_ref: "", ghardhani_name: "" }));
-                            return;
-                          }
-                          const [gWard, gCard] = ref.split(":");
-                          const ghardhani = (query.data?.people ?? []).find(
-                            (p) => p.ward === gWard && p.card === gCard,
-                          );
-                          setForm((prev) => ({
-                            ...prev,
-                            ghardhani_ref: ref,
-                            ghardhani_name: ghardhani?.name || prev.ghardhani_name || "",
-                          }));
-                        }}
-                      >
-                        <option value="">— छान्नुहोस् (Select from People Master) —</option>
-                        {(query.data?.people ?? [])
-                          .slice()
-                          .sort((a, b) => a.name.localeCompare(b.name))
-                          .map((p) => (
-                            <option key={`${p.ward}-${p.card}`} value={`${p.ward}:${p.card}`}>
-                              {p.name} — वडा {p.ward}, कार्ड नं. {p.card}
-                            </option>
-                          ))}
-                      </select>
-                      {form.ghardhani_name && (
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          घरधनी: {form.ghardhani_name}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  <div className="mt-3">
+                    <label
+                      htmlFor="ghardhani-ref"
+                      className="block text-xs font-bold text-foreground"
+                    >
+                      🧑‍💼 घरधनीको नाम (House Owner / Ghardhani){" "}
+                      <span className="font-normal text-muted-foreground">
+                        (वैकल्पिक — ग्राहक मास्टरबाट छान्नुहोस् / Optional — from People Master)
+                      </span>
+                    </label>
+                    <select
+                      id="ghardhani-ref"
+                      className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                      value={form.ghardhani_ref || ""}
+                      onChange={(e) => {
+                        const ref = e.target.value;
+                        if (!ref) {
+                          setForm((prev) => ({ ...prev, ghardhani_ref: "", ghardhani_name: "" }));
+                          return;
+                        }
+                        const [gWard, gCard] = ref.split(":");
+                        const ghardhani = (query.data?.people ?? []).find(
+                          (p) => p.ward === gWard && p.card === gCard,
+                        );
+                        setForm((prev) => ({
+                          ...prev,
+                          ghardhani_ref: ref,
+                          ghardhani_name: ghardhani?.name || prev.ghardhani_name || "",
+                        }));
+                      }}
+                    >
+                      <option value="">— छान्नुहोस् (Select from People Master) —</option>
+                      {(query.data?.people ?? [])
+                        .slice()
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((p) => (
+                          <option key={`${p.ward}-${p.card}`} value={`${p.ward}:${p.card}`}>
+                            {p.name} — वडा {p.ward}, कार्ड नं. {p.card}
+                          </option>
+                        ))}
+                    </select>
+                    {form.ghardhani_name && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        घरधनी: {form.ghardhani_name}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 

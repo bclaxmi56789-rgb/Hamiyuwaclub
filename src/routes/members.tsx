@@ -699,7 +699,8 @@ function MembersPage() {
         },
       });
 
-      // Merge into current payrollRows
+      // Merge into current payrollRows — only trust server-returned records;
+      // never optimistically mark rows paid the server did not confirm.
       setPayrollRows((prev) =>
         prev.map((row) => {
           const matchingUpdated = updatedRecords.find(
@@ -708,17 +709,7 @@ function MembersPage() {
               u.year === row.year &&
               u.month === row.month,
           );
-          if (matchingUpdated) return matchingUpdated;
-          if (recordsToPay.some((rp) => rp.employee_id === row.employee_id)) {
-            return {
-              ...row,
-              payment_status: "paid",
-              is_booked: true,
-              payment_date: payModal.payment_date || todayBS(),
-              payment_mode: payModal.payment_mode,
-            };
-          }
-          return row;
+          return matchingUpdated ?? row;
         }),
       );
 
@@ -731,24 +722,7 @@ function MembersPage() {
               u.year === item.year &&
               u.month === item.month,
           );
-          if (matchingUpdated) return matchingUpdated;
-          if (
-            recordsToPay.some(
-              (rp) =>
-                rp.employee_id === item.employee_id &&
-                rp.year === item.year &&
-                rp.month === item.month,
-            )
-          ) {
-            return {
-              ...item,
-              payment_status: "paid" as const,
-              is_booked: true,
-              payment_date: payModal.payment_date || todayBS(),
-              payment_mode: payModal.payment_mode,
-            };
-          }
-          return item;
+          return matchingUpdated ?? item;
         });
         try {
           localStorage.setItem(hamiCacheKey("hami_payroll_cache"), JSON.stringify(next));
@@ -768,7 +742,7 @@ function MembersPage() {
       setPayrollNotice({
         type: "success",
         text: payModal.isAll
-          ? `सबै ${recordsToPay.length} कर्मचारीहरूको तलब भुक्तानी भयो र भुक्तानी भौचर सिर्जना गरियो (${voucherRefs || "Payment Vouchers"})!`
+          ? `सबै ${updatedRecords.length} कर्मचारीहरूको तलब भुक्तानी भयो र भुक्तानी भौचर सिर्जना गरियो (${voucherRefs || "Payment Vouchers"})!`
           : `${payModal.target?.employee_name} को तलब भुक्तानी सम्पन्न भयो र भुक्तानी भौचर सिर्जना गरियो (${voucherRefs || "Payment Voucher"})!`,
       });
 

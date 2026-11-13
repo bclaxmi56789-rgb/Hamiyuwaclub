@@ -1240,32 +1240,9 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
         ? item.remarks.trim()
         : `मासिक तलब भुक्तानी - ${monthName} ${item.year} (${item.employee_name})`;
 
-      // 1. Create Payment Voucher in rp_transactions
-      let voucherRef = "";
-      try {
-        const rpRes = await context.supabase.rpc("save_rp_transaction", {
-          p: {
-            txn_type: "payment",
-            txn_date: data.payment_date,
-            account_id: data.account_id,
-            to_account_id: "",
-            party_type: "employee",
-            party_id: item.employee_id,
-            party_name: item.employee_name,
-            amount: item.net_salary,
-            remarks: remarks,
-            manual_ref: "",
-          },
-        });
-        if (!rpRes.error && rpRes.data) {
-          const rpData = rpRes.data as Record<string, unknown>;
-          voucherRef = String(rpData["ref_no"] ?? "");
-        }
-      } catch (err) {
-        console.warn("Failed to auto-create rp voucher for payroll:", err);
-      }
-
-      // 2. Update payroll_records with payment_status = 'paid' and lock
+      // 1. Update payroll_records FIRST — a failed write must abort before the
+      // payment voucher is created, otherwise the voucher shows in payment
+      // history while the ledger never gets its Dr (salary paid) row.
       const recordPayload = {
         owner_id: context.userId,
         year: item.year,
@@ -1287,11 +1264,12 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
         payment_status: "paid" as const,
         payment_date: data.payment_date,
         payment_mode: data.payment_mode,
-        voucher_ref: voucherRef,
+        voucher_ref: "",
         remarks: remarks,
         updated_at: new Date().toISOString(),
       };
 
+      let savedRow: PayrollRecord | null = null;
       if (existing.data?.id) {
         let updateRes = await context.supabase
           .from("payroll_records")
@@ -1300,11 +1278,8 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
           .select("*")
           .maybeSingle();
 
-        if (
-          updateRes.error &&
-          (updateRes.error.message.includes("other_allowance") ||
-            updateRes.error.message.includes("voucher_ref"))
-        ) {
+        if (updateRes.error) {
+          // Retry with base columns only (handles stale schema cache / missing new columns)
           const { other_allowance, voucher_ref, ...fallback } = recordPayload;
           updateRes = await context.supabase
             .from("payroll_records")
@@ -1314,14 +1289,14 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
             .maybeSingle();
         }
 
-        if (updateRes.data) {
-          results.push(updateRes.data as PayrollRecord);
-        } else {
-          results.push({
-            id: existing.data.id,
-            ...recordPayload,
-            is_booked: true,
-          } as PayrollRecord);
+        if (updateRes.error) {
+          throw new Error(
+            `भुक्तानी सेभ गर्न सकिएन (${item.employee_name}): ${updateRes.error.message}`,
+          );
+        }
+        savedRow = (updateRes.data as PayrollRecord) ?? null;
+        if (!savedRow) {
+          savedRow = { id: existing.data.id, ...recordPayload, is_booked: true } as PayrollRecord;
         }
       } else {
         const newId = `pr-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
@@ -1334,28 +1309,112 @@ export const payPayrollRecords = createServerFn({ method: "POST" })
           .select("*")
           .maybeSingle();
 
-        if (
-          insertRes.error &&
-          (insertRes.error.message.includes("other_allowance") ||
-            insertRes.error.message.includes("voucher_ref"))
-        ) {
+        if (insertRes.error) {
+          // Row may already exist (unique owner+year+month+employee) even though
+          // the earlier lookup returned nothing — retry as an update by key.
           const { other_allowance, voucher_ref, ...fallback } = recordPayload;
-          insertRes = await context.supabase
-            .from("payroll_records")
-            .insert({
-              id: newId,
-              ...fallback,
-            })
-            .select("*")
-            .maybeSingle();
+          if (/duplicate key|payroll_emp_month_unique/i.test(insertRes.error.message ?? "")) {
+            insertRes = await context.supabase
+              .from("payroll_records")
+              .update(fallback)
+              .eq("owner_id", context.userId)
+              .eq("year", item.year)
+              .eq("month", item.month)
+              .eq("employee_id", item.employee_id)
+              .select("*")
+              .maybeSingle();
+            if (!insertRes.error) {
+              savedRow = (insertRes.data as PayrollRecord) ?? null;
+              if (!savedRow) {
+                savedRow = {
+                  id: existing.data?.id ?? newId,
+                  ...recordPayload,
+                  is_booked: true,
+                } as PayrollRecord;
+              }
+            }
+          } else {
+            insertRes = await context.supabase
+              .from("payroll_records")
+              .insert({
+                id: newId,
+                ...fallback,
+              })
+              .select("*")
+              .maybeSingle();
+          }
         }
 
-        if (insertRes.data) {
-          results.push(insertRes.data as PayrollRecord);
-        } else {
-          results.push({ id: newId, ...recordPayload, is_booked: true } as PayrollRecord);
+        if (insertRes.error) {
+          throw new Error(
+            `भुक्तानी सेभ गर्न सकिएन (${item.employee_name}): ${insertRes.error.message}`,
+          );
+        }
+        if (!savedRow) {
+          savedRow = (insertRes.data as PayrollRecord) ?? null;
+        }
+        if (!savedRow) {
+          savedRow = { id: newId, ...recordPayload, is_booked: true } as PayrollRecord;
         }
       }
+
+      // 2. Create Payment Voucher in rp_transactions (only after the payroll
+      // record is confirmed saved, so no orphan voucher can appear in payment
+      // history for an unpaid payroll).
+      let voucherRef = "";
+      // Reuse an existing voucher for the same payroll payment (e.g. an orphan
+      // voucher from a previous failed payment attempt) instead of duplicating.
+      const existingVoucher = await context.supabase
+        .from("rp_transactions")
+        .select("ref_no")
+        .eq("owner_id", context.userId)
+        .eq("party_type", "employee")
+        .eq("party_id", item.employee_id)
+        .eq("amount", item.net_salary)
+        .eq("remarks", remarks)
+        .neq("ref_no", "")
+        .limit(1)
+        .maybeSingle();
+      if (!existingVoucher.error && existingVoucher.data?.ref_no) {
+        voucherRef = String(existingVoucher.data.ref_no);
+      }
+      if (!voucherRef) {
+        try {
+          const rpRes = await context.supabase.rpc("save_rp_transaction", {
+            p: {
+              txn_type: "payment",
+              txn_date: data.payment_date,
+              account_id: data.account_id,
+              to_account_id: "",
+              party_type: "employee",
+              party_id: item.employee_id,
+              party_name: item.employee_name,
+              amount: item.net_salary,
+              remarks: remarks,
+              manual_ref: "",
+            },
+          });
+          if (!rpRes.error && rpRes.data) {
+            const rpData = rpRes.data as Record<string, unknown>;
+            voucherRef = String(rpData["ref_no"] ?? "");
+          } else if (rpRes.error) {
+            console.warn("Failed to auto-create rp voucher for payroll:", rpRes.error.message);
+          }
+        } catch (err) {
+          console.warn("Failed to auto-create rp voucher for payroll:", err);
+        }
+      }
+
+      // 3. Backfill voucher_ref (best-effort; Dr entry posts regardless)
+      if (voucherRef && savedRow.id) {
+        const refRes = await context.supabase
+          .from("payroll_records")
+          .update({ voucher_ref: voucherRef })
+          .eq("id", savedRow.id);
+        if (!refRes.error) savedRow = { ...savedRow, voucher_ref: voucherRef };
+      }
+
+      results.push(savedRow);
     }
 
     return results;
