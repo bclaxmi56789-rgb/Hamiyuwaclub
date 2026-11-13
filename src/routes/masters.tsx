@@ -827,57 +827,65 @@ function Masters() {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border bg-card shadow-sm">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <table className="w-full text-left text-sm">
-          <thead className="border-b bg-accent/70 font-semibold text-foreground">
+          <thead className="border-b bg-muted/60 font-bold text-foreground text-xs uppercase tracking-wider">
             <tr>
-              <th className="px-3 py-3">कार्ड नं. (Card)</th>
-              <th className="px-3 py-3">नाम (Name)</th>
-              <th className="px-3 py-3">योजना (Plan)</th>
-              <th className="px-3 py-3">दर्ता मिति (Joined)</th>
-              <th className="px-3 py-3">जिल्ला / न.पा.</th>
-              <th className="px-3 py-3">वडा</th>
-              <th className="px-3 py-3">टोल र विस्तृत ठेगाना (Address)</th>
-              <th className="px-3 py-3">प्यान (PAN)</th>
-              <th className="px-3 py-3">सम्पर्क / इमेल (Contact)</th>
-              <th className="px-3 py-3 text-center">GPS नक्सा</th>
-              <th className="px-3 py-3 text-center">परिचय पत्र</th>
-              <th className="px-3 py-3 text-right">कार्य</th>
+              <th className="px-4 py-3.5">कार्ड र ग्राहक (Customer)</th>
+              <th className="px-3 py-3.5">योजना तथा दर (Plan & Rate)</th>
+              <th className="px-3 py-3.5">ठेगाना (Address & Ward)</th>
+              <th className="px-3 py-3.5">सम्पर्क (Contact)</th>
+              <th className="px-3 py-3.5">दर्ता र स्थिति (Status & Dues)</th>
+              <th className="px-4 py-3.5 text-right">कार्य (Actions)</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {people.map((p) => {
               const hasGps = typeof p.latitude === "number" && typeof p.longitude === "number";
               return (
                 <tr
                   key={`${p.ward}-${p.card}`}
-                  className="border-b transition-colors hover:bg-accent/40"
+                  className="transition-colors hover:bg-accent/40"
                 >
-                  <td className="p-3 font-semibold text-primary">{p.card}</td>
-                  <td className="p-3">
-                    <span className="flex items-center gap-1.5 font-medium text-foreground">
-                      {p.name}
-                      {natureEmoji(p.nature) && (
-                        <span
-                          className="text-base leading-none"
-                          title={p.nature}
-                          aria-label={p.nature}
-                        >
-                          {natureEmoji(p.nature)}
-                        </span>
-                      )}
-                    </span>
+                  {/* 1. Customer & Card */}
+                  <td className="p-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono text-xs font-black bg-primary/10 border border-primary/20 text-primary px-2 py-0.5 rounded-md shrink-0 shadow-2xs">
+                        #{p.card}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 font-bold text-sm text-foreground">
+                          <span className="truncate">{p.name}</span>
+                          {natureEmoji(p.nature) && (
+                            <span
+                              className="text-base shrink-0 leading-none"
+                              title={p.nature}
+                              aria-label={p.nature}
+                            >
+                              {natureEmoji(p.nature)}
+                            </span>
+                          )}
+                        </div>
+                        {p.pan && (
+                          <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                            प्यान: {p.pan}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </td>
-                  <td className="p-3">
+
+                  {/* 2. Plan & Rate */}
+                  <td className="p-3.5">
                     {p.plans && p.plans.length > 0 ? (
-                      <div className="flex flex-col gap-1 items-start max-w-[240px]">
+                      <div className="flex flex-col gap-1 items-start max-w-[220px]">
                         {p.plans.map((sp, idx) => {
                           const qty = sp.quantity || 1;
                           const totalAmt = (sp.chargeable_amount || 0) * qty;
                           return (
                             <span
                               key={idx}
-                              className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
+                              className="inline-flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-xs font-semibold text-primary"
                               title={`${sp.name}: रु. ${sp.chargeable_amount}/${sp.uom || "महिना"}`}
                             >
                               <span>{sp.name}</span>
@@ -899,120 +907,120 @@ function Masters() {
                           );
                         })}
                         {p.plans.length > 1 && (
-                          <span className="text-[11px] font-bold text-foreground">
+                          <span className="text-[11px] font-extrabold text-foreground">
                             कुल: रु. {getCustomerTotalRate(p, plans).toLocaleString("en-IN")}/महिना
                           </span>
                         )}
                       </div>
                     ) : p.plan ? (
-                      <span className="inline-block rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                      <span className="inline-block rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-xs font-bold text-primary">
                         {p.plan}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground text-xs">—</span>
                     )}
                   </td>
-                  <td className="p-3 text-xs">
-                    {p.joining_date ? (
-                      <div>
-                        <span className="inline-flex items-center gap-1 font-mono text-xs text-foreground">
-                          <CalendarIcon className="size-3 text-muted-foreground" />
+
+                  {/* 3. Address & Ward */}
+                  <td className="p-3.5">
+                    <div className="flex flex-col gap-0.5 max-w-[200px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded bg-muted px-1.5 py-0.2 text-[11px] font-bold text-foreground">
+                          वडा {p.ward}
+                        </span>
+                        <span className="text-xs font-semibold text-foreground truncate">
+                          {p.municipality || p.district || "—"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {p.tole || p.full_address || "—"}
+                      </div>
+                      {placeDetailLabel(p) && (
+                        <div className="text-[10px] text-muted-foreground font-medium truncate">
+                          🏠 {placeDetailLabel(p)}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* 4. Contact */}
+                  <td className="p-3.5">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-mono text-xs font-semibold text-foreground">
+                        {p.phone ? `📞 ${p.phone}` : "—"}
+                      </span>
+                      {p.email && (
+                        <span
+                          className="text-[11px] text-muted-foreground truncate max-w-[160px]"
+                          title={p.email}
+                        >
+                          ✉️ {p.email}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* 5. Joined Date & Dues Status */}
+                  <td className="p-3.5">
+                    <div className="flex flex-col gap-1 items-start">
+                      {p.joining_date && (
+                        <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+                          <CalendarIcon className="size-3" />
                           {np(p.joining_date)}
                         </span>
-                        {(() => {
-                          const remain = peopleDues.get(`${p.ward}-${p.card}`);
-                          if (!remain) return null;
-                          return remain.months.length > 0 ? (
-                            <div className="mt-0.5">
-                              <span className="inline-block rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                                बाँकी: रु. {remain.total.toLocaleString("en-IN")} (
-                                {remain.months.length} महिना)
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="mt-0.5">
-                              <span className="inline-block rounded bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                                चुक्ता
-                              </span>
-                            </div>
+                      )}
+                      {(() => {
+                        const remain = peopleDues.get(`${p.ward}-${p.card}`);
+                        if (!remain) {
+                          return (
+                            <span className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                              ✓ चुक्ता
+                            </span>
                           );
-                        })()}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                        }
+                        return remain.months.length > 0 ? (
+                          <span className="inline-block rounded-full bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                            बाँकी: रु. {remain.total.toLocaleString("en-IN")} ({remain.months.length} महिना)
+                          </span>
+                        ) : (
+                          <span className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                            ✓ चुक्ता
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </td>
-                  <td className="p-3">
-                    <div className="font-medium">{p.municipality || "—"}</div>
-                    <div className="text-xs text-muted-foreground">{p.district || "—"}</div>
-                  </td>
-                  <td className="p-3 font-semibold">{p.ward}</td>
-                  <td className="p-3">
-                    <div className="font-medium">{p.tole}</div>
-                    {placeDetailLabel(p) && (
-                      <div className="text-xs font-semibold text-foreground">
-                        🏠 {placeDetailLabel(p)}
-                      </div>
-                    )}
-                    {p.full_address && (
-                      <div className="text-xs text-muted-foreground">{p.full_address}</div>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {p.pan ? (
-                      <span className="inline-block rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-foreground">
-                        {p.pan}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <div className="font-mono text-xs">{p.phone || "—"}</div>
-                    {p.email && (
-                      <div
-                        className="text-[11px] text-muted-foreground truncate max-w-[150px]"
-                        title={p.email}
-                      >
-                        {p.email}
-                      </div>
-                    )}
-                  </td>
-                  <td className="p-3 text-center">
-                    {hasGps ? (
+
+                  {/* 6. Actions & Quick Tools */}
+                  <td className="p-3.5 text-right">
+                    <div className="inline-flex items-center gap-1">
+                      {hasGps && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1 border-emerald-500/40 bg-emerald-50 px-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          title="नक्सामा हेर्नुहोस् (View on GPS Map)"
+                          onClick={() => setViewingMapPerson(p)}
+                        >
+                          <MapPin className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span className="hidden sm:inline">नक्सा</span>
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 gap-1 border-emerald-500/40 bg-emerald-50 px-2 text-xs font-medium text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
-                        title="नक्सामा हेर्नुहोस् (View on map)"
-                        onClick={() => setViewingMapPerson(p)}
+                        className="h-8 gap-1 border-blue-400/40 bg-blue-50 px-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
+                        title="डिजिटल परिचय पत्र (Digital ID Card)"
+                        onClick={() => setViewingCardPerson(p)}
                       >
-                        <MapPin className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                        नक्सा
+                        <CreditCard className="size-3.5" />
+                        <span className="hidden sm:inline">कार्ड</span>
                       </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-center">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 gap-1 border-blue-400/40 bg-blue-50 px-2 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
-                      title="डिजिटल परिचय पत्र (Digital Card)"
-                      onClick={() => setViewingCardPerson(p)}
-                    >
-                      <CreditCard className="size-3.5" />
-                      कार्ड
-                    </Button>
-                  </td>
-                  <td className="p-3 text-right">
-                    <div className="inline-flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-primary"
-                        title="विवरण हेर्नुहोस् (View customer)"
+                        className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                        title="विवरण हेर्नुहोस् (View customer details)"
                         onClick={() => setViewingPerson(p)}
                       >
                         <Eye className="size-4" />
@@ -1020,7 +1028,7 @@ function Masters() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-primary"
+                        className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                         title="सम्पादन गर्नुहोस् (Edit customer)"
                         onClick={() => handleOpenEdit(p)}
                       >
@@ -1029,7 +1037,7 @@ function Masters() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-destructive"
+                        className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                         title="हटाउनुहोस् (Delete customer)"
                         onClick={() => handleDelete(p)}
                       >
@@ -1042,7 +1050,7 @@ function Masters() {
             })}
             {!people.length && (
               <EmptyRows
-                columns={12}
+                columns={6}
                 text={
                   search
                     ? "कुनै ग्राहक फेला परेन (No matching people)."

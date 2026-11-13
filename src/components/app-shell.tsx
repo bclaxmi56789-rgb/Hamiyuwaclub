@@ -105,7 +105,7 @@ export function useAppState() {
 }
 const menuGroups = [
   {
-    title: "MASTER SETUP",
+    title: "मास्टर सेटअप (MASTER SETUP)",
     items: [
       { to: "/masters", label: "People Master", nplabel: "ग्राहक तथा व्यक्ति दर्ता", icon: Users },
       { to: "/members", label: "Members & Staff", nplabel: "सदस्य तथा कर्मचारी", icon: UserCheck },
@@ -115,11 +115,7 @@ const menuGroups = [
     ],
   },
   {
-    title: "",
-    items: [{ to: "/dashboard", label: "Dashboard", nplabel: "ड्यासबोर्ड", icon: LayoutDashboard }],
-  },
-  {
-    title: "COLLECTION & OPERATIONS",
+    title: "संकलन तथा सेवा (OPERATIONS)",
     items: [
       { to: "/", label: "New Receipt", nplabel: "नयाँ रसिद काट्ने", icon: Plus },
       {
@@ -133,7 +129,7 @@ const menuGroups = [
     ],
   },
   {
-    title: "FINANCE & ACCOUNTING",
+    title: "लेखा तथा वित्त (FINANCE)",
     items: [
       {
         to: "/receipts-payments",
@@ -142,11 +138,11 @@ const menuGroups = [
         icon: Wallet,
       },
       { to: "/expenses", label: "Expenses", nplabel: "खर्च प्रविष्टि", icon: ReceiptText },
-      { to: "/assets", label: "Assets", nplabel: "थेली स्टक तथा लेजर", icon: Package },
+      { to: "/assets", label: "Theli & Stock", nplabel: "थेली स्टक तथा लेजर", icon: Package },
     ],
   },
   {
-    title: "EVENTS & GOVERNANCE",
+    title: "कार्यक्रम र बैठक (GOVERNANCE)",
     items: [
       {
         to: "/events",
@@ -163,7 +159,7 @@ const menuGroups = [
     ],
   },
   {
-    title: "ADMINISTRATION & AI",
+    title: "प्रशासन र रिपोर्ट (ADMIN & AI)",
     items: [
       { to: "/ai-assistant", label: "AI Assistant", nplabel: "एआई सहायक", icon: Bot },
       {
@@ -185,7 +181,7 @@ const menuGroups = [
 /** Expand/collapse state per nav group, remembered across sessions (icon-only mode always open). */
 const useNavGroups = () => {
   const initial = useMemo(
-    () => Object.fromEntries(menuGroups.map((g) => [g.title, false])) as Record<string, boolean>,
+    () => Object.fromEntries(menuGroups.map((g) => [g.title, true])) as Record<string, boolean>,
     [],
   );
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initial);
@@ -850,7 +846,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       }}
     >
       <div
-        className={`min-h-screen lg:grid lg:h-screen lg:overflow-hidden ${collapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[240px_minmax(0,1fr)]"}`}
+        className={`min-h-screen lg:grid lg:h-screen lg:overflow-hidden ${collapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[265px_minmax(0,1fr)]"}`}
       >
         {/* Mobile drawer: taps outside (backdrop) or a menu item close it */}
         {drawerOpen && (
@@ -918,24 +914,54 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="App menu"
             className="app-nav flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-3"
           >
+            {/* ─── Pinned Primary: Dashboard at the Very Top ─── */}
+            {hasPageAccess("/dashboard") && (
+              <div className="mb-2 shrink-0">
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="w-full justify-start h-10 px-3 rounded-xl border border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-2xs font-extrabold"
+                >
+                  <Link
+                    title="ड्यासबोर्ड (Dashboard Overview)"
+                    to="/dashboard"
+                    activeOptions={{ exact: true }}
+                    activeProps={{
+                      className:
+                        "!bg-primary !text-primary-foreground font-black shadow-sm ring-2 ring-primary/40",
+                    }}
+                    onClick={() => setDrawerOpen(false)}
+                  >
+                    <LayoutDashboard className="size-5 shrink-0" />
+                    <div
+                      className={`min-w-0 flex items-baseline justify-between flex-1 ${collapsed ? "lg:hidden" : ""}`}
+                    >
+                      <span className="truncate text-sm font-black">ड्यासबोर्ड</span>
+                      <span className="text-[10px] font-bold opacity-75">Dashboard</span>
+                    </div>
+                  </Link>
+                </Button>
+              </div>
+            )}
+
             {menuGroups.map((group) => {
               const title = group.title as string;
               const navOpen = !title || collapsed || Boolean(navGroups.openGroups[title]);
               return (
                 <div
                   key={title || group.items.map((i) => i.to).join("")}
-                  className="mt-3 first:mt-0"
+                  className="mt-3.5 first:mt-0"
                 >
                   {title && !collapsed ? (
                     <button
                       type="button"
                       aria-expanded={navOpen}
                       onClick={() => navGroups.toggleGroup(title)}
-                      className="flex w-full items-center justify-between rounded-md px-2 pb-1 pt-1 text-[10px] font-extrabold uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground"
+                      className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-black uppercase tracking-wider text-sidebar-foreground/85 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
                     >
-                      <span>{title}</span>
+                      <span className="truncate">{title}</span>
                       <ChevronDown
-                        className={`size-3 transition-transform ${navOpen ? "" : "-rotate-90"}`}
+                        className={`size-3.5 shrink-0 transition-transform duration-200 ${navOpen ? "" : "-rotate-90"}`}
                       />
                     </button>
                   ) : null}
@@ -949,20 +975,24 @@ export function AppShell({ children }: { children: ReactNode }) {
                           key={item.to + item.label}
                           asChild
                           variant="ghost"
-                          className="shrink-0 justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          className="shrink-0 justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-9 px-2.5 rounded-lg my-0.5"
                         >
                           <Link
                             title={item.label}
                             to={item.to}
                             activeOptions={{ exact: true }}
+                            activeProps={{
+                              className:
+                                "!bg-primary !text-primary-foreground font-bold shadow-xs hover:!bg-primary hover:!text-primary-foreground",
+                            }}
                             onClick={() => setDrawerOpen(false)}
                           >
-                            <item.icon className="shrink-0" />
+                            <item.icon className="size-4 shrink-0" />
                             <span
                               className={`min-w-0 leading-tight ${collapsed ? "lg:hidden" : ""}`}
                             >
-                              <span className="block truncate font-semibold">{item.nplabel}</span>
-                              <span className="block truncate text-[10px] font-medium text-sidebar-foreground/60">
+                              <span className="block truncate text-xs font-bold">{item.nplabel}</span>
+                              <span className="block truncate text-[10px] font-medium opacity-70">
                                 ({item.label})
                               </span>
                             </span>
