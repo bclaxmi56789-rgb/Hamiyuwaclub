@@ -452,16 +452,21 @@ function AssetsPage() {
   const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>([]);
   const [stockItems, setStockItems] = useState<TheliStockItem[]>([]);
 
-  const [dailyLogs, setDailyLogs] = useState<TheliLog[]>(() => {
-    try {
-      const s = localStorage.getItem(hamiCacheKey("hami_theli_daily_logs"));
-      if (s) return JSON.parse(s);
-    } catch {}
-    return [];
-  });
+  const [dailyLogs, setDailyLogs] = useState<TheliLog[]>([]);
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+
+  // On mount: wipe stale seed/localStorage data so it cannot crash useMemos before
+  // the Supabase query resolves. The useEffect below will refill from server truth.
+  useEffect(() => {
+    try {
+      localStorage.removeItem(hamiCacheKey("hami_theli_stock_batches"));
+      localStorage.removeItem(hamiCacheKey("hami_theli_stock_items"));
+      localStorage.removeItem(hamiCacheKey("hami_theli_daily_logs"));
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync server data — ALWAYS replace with authoritative DB data once query resolves.
   // This prevents seed/stale localStorage data from masking what Supabase actually has.
