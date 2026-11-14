@@ -95,6 +95,7 @@ function Dashboard() {
     queryKey: ["expenses", userId],
     queryFn: () => fetchExpensesFn({ data: {} }),
     enabled: Boolean(signedIn && userId),
+    refetchOnMount: "always",
   });
 
   // Receipts & Payments (cash/bank book) summary data
@@ -103,6 +104,7 @@ function Dashboard() {
     queryKey: ["rp_data", userId],
     queryFn: () => fetchRpDataFn(),
     enabled: Boolean(signedIn && userId),
+    refetchOnMount: "always",
   });
   const rpTransactions: RPTransaction[] = useMemo(
     () => (rpQuery.data as { transactions?: RPTransaction[] } | undefined)?.transactions ?? [],
@@ -176,7 +178,9 @@ function Dashboard() {
       paymentsAmt,
       closing: opening + receiptsAmt - paymentsAmt,
       transfers: rpTransfers.length,
-      latest: [...txns].sort((a, b) => b.txn_date.localeCompare(a.txn_date)).slice(0, 5),
+      latest: [...txns]
+        .sort((a, b) => String(b.txn_date ?? "").localeCompare(String(a.txn_date ?? "")))
+        .slice(0, 5),
       cash: rpAccounts.filter((a) => a.account_type === "cash").length,
       bank: rpAccounts.filter((a) => a.account_type === "bank").length,
     };

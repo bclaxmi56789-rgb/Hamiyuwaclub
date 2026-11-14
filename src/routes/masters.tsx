@@ -2122,7 +2122,7 @@ function Masters() {
                       <option value="">— छान्नुहोस् (Select from People Master) —</option>
                       {(query.data?.people ?? [])
                         .slice()
-                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")))
                         .map((p) => (
                           <option key={`${p.ward}-${p.card}`} value={`${p.ward}:${p.card}`}>
                             {p.name} — वडा {p.ward}, कार्ड नं. {p.card}

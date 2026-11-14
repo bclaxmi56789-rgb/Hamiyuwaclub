@@ -260,7 +260,7 @@ function EventsPage() {
     const completedAgendas = allAgendas.filter((a) => a.done).length;
     const pendingAgendas = totalAgendas - completedAgendas;
     const latest = [...evMinutes].sort((a, b) =>
-      (b.meeting_date || "").localeCompare(a.meeting_date || ""),
+      String(b.meeting_date || "").localeCompare(String(a.meeting_date || "")),
     )[0];
     const stage =
       totalAgendas === 0

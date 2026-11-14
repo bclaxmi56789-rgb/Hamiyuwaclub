@@ -1,5 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { useAppState, SignInPanel } from "./app-shell";
 import { getWorkspaceData } from "@/lib/workspace.functions";
@@ -14,6 +15,9 @@ export function useWorkspace() {
     queryKey: ["workspace", app.userId],
     queryFn: () => fetchData(),
     enabled: app.ready && app.signedIn,
+    // Always revalidate when a signed-in page mounts so a stale empty result
+    // cached right after sign-in never lingers.
+    refetchOnMount: "always",
     // The first fetch right after sign-in can race the auth token attach; retry
     // so records load without a manual refresh.
     retry: (count, err) => {
@@ -24,6 +28,27 @@ export function useWorkspace() {
     retryDelay: 1200,
     refetchOnWindowFocus: true,
   });
+
+  // A first fetch that *succeeds* with an entirely empty workspace right after
+  // sign-in usually means the request raced the session token attach. Re-check
+  // once (and once more after a short delay) so the dashboard fills itself.
+  const recheckRef = useRef(0);
+  useEffect(() => {
+    if (!app.ready || !app.signedIn) return;
+    if (!query.isSuccess) return;
+    const data = query.data as
+      { people?: unknown[]; receipts?: unknown[]; trips?: unknown[] } | undefined;
+    if (!data || data.people?.length || data.receipts?.length) {
+      recheckRef.current = 0;
+      return;
+    }
+    if (recheckRef.current >= 2) return;
+    recheckRef.current += 1;
+    const delay = recheckRef.current === 1 ? 400 : 1600;
+    const timer = setTimeout(() => void query.refetch(), delay);
+    return () => clearTimeout(timer);
+  }, [app.ready, app.signedIn, query.isSuccess, query.data, query.refetch]);
+
   return { ...app, query };
 }
 
@@ -76,7 +101,8 @@ export function WorkspacePage({
         <div className="mb-4 rounded-xl border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2 font-medium">
           <AlertCircle className="size-4 shrink-0 text-blue-600" />
           <span>
-            तपाईं यस पृष्ठमा <strong>हेर्न मात्र (Read-only)</strong> पहुँचमा हुनुहुन्छ। नयाँ रेकर्ड थप्ने वा सच्याउने अनुमति छैन।
+            तपाईं यस पृष्ठमा <strong>हेर्न मात्र (Read-only)</strong> पहुँचमा हुनुहुन्छ। नयाँ रेकर्ड
+            थप्ने वा सच्याउने अनुमति छैन।
           </span>
         </div>
       )}
@@ -86,13 +112,17 @@ export function WorkspacePage({
       ) : !signedIn ? (
         <SignInPanel />
       ) : !allowed ? (
-        <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-8 text-center space-y-3 my-6">
+        <div
+          role="alert"
+          className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-8 text-center space-y-3 my-6"
+        >
           <div className="mx-auto size-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-600">
             <Lock className="size-6" />
           </div>
           <h3 className="text-lg font-bold text-rose-700">पहुँच निषेध गरिएको छ (Access Denied)</h3>
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
-            तपाईंको कर्मचारी खातालाई यस पृष्ठमा प्रवेश गर्ने अनुमति दिइएको छैन। कृपया व्यवस्थापक वा सुपरभाइजरसँग सम्पर्क गर्नुहोस्।
+            तपाईंको कर्मचारी खातालाई यस पृष्ठमा प्रवेश गर्ने अनुमति दिइएको छैन। कृपया व्यवस्थापक वा
+            सुपरभाइजरसँग सम्पर्क गर्नुहोस्।
           </p>
         </div>
       ) : query.isPending ? (

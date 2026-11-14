@@ -184,3 +184,4 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.theli_logs TO authenticated;
 
 -- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
+

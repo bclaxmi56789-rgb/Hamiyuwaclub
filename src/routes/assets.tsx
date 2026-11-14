@@ -760,7 +760,7 @@ function AssetsPage() {
     if (!reportingItem?.issued_to_id) return 0;
     const empLogs = dailyLogs
       .filter((l) => l.employee_id === reportingItem.issued_to_id)
-      .sort((a, b) => (b.log_date ?? "").localeCompare(a.log_date ?? ""));
+      .sort((a, b) => String(b.log_date ?? "").localeCompare(String(a.log_date ?? "")));
     return empLogs[0] ? theliTotals(empLogs[0]).balance : 0;
   }, [reportingItem, dailyLogs]);
 
@@ -955,7 +955,7 @@ function AssetsPage() {
       // Latest carried balance
       const empLogs = dailyLogs
         .filter((l) => l.employee_id === emp.id || l.employee_name === emp.name)
-        .sort((a, b) => (b.log_date ?? "").localeCompare(a.log_date ?? ""));
+        .sort((a, b) => String(b.log_date ?? "").localeCompare(String(a.log_date ?? "")));
       const carryBalance = empLogs[0] ? theliTotals(empLogs[0]).balance : 0;
 
       const totalBooked = allEmpItems.reduce((s, it) => s + (Number(it.amount_booked) || 0), 0);
@@ -986,9 +986,15 @@ function AssetsPage() {
   // Unique fiscal years present in the theli data (newest first)
   const theliFYOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const it of stockItems) if (it.fiscal_year) set.add(it.fiscal_year);
-    for (const b of stockBatches) if (b.fiscal_year) set.add(b.fiscal_year);
-    return Array.from(set).sort((a, b) => b.localeCompare(a));
+    for (const it of stockItems) {
+      if (it && it.fiscal_year != null) set.add(String(it.fiscal_year));
+    }
+    for (const b of stockBatches) {
+      if (b && b.fiscal_year != null) set.add(String(b.fiscal_year));
+    }
+    return Array.from(set)
+      .filter(Boolean)
+      .sort((a, b) => String(b).localeCompare(String(a)));
   }, [stockItems, stockBatches]);
 
   const filteredStockBatches = useMemo(() => {
@@ -1757,7 +1763,7 @@ function AssetsPage() {
                         "2084/85",
                       ]),
                     )
-                      .sort((a, b) => b.localeCompare(a))
+                      .sort((a, b) => String(b).localeCompare(String(a)))
                       .map((y) => (
                         <option key={y} value={y}>
                           आ.व. {y}

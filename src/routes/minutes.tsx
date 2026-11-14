@@ -263,7 +263,9 @@ function MinutesPage() {
   /** Unfinished agendas auto-carry into the next meeting until completed */
   const carryInAgendas = useMemo(() => {
     const src = [...eventHistory].sort((a, b) =>
-      (b.created_at || b.meeting_date).localeCompare(a.created_at || a.meeting_date),
+      String(b.created_at || b.meeting_date || "").localeCompare(
+        String(a.created_at || a.meeting_date || ""),
+      ),
     )[0];
     if (!src) return [];
     return (src.agenda || []).filter((a) => !a.done);
