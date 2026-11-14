@@ -132,6 +132,10 @@ const PRINT_STYLE = (size: PrintSize, receipt: boolean) => `
   .center { text-align: center; }
   .mono { font-family: ui-monospace, monospace; }
   .foot { border-top: 1px solid #000; padding: 1.5mm; text-align: center; font-size: 0.75em; }
+  .company-tag { margin-top: 2mm; padding: 1.5mm 2mm; border: 1.5px solid #000; border-radius: 2mm; text-align: center; font-size: .9em; }
+  .company-tag .cname { font-weight: 800; font-size: 1.15em; }
+  .company-tag .caddr { margin-top: .5mm; opacity: .85; font-size: .85em; }
+  .company-tag .cmeta { margin-top: .3mm; font-size: .8em; font-family: ui-monospace, monospace; }
   .sec-title { font-weight: 800; letter-spacing: .08em; border-bottom: 1px solid #000; padding: 1mm 0; margin-top: 2mm; }
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #000; padding: 1mm 1.5mm; text-align: left; vertical-align: top; }
@@ -309,7 +313,13 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
             <div style="font-size:.7em;opacity:.7">QR स्क्यान / बारकोड</div>
           </div>
         </div>
-        <div class="foot">${escapeHtml(config.entity_name || "")} • ${np(today) || ""} • ${kind === "card" ? "Sangstha — Member Card" : "Member Receipt"}</div>
+        <div class="foot">${np(today) || ""} • ${kind === "card" ? "Sangstha — Member Card" : "Member Receipt"}</div>
+      </div>
+      <div class="company-tag">
+        ${config.logo_url ? `<img src="${escapeHtml(config.logo_url)}" alt="" style="max-height:10mm;max-width:100%;object-fit:contain;margin-bottom:1mm" />` : ""}
+        <div class="cname">${escapeHtml(config.entity_name || "")}</div>
+        ${config.address ? `<div class="caddr">${escapeHtml(config.address)}</div>` : ""}
+        ${config.pan_vat ? `<div class="cmeta">PAN: ${escapeHtml(config.pan_vat)}${config.phone ? ` • ${escapeHtml(config.phone)}` : ""}</div>` : config.phone ? `<div class="cmeta">${escapeHtml(config.phone)}</div>` : ""}
       </div>
       <script>setTimeout(function(){ window.print(); }, 500);<\/script>
       </body></html>`;
