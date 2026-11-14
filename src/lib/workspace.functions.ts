@@ -35,82 +35,95 @@ import { z } from "zod";
 export const getWorkspaceData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const people: Person[] = [];
-    const receipts: Receipt[] = [];
-    const plans: PlanItem[] = [];
-    const trips: TripLogEntry[] = [];
-
-    for (let offset = 0; ; offset += 1000) {
-      const result = await context.supabase
-        .from("customer_master")
-        .select("*")
-        .eq("owner_id", context.userId)
-        .order("id")
-        .range(offset, offset + 999);
-      if (result.error) throw new Error("Customer records could not be loaded.");
-      people.push(...result.data);
-      if (result.data.length < 1000) break;
-    }
-
-    for (let offset = 0; ; offset += 1000) {
-      const result = await context.supabase
-        .from("ward_receipts")
-        .select("id,payload")
-        .eq("owner_id", context.userId)
-        .order("created_at", { ascending: false })
-        .order("id")
-        .range(offset, offset + 999);
-      if (result.error) throw new Error("Receipt records could not be loaded.");
-      receipts.push(
-        ...result.data.map((r) => ({ ...(r.payload as unknown as Receipt), id: r.id })),
-      );
-      if (result.data.length < 1000) break;
-    }
-
-    // Load plans from plan_master for this tenant
-    try {
-      const planRes = await context.supabase
-        .from("plan_master")
-        .select("*")
-        .eq("owner_id", context.userId)
-        .order("created_at", { ascending: true });
-      if (!planRes.error && planRes.data && planRes.data.length > 0) {
-        plans.push(
-          ...planRes.data.map((p) => ({
-            id: p.id,
-            name: p.name,
-            uom: p.uom || "महिना (Month)",
-            rate: Number(p.rate) || Number(p.amount) || 0,
-            trips: Number(p.trips ?? p.no_of_trips ?? 1) || 1,
-            no_of_trips: Number(p.no_of_trips ?? p.trips ?? 1) || 1,
-            amount: Number(p.amount) || 0,
-            incentive: Number(p.incentive) || 0,
-            chargeable_amount: Number(p.chargeable_amount) || 0,
-            description: p.description ?? "",
-            is_active: p.is_active ?? true,
-          })),
-        );
-      }
-    } catch {
-      // New club starts with blank plans until added in Plan Master
-    }
-
-    // Load trip log scoped to this tenant
-    try {
+    const fetchPeople = async (): Promise<Person[]> => {
+      const people: Person[] = [];
       for (let offset = 0; ; offset += 1000) {
-        const tripRes = await context.supabase
-          .from("trip_log")
+        const result = await context.supabase
+          .from("customer_master")
           .select("*")
           .eq("owner_id", context.userId)
-          .order("logged_at", { ascending: false })
+          .order("id")
           .range(offset, offset + 999);
-        if (tripRes.error) throw new Error(tripRes.error.message);
-        trips.push(...(tripRes.data as unknown as TripLogEntry[]));
-        if (tripRes.data.length < 1000) break;
+        if (result.error) throw new Error("Customer records could not be loaded.");
+        people.push(...result.data);
+        if (result.data.length < 1000) break;
       }
-    } catch {
-      // trip_log migration not applied or tenant has no trips yet
-    }
+      return people;
+    };
+
+    const fetchReceipts = async (): Promise<Receipt[]> => {
+      const receipts: Receipt[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const result = await context.supabase
+          .from("ward_receipts")
+          .select("id,payload")
+          .eq("owner_id", context.userId)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(offset, offset + 999);
+        if (result.error) throw new Error("Receipt records could not be loaded.");
+        receipts.push(
+          ...result.data.map((r) => ({ ...(r.payload as unknown as Receipt), id: r.id })),
+        );
+        if (result.data.length < 1000) break;
+      }
+      return receipts;
+    };
+
+    const fetchPlans = async (): Promise<PlanItem[]> => {
+      const plans: PlanItem[] = [];
+      try {
+        const planRes = await context.supabase
+          .from("plan_master")
+          .select("*")
+          .eq("owner_id", context.userId)
+          .order("created_at", { ascending: true });
+        if (!planRes.error && planRes.data && planRes.data.length > 0) {
+          plans.push(
+            ...planRes.data.map((p) => ({
+              id: p.id,
+              name: p.name,
+              uom: p.uom || "महिना (Month)",
+              rate: Number(p.rate) || Number(p.amount) || 0,
+              trips: Number(p.trips ?? p.no_of_trips ?? 1) || 1,
+              no_of_trips: Number(p.no_of_trips ?? p.trips ?? 1) || 1,
+              amount: Number(p.amount) || 0,
+              incentive: Number(p.incentive) || 0,
+              chargeable_amount: Number(p.chargeable_amount) || 0,
+              description: p.description ?? "",
+              is_active: p.is_active ?? true,
+            })),
+          );
+        }
+      } catch {}
+      return plans;
+    };
+
+    const fetchTrips = async (): Promise<TripLogEntry[]> => {
+      const trips: TripLogEntry[] = [];
+      try {
+        for (let offset = 0; ; offset += 1000) {
+          const tripRes = await context.supabase
+            .from("trip_log")
+            .select("*")
+            .eq("owner_id", context.userId)
+            .order("logged_at", { ascending: false })
+            .range(offset, offset + 999);
+          if (tripRes.error) break;
+          trips.push(...(tripRes.data as unknown as TripLogEntry[]));
+          if (tripRes.data.length < 1000) break;
+        }
+      } catch {}
+      return trips;
+    };
+
+    // Parallel fetch: run customer_master, ward_receipts, plan_master, and trip_log concurrently
+    const [people, receipts, plans, trips] = await Promise.all([
+      fetchPeople(),
+      fetchReceipts(),
+      fetchPlans(),
+      fetchTrips(),
+    ]);
 
     return { people, receipts, plans, trips, checkedAt: new Date().toISOString() };
   });
@@ -2531,7 +2544,7 @@ export const getRpData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     try {
-      const [accRes, custRes, vendRes, empRes] = await Promise.all([
+      const [accRes, custRes, vendRes, empRes, txRes, evtRes] = await Promise.all([
         context.supabase
           .from("rp_accounts")
           .select("*")
@@ -2552,13 +2565,17 @@ export const getRpData = createServerFn({ method: "GET" })
           .select("id,name")
           .eq("owner_id", context.userId)
           .order("name"),
+        context.supabase
+          .from("rp_transactions")
+          .select("*")
+          .eq("owner_id", context.userId)
+          .order("created_at", { ascending: false }),
+        context.supabase
+          .from("club_events")
+          .select("id, title, locality, status")
+          .eq("owner_id", context.userId)
+          .order("created_at", { ascending: false }),
       ]);
-      // Fetch transactions directly and map account names from accounts map
-      const txRes = await context.supabase
-        .from("rp_transactions")
-        .select("*")
-        .eq("owner_id", context.userId)
-        .order("created_at", { ascending: false });
       const errors = [accRes, custRes, vendRes, empRes, txRes].filter((r) => r.error);
       if (errors.length) throw new Error(errors[0].error?.message || "Load failed");
       const accounts = (accRes.data ?? []).map((a) => ({
@@ -2568,15 +2585,8 @@ export const getRpData = createServerFn({ method: "GET" })
       const accountsById = new Map(accounts.map((a) => [a.id as string, a]));
 
       // Events / Programmes list for donation linking
-      let events: Array<{ id: string; title: string; locality?: string; status?: string }> = [];
-      try {
-        const evtRes = await context.supabase
-          .from("club_events")
-          .select("id, title, locality, status")
-          .eq("owner_id", context.userId)
-          .order("created_at", { ascending: false });
-        if (evtRes.data) events = evtRes.data;
-      } catch {}
+      const events: Array<{ id: string; title: string; locality?: string; status?: string }> =
+        evtRes.data ?? [];
       const eventsById = new Map(events.map((e) => [e.id, e]));
 
       const transactions = (txRes.data ?? []).map((t: Record<string, unknown>) => {

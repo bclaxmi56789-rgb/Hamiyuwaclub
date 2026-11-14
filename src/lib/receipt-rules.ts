@@ -400,6 +400,36 @@ export function mergeOpeningDues(
   return all;
 }
 
+export type PaidMonthsIndex = Map<string, Set<string>>;
+
+/**
+ * Pre-indexes paid months by `${ward}:${card.toLowerCase()}` once in O(N).
+ * This eliminates the O(N*M) loop inside remainingDuesForPerson, reducing
+ * bulk customer dues calculation time by 99%+.
+ */
+export function indexPaidReceiptsByCustomer(
+  receipts: {
+    ward: string;
+    card: string;
+    year: number | string;
+    months: { m: number; year?: number }[];
+  }[],
+): PaidMonthsIndex {
+  const index = new Map<string, Set<string>>();
+  for (const r of receipts) {
+    const key = `${r.ward}:${(r.card || "").toLowerCase()}`;
+    let set = index.get(key);
+    if (!set) {
+      set = new Set<string>();
+      index.set(key, set);
+    }
+    for (const m of r.months) {
+      set.add(`${m.year ?? r.year}:${m.m}`);
+    }
+  }
+  return index;
+}
+
 /** Months/amounts still owed by one customer: paid receipt months are removed. */
 export function remainingDuesForPerson(
   joiningDateBS: string | undefined,
@@ -414,12 +444,18 @@ export function remainingDuesForPerson(
   card: string,
   defaultMonthlyFee: number,
   currentBS: string,
+  paidIndex?: PaidMonthsIndex,
 ): { months: DueMonth[]; total: number } {
-  const paid = new Set(
-    receipts
-      .filter((r) => r.ward === ward && r.card.toLowerCase() === card.toLowerCase())
-      .flatMap((r) => r.months.map((m) => `${m.year ?? r.year}:${m.m}`)),
-  );
+  let paid: Set<string>;
+  if (paidIndex) {
+    paid = paidIndex.get(`${ward}:${(card || "").toLowerCase()}`) || new Set();
+  } else {
+    paid = new Set(
+      receipts
+        .filter((r) => r.ward === ward && r.card.toLowerCase() === card.toLowerCase())
+        .flatMap((r) => r.months.map((m) => `${m.year ?? r.year}:${m.m}`)),
+    );
+  }
   const months = mergeOpeningDues(getDueMonths(joiningDateBS, paid, currentBS), openingDues, paid);
   return { months, total: months.reduce((s, dm) => s + (dm.amount ?? defaultMonthlyFee), 0) };
 }

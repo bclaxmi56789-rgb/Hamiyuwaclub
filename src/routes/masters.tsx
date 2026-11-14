@@ -424,6 +424,19 @@ function Masters() {
       return text.includes(term);
     }) ?? [];
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedWard]);
+
+  const totalPages = Math.ceil(people.length / pageSize) || 1;
+  const paginatedPeople = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return people.slice(start, start + pageSize);
+  }, [people, currentPage]);
+
   // Remaining dues per customer (O(N) with pre-indexed paid receipts)
   const peopleDues = useMemo(() => {
     const today = todayBS();
@@ -885,7 +898,7 @@ function Masters() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {people.map((p) => {
+            {paginatedPeople.map((p) => {
               const hasGps = typeof p.latitude === "number" && typeof p.longitude === "number";
               return (
                 <tr key={`${p.ward}-${p.card}`} className="transition-colors hover:bg-accent/40">
@@ -1103,6 +1116,37 @@ function Masters() {
             )}
           </tbody>
         </table>
+
+        {people.length > pageSize && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 bg-muted/20 text-xs">
+            <span className="text-muted-foreground font-semibold">
+              देखाउँदै {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, people.length)} / जम्मा {people.length} ग्राहक
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="h-7 px-2.5 text-xs font-semibold"
+              >
+                अघिल्लो (Prev)
+              </Button>
+              <span className="px-2 font-mono font-bold text-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="h-7 px-2.5 text-xs font-semibold"
+              >
+                पछिल्लो (Next)
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Customer Modal */}

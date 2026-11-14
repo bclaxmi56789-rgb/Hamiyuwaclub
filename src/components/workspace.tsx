@@ -36,18 +36,16 @@ export function useWorkspace() {
       return await fetchData();
     },
     enabled: app.ready && app.signedIn,
-    // Always revalidate when a signed-in page mounts so a stale empty result
-    // cached right after sign-in never lingers.
-    refetchOnMount: "always",
-    // The first fetch right after sign-in can race the auth token attach; retry
-    // so records load without a manual refresh.
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnMount: false,
     retry: (count, err) => {
       const msg = String((err as Error)?.message || "");
       if (/Unauthorized/i.test(msg) && count < 3) return true;
       return count < 2;
     },
     retryDelay: 1200,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 
   // A first fetch that *succeeds* with an entirely empty workspace right after
