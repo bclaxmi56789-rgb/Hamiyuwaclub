@@ -169,25 +169,55 @@ function Masters() {
   const deletePhotoFn = useServerFn(deleteLocalityPhoto);
 
   // Locality photo state
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState("");
   const [photoSizeKb, setPhotoSizeKb] = useState<number | null>(null);
   const [camOpen, setCamOpen] = useState(false);
+  const [camOpening, setCamOpening] = useState(false);
   const [camErr, setCamErr] = useState("");
   const formPhotoSrc = useLocalityPhotoSrc(form.locality_photo);
   const viewerPhotoSrc = useLocalityPhotoSrc(viewingMapPerson?.locality_photo || "");
   const viewPhotoSrc = useLocalityPhotoSrc(viewingPerson?.locality_photo || "");
+  // Size shown from the upload, or derived from the loaded data URL so it is
+  // visible on mobile and after the form is reopened/reloaded.
+  const shownPhotoKb =
+    photoSizeKb ??
+    (formPhotoSrc.startsWith("data:")
+      ? Math.round(((formPhotoSrc.length - formPhotoSrc.indexOf(",") - 1) * 3) / 4 / 1024)
+      : null);
+
+  /** Mobile browsers hang on getUserMedia inside webviews/previews; the native
+   *  camera input is instant and reliable there, so use it on touch devices. */
+  const isMobileDevice = () =>
+    typeof navigator !== "undefined" &&
+    (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform)));
 
   const openCamera = async () => {
+    if (isMobileDevice()) {
+      // Native OS camera app — no permission prompt stalls
+      cameraInputRef.current?.click();
+      return;
+    }
     setCamErr("");
+    setCamOpening(true);
+    const timeout = setTimeout(() => {
+      setCamOpening(false);
+      setCamErr(
+        "क्यामेरा खोल्न सकिएन। फोन/कम्प्युटरको क्यामेरा अनुमति दिनुहोस् वा ग्यालरीबाट छान्नुहोस्।",
+      );
+    }, 6000);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } },
         audio: false,
       });
+      clearTimeout(timeout);
+      setCamOpening(false);
       streamRef.current = stream;
       setCamOpen(true);
       requestAnimationFrame(() => {
@@ -197,6 +227,8 @@ function Masters() {
         }
       });
     } catch {
+      clearTimeout(timeout);
+      setCamOpening(false);
       setCamErr(
         "क्यामेरा खोल्न सकिएन। फोन/कम्प्युटरको क्यामेरा अनुमति दिनुहोस् वा ग्यालरीबाट छान्नुहोस्।",
       );
@@ -1890,7 +1922,7 @@ function Masters() {
                       size="sm"
                       className="gap-1.5 text-xs"
                       onClick={openCamera}
-                      disabled={photoBusy}
+                      disabled={photoBusy || camOpening}
                     >
                       <Camera className="size-3.5" /> फोटो क्लिक गर्नुहोस्
                     </Button>
@@ -1899,7 +1931,7 @@ function Masters() {
                       variant="outline"
                       size="sm"
                       className="gap-1.5 text-xs"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => galleryInputRef.current?.click()}
                       disabled={photoBusy}
                     >
                       <ImagePlus className="size-3.5" /> ग्यालरीबाट छान्नुहोस्
@@ -1916,12 +1948,26 @@ function Masters() {
                         <Trash2 className="size-3.5" /> फोटो हटाउनुहोस्
                       </Button>
                     )}
+                    {/* Native OS camera — capture attribute opens the camera directly on mobile */}
                     <input
-                      ref={fileInputRef}
+                      ref={cameraInputRef}
                       type="file"
                       accept="image/*"
                       capture="environment"
-                      aria-label="Locality photo upload"
+                      aria-label="Locality photo camera capture"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void handlePhotoFile(file);
+                      }}
+                    />
+                    {/* Gallery picker — no capture attribute so it opens the file/gallery chooser */}
+                    <input
+                      ref={galleryInputRef}
+                      type="file"
+                      accept="image/*"
+                      aria-label="Locality photo gallery picker"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -1930,9 +1976,14 @@ function Masters() {
                       }}
                     />
                   </div>
+                  {camOpening && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400" role="status">
+                      क्यामेरा खुल्दैछ… (केही सेकेन्ड लाग्न सक्छ)
+                    </p>
+                  )}
                   {photoBusy && (
                     <p className="mt-2 text-xs text-amber-600 dark:text-amber-400" role="status">
-                      फोटो अपलोड हुँदैछ…
+                      फोटो प्रशोधन गरी अपलोड हुँदैछ… (ठूलो फोटोमा केही सेकेन्ड लाग्न सक्छ)
                     </p>
                   )}
                   {photoErr && (
@@ -1947,9 +1998,9 @@ function Masters() {
                         alt="टोल/घरको फोटो"
                         className="w-full max-w-md"
                       />
-                      {photoSizeKb !== null && (
+                      {shownPhotoKb !== null && (
                         <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
-                          फोटो साइज: {photoSizeKb} KB (स्वतः २० KB भन्दा कम)
+                          फोटो साइज: {shownPhotoKb} KB (स्वतः २० KB भन्दा कम)
                         </p>
                       )}
                     </div>
