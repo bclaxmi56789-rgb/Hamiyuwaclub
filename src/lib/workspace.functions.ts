@@ -3077,9 +3077,9 @@ export const saveTheliStockBatch = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       id: z.string().optional(),
-      municipality: z.string().trim().min(1, "Municipality is required"),
-      ward: z.string().trim().min(1, "Ward is required"),
-      fiscal_year: z.string().trim().min(1, "Fiscal Year is required"),
+      municipality: z.string().trim().optional().default(""),
+      ward: z.string().trim().optional().default(""),
+      fiscal_year: z.string().trim().optional().default(""),
       start_from: z.string().trim().min(1, "Start serial is required"),
       end_to: z.string().trim().min(1, "End serial is required"),
       vouchers_per_theli: z.number().min(1).optional().default(50),
@@ -3319,11 +3319,20 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
       };
 
       try {
-        await context.supabase
+        const updRes = await context.supabase
           .from("theli_stock_items")
           .update(updatePayload)
           .eq("id", data.item_id)
           .eq("owner_id", context.userId);
+        if (updRes.error) {
+          await context.supabase.from("theli_stock_items").upsert({
+            ...currentItem,
+            ...updatePayload,
+            id: data.item_id,
+            owner_id: context.userId,
+            batch_id: null,
+          });
+        }
       } catch {}
     } else {
       // Partial range remains
@@ -3344,11 +3353,20 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
         };
 
         try {
-          await context.supabase
+          const updRes = await context.supabase
             .from("theli_stock_items")
             .update(completedUpdate)
             .eq("id", data.item_id)
             .eq("owner_id", context.userId);
+          if (updRes.error) {
+            await context.supabase.from("theli_stock_items").upsert({
+              ...currentItem,
+              ...completedUpdate,
+              id: data.item_id,
+              owner_id: context.userId,
+              batch_id: null,
+            });
+          }
         } catch {}
 
         // Create new remaining theli stock item ready to be issued FIRST
@@ -3376,8 +3394,17 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
         };
 
         try {
-          await context.supabase.from("theli_stock_items").insert(remainingItemPayload);
-        } catch {}
+          const remRes = await context.supabase.from("theli_stock_items").insert(remainingItemPayload);
+          if (remRes.error) {
+            console.warn("theli_stock_items insert notice, retrying with batch_id null:", remRes.error.message);
+            await context.supabase.from("theli_stock_items").insert({
+              ...remainingItemPayload,
+              batch_id: null,
+            });
+          }
+        } catch (e: any) {
+          console.warn("theli_stock_items exception:", e?.message);
+        }
       } else {
         // Keep issued to employee
         const keepUpdate = {
@@ -3396,11 +3423,20 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
         };
 
         try {
-          await context.supabase
+          const updRes = await context.supabase
             .from("theli_stock_items")
             .update(keepUpdate)
             .eq("id", data.item_id)
             .eq("owner_id", context.userId);
+          if (updRes.error) {
+            await context.supabase.from("theli_stock_items").upsert({
+              ...currentItem,
+              ...keepUpdate,
+              id: data.item_id,
+              owner_id: context.userId,
+              batch_id: null,
+            });
+          }
         } catch {}
       }
     }

@@ -174,6 +174,7 @@ function Masters() {
   const streamRef = useRef<MediaStream | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState("");
+  const [photoSizeKb, setPhotoSizeKb] = useState<number | null>(null);
   const [camOpen, setCamOpen] = useState(false);
   const [camErr, setCamErr] = useState("");
   const formPhotoSrc = useLocalityPhotoSrc(form.locality_photo);
@@ -237,6 +238,26 @@ function Masters() {
       img.src = url;
     });
 
+  /** Iteratively re-encodes the JPEG until it fits the byte target (quality first, then size). */
+  const compressToTarget = async (source: Blob, targetBytes = 20 * 1024): Promise<Blob> => {
+    let maxDim = 1024;
+    let blob = await resizeToJpeg(source, maxDim, 0.8);
+    for (const q of [0.7, 0.6, 0.5, 0.4, 0.3, 0.22, 0.15]) {
+      if (blob.size <= targetBytes) return blob;
+      blob = await resizeToJpeg(source, maxDim, q);
+    }
+    for (const dim of [640, 480, 400, 320, 240]) {
+      if (blob.size <= targetBytes) return blob;
+      maxDim = dim;
+      blob = await resizeToJpeg(source, maxDim, 0.4);
+      for (const q of [0.3, 0.22, 0.15]) {
+        if (blob.size <= targetBytes) return blob;
+        blob = await resizeToJpeg(source, maxDim, q);
+      }
+    }
+    return blob;
+  };
+
   const blobToDataUrl = (blob: Blob): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -248,8 +269,10 @@ function Masters() {
   const uploadPhoto = async (blob: Blob) => {
     setPhotoBusy(true);
     setPhotoErr("");
+    setPhotoSizeKb(null);
     try {
-      const small = await resizeToJpeg(blob);
+      const small = await compressToTarget(blob);
+      setPhotoSizeKb(Math.round(small.size / 1024));
       const dataUrl = await blobToDataUrl(small);
       const res = await uploadPhotoFn({
         data: { ward: form.ward || "1", card: form.card || "", dataUrl },
@@ -830,10 +853,7 @@ function Masters() {
             {people.map((p) => {
               const hasGps = typeof p.latitude === "number" && typeof p.longitude === "number";
               return (
-                <tr
-                  key={`${p.ward}-${p.card}`}
-                  className="transition-colors hover:bg-accent/40"
-                >
+                <tr key={`${p.ward}-${p.card}`} className="transition-colors hover:bg-accent/40">
                   {/* 1. Customer & Card */}
                   <td className="p-3.5">
                     <div className="flex items-center gap-2.5">
@@ -967,7 +987,8 @@ function Masters() {
                         }
                         return remain.months.length > 0 ? (
                           <span className="inline-block rounded-full bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                            बाँकी: रु. {remain.total.toLocaleString("en-IN")} ({remain.months.length} महिना)
+                            बाँकी: रु. {remain.total.toLocaleString("en-IN")} (
+                            {remain.months.length} महिना)
                           </span>
                         ) : (
                           <span className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
@@ -1926,6 +1947,11 @@ function Masters() {
                         alt="टोल/घरको फोटो"
                         className="w-full max-w-md"
                       />
+                      {photoSizeKb !== null && (
+                        <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
+                          फोटो साइज: {photoSizeKb} KB (स्वतः २० KB भन्दा कम)
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2080,7 +2106,8 @@ function Masters() {
                         onChange={(e) =>
                           setForm((prev) => ({
                             ...prev,
-                            no_of_rental_rooms: e.target.value === "" ? null : Number(e.target.value),
+                            no_of_rental_rooms:
+                              e.target.value === "" ? null : Number(e.target.value),
                           }))
                         }
                         placeholder="उदा: 2"
@@ -2239,11 +2266,15 @@ function Masters() {
                     ],
                     [
                       "तल्ला संख्या (Floors)",
-                      viewingPerson.no_of_floors != null ? String(viewingPerson.no_of_floors) : undefined,
+                      viewingPerson.no_of_floors != null
+                        ? String(viewingPerson.no_of_floors)
+                        : undefined,
                     ],
                     [
                       "कोठा संख्या (Rooms)",
-                      viewingPerson.no_of_rooms != null ? String(viewingPerson.no_of_rooms) : undefined,
+                      viewingPerson.no_of_rooms != null
+                        ? String(viewingPerson.no_of_rooms)
+                        : undefined,
                     ],
                     [
                       "भाडा कोठा संख्या (Rental Rooms)",

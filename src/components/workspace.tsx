@@ -1,11 +1,12 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { useAppState, SignInPanel } from "./app-shell";
 import { getWorkspaceData } from "@/lib/workspace.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "./ui/button";
-import { RefreshCw, Lock, Eye, AlertCircle } from "lucide-react";
+import { Lock, Eye, AlertCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function useWorkspace() {
@@ -13,7 +14,27 @@ export function useWorkspace() {
   const fetchData = useServerFn(getWorkspaceData);
   const query = useQuery({
     queryKey: ["workspace", app.userId],
-    queryFn: () => fetchData(),
+    queryFn: async () => {
+      const isBlank = (d: unknown) => {
+        const w = d as { people?: unknown[]; receipts?: unknown[] } | null | undefined;
+        return Boolean(w) && !w?.people?.length && !w?.receipts?.length;
+      };
+      const data = await fetchData();
+      // A first RPC right after sign-in can carry a session token that the
+      // database still rejects or reads as a different scope, yielding a
+      // successful but empty workspace. Refresh the session once and retry.
+      if (!isBlank(data)) return data;
+      try {
+        await supabase.auth.refreshSession();
+      } catch {
+        // Keep whatever session exists
+      }
+      const retry = await fetchData();
+      if (!isBlank(retry)) return retry;
+      // One last delayed attempt before the bounded poll takes over
+      await new Promise((r) => setTimeout(r, 1200));
+      return await fetchData();
+    },
     enabled: app.ready && app.signedIn,
     // Always revalidate when a signed-in page mounts so a stale empty result
     // cached right after sign-in never lingers.
@@ -30,24 +51,35 @@ export function useWorkspace() {
   });
 
   // A first fetch that *succeeds* with an entirely empty workspace right after
-  // sign-in usually means the request raced the session token attach. Re-check
-  // once (and once more after a short delay) so the dashboard fills itself.
-  const recheckRef = useRef(0);
+  // sign-in usually means the request raced the session token attach. Keep
+  // re-checking on a short poll until records appear (bounded) so the dashboard
+  // fills itself without a manual refresh. Note: TanStack structural sharing
+  // keeps the data reference identical between empty results, so this is driven
+  // by a counter state, not the data reference.
+  const [emptyPoll, setEmptyPoll] = useState(0);
   useEffect(() => {
     if (!app.ready || !app.signedIn) return;
-    if (!query.isSuccess) return;
     const data = query.data as
       { people?: unknown[]; receipts?: unknown[]; trips?: unknown[] } | undefined;
-    if (!data || data.people?.length || data.receipts?.length) {
-      recheckRef.current = 0;
-      return;
-    }
-    if (recheckRef.current >= 2) return;
-    recheckRef.current += 1;
-    const delay = recheckRef.current === 1 ? 400 : 1600;
-    const timer = setTimeout(() => void query.refetch(), delay);
+    if (query.isPending || query.isError) return;
+    const hasData = !data || Boolean(data.people?.length || data.receipts?.length);
+    if (hasData) return;
+    if (emptyPoll >= 10) return;
+    const timer = setTimeout(() => {
+      setEmptyPoll((c) => c + 1);
+      void query.refetch();
+    }, 1200);
     return () => clearTimeout(timer);
-  }, [app.ready, app.signedIn, query.isSuccess, query.data, query.refetch]);
+  }, [
+    app.ready,
+    app.signedIn,
+    query.isPending,
+    query.isError,
+    query.isSuccess,
+    query.data,
+    query.refetch,
+    emptyPoll,
+  ]);
 
   return { ...app, query };
 }
@@ -82,19 +114,7 @@ export function WorkspacePage({
             )}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          {!readOnly && actionButton}
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Refresh records"
-            title="Refresh records"
-            disabled={!signedIn || query.isFetching}
-            onClick={() => query.refetch()}
-          >
-            <RefreshCw />
-          </Button>
-        </div>
+        <div className="flex items-center gap-2">{!readOnly && actionButton}</div>
       </div>
 
       {readOnly && (

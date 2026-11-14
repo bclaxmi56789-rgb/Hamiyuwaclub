@@ -238,10 +238,10 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
         if (alreadyConverted)
           throw new Error("यो थेली पहिले नै रूपान्तरित भइसकेको छ (रूपान्तरित)। दोब्बा रूपान्तरण गर्न सकिँदैन।");
         const dbBooked = Math.round(Number(res.data.amount_booked) * 100) / 100;
-        if (dbBooked > 0) {
-          balance = dbBooked;
-        } else if (data.amount > 0) {
+        if (data.amount > 0) {
           balance = Math.round(data.amount * 100) / 100;
+        } else if (dbBooked > 0) {
+          balance = dbBooked;
         }
       }
     } catch (e) {
@@ -273,7 +273,7 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
     if (counterRes.error) throw new Error(counterRes.error.message);
     const no = (Number(counterRes.data?.last_number) || 0) + 1;
 
-    const ref = `${data.last_voucher_booked || data.range_to || data.range_from}-आ${
+    let ref = `${data.last_voucher_booked || data.range_to || data.range_from}-आ${
       data.ward
     }-${data.fiscal_year}`;
     const card = `TH${String(data.theli_no || 0).padStart(4, "0")}`;
@@ -302,7 +302,7 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
     // Theli conversion cards are not People-Master customers, so bypass the
     // customer-card RPC and insert the owner-scoped ward receipt directly.
     // Nothing is written to receipt_month_payments — no member month is marked paid.
-    const inserted = await supabase.from("ward_receipts").insert({
+    let inserted = await supabase.from("ward_receipts").insert({
       owner_id: context.userId,
       ward: data.ward,
       fiscal_year: fy,
@@ -312,6 +312,21 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
       ref,
       payload,
     });
+    if (inserted.error && inserted.error.code === "23505") {
+      // Disambiguate ref on collision
+      ref = `${ref}-${Date.now().toString(36).slice(-4)}`;
+      const retryPayload = { ...payload, ref };
+      inserted = await supabase.from("ward_receipts").insert({
+        owner_id: context.userId,
+        ward: data.ward,
+        fiscal_year: fy,
+        no,
+        card,
+        receipt_date: data.date,
+        ref,
+        payload: retryPayload,
+      });
+    }
     if (inserted.error) {
       if (inserted.error.code === "23505" && inserted.error.message.includes("ref"))
         throw new Error("यो सिरियल पहिले नै रसिदमा प्रयोग भइसकेको छ।");

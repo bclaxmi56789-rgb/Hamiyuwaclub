@@ -254,7 +254,12 @@ function AssetsPage() {
 
   const openConvertDialog = (item: TheliStockItem) => {
     setConvertTarget(item);
-    const initialAmt = Number(item.amount_booked) > 0 ? Number(item.amount_booked) : 0;
+    const initialAmt =
+      Number(item.amount_booked) > 0
+        ? Number(item.amount_booked)
+        : Number(item.balance) > 0
+          ? Number(item.balance)
+          : 0;
     setConvertCustomAmount(initialAmt);
     setConvertLastVoucher(item.last_voucher_booked || item.range_to || "");
     const defaultAccId = effectiveRpAccounts[0]?.id || "cash-main";
@@ -373,22 +378,57 @@ function AssetsPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
-  // Sync server data safely with local state
+  // Sync server data safely with local state without wiping out local items with empty responses
   useEffect(() => {
     if (theliStockQuery.data) {
       const bList = theliStockQuery.data.batches || [];
       const iList = theliStockQuery.data.items || [];
       const lList = theliStockQuery.data.logs || [];
 
-      if (bList.length > 0 || iList.length > 0 || lList.length > 0) {
-        setStockBatches(bList);
-        try { localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList)); } catch {}
+      if (bList.length > 0) {
+        setStockBatches((prev) => {
+          const map = new Map<string, TheliStockBatch>();
+          for (const b of bList) map.set(b.id, b);
+          for (const b of prev) {
+            if (!map.has(b.id) && (b.id.startsWith("local-") || b.id.startsWith("tsb-local-"))) {
+              map.set(b.id, b);
+            }
+          }
+          const merged = Array.from(map.values());
+          try { localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(merged)); } catch {}
+          return merged;
+        });
+      }
 
-        setStockItems(iList);
-        try { localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList)); } catch {}
+      if (iList.length > 0) {
+        setStockItems((prev) => {
+          const map = new Map<string, TheliStockItem>();
+          for (const it of iList) map.set(it.id, it);
+          for (const it of prev) {
+            // Keep local un-synced remaining items or local draft items
+            if (!map.has(it.id) && (it.id.startsWith("th-rem-") || it.id.startsWith("local-"))) {
+              map.set(it.id, it);
+            }
+          }
+          const merged = Array.from(map.values());
+          try { localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(merged)); } catch {}
+          return merged;
+        });
+      }
 
-        setDailyLogs(lList);
-        try { localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList)); } catch {}
+      if (lList.length > 0) {
+        setDailyLogs((prev) => {
+          const map = new Map<string, TheliLog>();
+          for (const l of lList) map.set(l.id, l);
+          for (const l of prev) {
+            if (!map.has(l.id) && l.id.startsWith("local-")) {
+              map.set(l.id, l);
+            }
+          }
+          const merged = Array.from(map.values());
+          try { localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(merged)); } catch {}
+          return merged;
+        });
       }
 
       if (theliStockQuery.data.employees) {
@@ -516,7 +556,7 @@ function AssetsPage() {
   /* ─────────────────────────────────────────────────────────────
      TAB 1: STOCK MASTER FORM STATE
      ───────────────────────────────────────────────────────────── */
-  const [newBatchMunicipality, setNewBatchMunicipality] = useState("");
+  const [newBatchMunicipality, setNewBatchMunicipality] = useState("शहीदभूमि गाउँपालिका");
   const [newBatchWard, setNewBatchWard] = useState(ward || "4");
   const [newBatchFY, setNewBatchFY] = useState(year || "2081/82");
   const [newBatchStart, setNewBatchStart] = useState("");
@@ -545,9 +585,9 @@ function AssetsPage() {
     try {
       const res = await saveStockBatchFn({
         data: {
-          municipality: newBatchMunicipality,
-          ward: newBatchWard,
-          fiscal_year: newBatchFY,
+          municipality: newBatchMunicipality || "शहीदभूमि गाउँपालिका",
+          ward: newBatchWard || ward || "4",
+          fiscal_year: newBatchFY || year || "2081/82",
           start_from: newBatchStart,
           end_to: newBatchEnd,
           vouchers_per_theli: newBatchPerTheli,
@@ -749,7 +789,7 @@ function AssetsPage() {
   const [reportAmountObtained, setReportAmountObtained] = useState("");
   const [reportCancelledCount, setReportCancelledCount] = useState(0);
   const [reportActionRemaining, setReportActionRemaining] = useState<"return" | "keep_issued">(
-    "return",
+    "keep_issued",
   );
   const [reportDate, setReportDate] = useState("2083/07/15");
   const [reportRemarks, setReportRemarks] = useState("");
@@ -791,7 +831,7 @@ function AssetsPage() {
     setReportAmountBooked("");
     setReportAmountObtained("");
     setReportCancelledCount(0);
-    setReportActionRemaining("return");
+    setReportActionRemaining("keep_issued");
     setReportDate(item.issued_date || "2083/07/15");
     setReportRemarks("");
   };
@@ -2121,7 +2161,7 @@ function AssetsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {employeeTheliCards.map(({ emp, issued, carryBalance, totalBooked, totalObtained }) => (
+              {employeeTheliCards.map(({ emp, issued, allEmpItems, carryBalance, totalBooked, totalObtained }) => (
                 <div
                   key={emp.id}
                   className="rounded-xl border bg-card p-4 shadow-2xs hover:shadow-sm transition-all flex flex-col justify-between"
@@ -2133,15 +2173,28 @@ function AssetsPage() {
                         <div className="font-bold text-sm text-foreground">{emp.name}</div>
                         <div className="text-[10px] text-muted-foreground">{emp.designation}</div>
                       </div>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          carryBalance > 0
-                            ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
-                            : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
-                        }`}
-                      >
-                        अन्तर: {money(carryBalance)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            carryBalance > 0
+                              ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
+                              : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
+                          }`}
+                        >
+                          अन्तर: {money(carryBalance)}
+                        </span>
+                        {carryBalance > 0 && allEmpItems && allEmpItems[0] && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-5 px-1.5 text-[9px] font-bold text-emerald-700 border-emerald-600/30 hover:bg-emerald-500/10"
+                            onClick={() => openConvertDialog(allEmpItems[0])}
+                            title="बक्यौता दाखिला गर्नुहोस्"
+                          >
+                            दाखिला
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Summary row */}
@@ -2163,8 +2216,59 @@ function AssetsPage() {
                       </span>
 
                       {issued.length === 0 ? (
-                        <div className="rounded-lg border border-dashed p-3 text-center text-[11px] text-muted-foreground">
-                          हाल कुनै थेली जारी भएको छैन।
+                        <div className="space-y-2">
+                          <div className="rounded-lg border border-dashed p-3 text-center text-[11px] text-muted-foreground bg-muted/10">
+                            हाल हातमा सक्रिय थेली छैन।
+                          </div>
+
+                          {allEmpItems && allEmpItems.length > 0 && (
+                            <div className="space-y-1.5 pt-1">
+                              <span className="text-[10px] font-bold text-muted-foreground block">
+                                हालै बुझाइएका / सम्पन्न थेलीहरू:
+                              </span>
+                              {allEmpItems.slice(0, 2).map((it) => (
+                                <div
+                                  key={it.id}
+                                  className="rounded-lg border border-border bg-muted/20 p-2 text-[11px] space-y-1"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-mono font-bold text-foreground">
+                                      {it.range_from} – {it.range_to}
+                                    </span>
+                                    <span
+                                      className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                        it.converted_to_receipt
+                                          ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
+                                          : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
+                                      }`}
+                                    >
+                                      {it.converted_to_receipt ? "दाखिला सम्पन्न" : "सम्पन्न / फिर्ता"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                    <span>काटिएको: {it.booked_vouchers_count || 0} रसिद</span>
+                                    {Number(it.amount_booked) > 0 && (
+                                      <span className="font-semibold text-foreground">
+                                        रु. {Number(it.amount_booked).toLocaleString("en-IN")}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {!it.converted_to_receipt && Number(it.amount_booked) > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={converting}
+                                      className="w-full h-6 text-[10px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 flex items-center justify-center gap-1 mt-1"
+                                      onClick={() => openConvertDialog(it)}
+                                    >
+                                      <HandCoins className="size-2.5" />
+                                      <span>भुक्तानी दाखिला / रसिद रूपान्तरण</span>
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         issued.map((it) => (
