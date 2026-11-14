@@ -170,7 +170,7 @@ function TheliRangeRows({
               <button
                 type="button"
                 onClick={() => setRows(rows.filter((_, j) => j !== i))}
-                className="rounded p-1 text-red-500 hover:bg-red-500/10"
+                className="rounded p-1 text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -1150,13 +1150,13 @@ function AssetsPage() {
             role="alert"
             className={`flex items-center justify-between rounded-xl p-3 text-xs font-semibold shadow-xs transition-all ${
               notice.type === "success"
-                ? "bg-emerald-500/10 text-emerald-800 border border-emerald-500/30"
+                ? "bg-success/10 text-success border border-success/30"
                 : "bg-destructive/10 text-destructive border border-destructive/30"
             }`}
           >
             <div className="flex items-center gap-2">
               {notice.type === "success" ? (
-                <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                <CheckCircle2 className="size-4 shrink-0 text-success" />
               ) : (
                 <AlertCircle className="size-4 shrink-0 text-destructive" />
               )}
@@ -1215,7 +1215,7 @@ function AssetsPage() {
               <UserCheck className="size-3.5" />
               <span>कर्मचारीलाई थेली जारी (Issue Theli)</span>
               {availableRanges.some((r) => r.is_remaining_open) && (
-                <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] text-amber-700 font-bold">
+                <span className="rounded-full bg-warning/15 border border-warning/30 px-1.5 py-0.2 text-[9px] text-warning font-bold">
                   बाँकी थेली छ!
                 </span>
               )}
@@ -1281,28 +1281,28 @@ function AssetsPage() {
                 <div className="text-[10px] text-muted-foreground font-mono">{stockSummary.totalVouchers} रसिद</div>
               </div>
 
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 shadow-2xs">
-                <span className="text-[11px] text-emerald-700 font-semibold">उपलब्ध मौज्दात</span>
-                <div className="text-xl font-extrabold text-emerald-700 mt-0.5">{stockSummary.available} थेली</div>
-                <div className="text-[10px] text-emerald-600 font-semibold">निष्कासनका लागि तयार</div>
+              <div className="rounded-xl border border-success/20 bg-success/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-success font-semibold">उपलब्ध मौज्दात</span>
+                <div className="text-xl font-extrabold text-success mt-0.5">{stockSummary.available} थेली</div>
+                <div className="text-[10px] text-success font-semibold">निष्कासनका लागि तयार</div>
               </div>
 
-              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 shadow-2xs">
-                <span className="text-[11px] text-blue-700 font-semibold">कर्मचारीसँग जारी</span>
-                <div className="text-xl font-extrabold text-blue-700 mt-0.5">{stockSummary.issued} थेली</div>
-                <div className="text-[10px] text-blue-600 font-semibold">फिल्डमा संकलन भइरहेको</div>
+              <div className="rounded-xl border border-info/20 bg-info/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-info font-semibold">कर्मचारीसँग जारी</span>
+                <div className="text-xl font-extrabold text-info mt-0.5">{stockSummary.issued} थेली</div>
+                <div className="text-[10px] text-info font-semibold">फिल्डमा संकलन भइरहेको</div>
               </div>
 
-              <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 shadow-2xs">
-                <span className="text-[11px] text-purple-700 font-semibold">संकलित काटिएको रकम</span>
-                <div className="text-xl font-extrabold text-purple-700 mt-0.5">{money(stockSummary.totalAmountBooked)}</div>
-                <div className="text-[10px] text-purple-600 font-semibold">बुझाएको: {money(stockSummary.totalAmountObtained)}</div>
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-primary font-semibold">संकलित काटिएको रकम</span>
+                <div className="text-xl font-extrabold text-primary mt-0.5">{money(stockSummary.totalAmountBooked)}</div>
+                <div className="text-[10px] text-primary font-semibold">बुझाएको: {money(stockSummary.totalAmountObtained)}</div>
               </div>
 
-              <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 shadow-2xs col-span-2 sm:col-span-1">
-                <span className="text-[11px] text-rose-700 font-semibold">बाँकी क्यारी अन्तर</span>
-                <div className="text-xl font-extrabold text-rose-700 mt-0.5">{money(stockSummary.totalBalance)}</div>
-                <div className="text-[10px] text-rose-600 font-semibold">कर्मचारीको खातामा बोकिएको</div>
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 shadow-2xs col-span-2 sm:col-span-1">
+                <span className="text-[11px] text-destructive font-semibold">बाँकी क्यारी अन्तर</span>
+                <div className="text-xl font-extrabold text-destructive mt-0.5">{money(stockSummary.totalBalance)}</div>
+                <div className="text-[10px] text-destructive font-semibold">कर्मचारीको खातामा बोकिएको</div>
               </div>
             </div>
 
@@ -1365,14 +1365,14 @@ function AssetsPage() {
                             वडा {b.ward} <span className="text-[10px] font-normal text-muted-foreground">({b.municipality || "—"})</span>
                           </td>
                           <td className="px-3 py-2 font-mono font-semibold">{b.fiscal_year}</td>
-                          <td className="px-3 py-2 font-mono font-extrabold text-blue-700 bg-blue-500/5 rounded">
+                          <td className="px-3 py-2 font-mono font-extrabold text-info bg-info/5 rounded">
                             {b.start_from}
                           </td>
-                          <td className="px-3 py-2 font-mono font-extrabold text-purple-700 bg-purple-500/5 rounded">
+                          <td className="px-3 py-2 font-mono font-extrabold text-primary bg-primary/5 rounded">
                             {b.end_to}
                           </td>
                           <td className="px-3 py-2 text-center font-mono">{b.vouchers_per_theli}</td>
-                          <td className="px-3 py-2 text-center font-mono font-bold text-emerald-700">
+                          <td className="px-3 py-2 text-center font-mono font-bold text-success">
                             {b.total_vouchers}
                           </td>
                           <td className="px-3 py-2 text-center font-mono font-extrabold text-primary">
@@ -1545,7 +1545,7 @@ function AssetsPage() {
                         <tr
                           key={item.id || idx}
                           className={`hover:bg-muted/30 transition-colors ${
-                            isRemaining ? "bg-amber-500/5 font-medium" : ""
+                            isRemaining ? "bg-warning/5 font-medium" : ""
                           }`}
                         >
                           <td className="px-3.5 py-3 font-mono text-muted-foreground">{idx + 1}</td>
@@ -1555,7 +1555,7 @@ function AssetsPage() {
                                 {item.range_from} – {item.range_to}
                               </span>
                               {isRemaining && (
-                                <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[9px] font-bold text-amber-800">
+                                <span className="rounded-full bg-warning/15 border border-warning/30 px-2 py-0.5 text-[9px] font-bold text-warning">
                                   ★ बाँकी चालु थेली
                                 </span>
                               )}
@@ -1583,22 +1583,22 @@ function AssetsPage() {
                           </td>
                           <td className="px-3.5 py-3">
                             {item.status === "available" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/20 px-2 py-0.5 text-[10px] font-bold text-success">
                                 ● उपलब्ध (Stock)
                               </span>
                             )}
                             {item.status === "returned_remaining" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 border border-warning/30 px-2 py-0.5 text-[10px] font-bold text-warning">
                                 ↺ फिर्ता बाँकी (Ready)
                               </span>
                             )}
                             {item.status === "issued" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-info/10 border border-info/20 px-2 py-0.5 text-[10px] font-bold text-info">
                                 ➔ कर्मचारीसँग जारी
                               </span>
                             )}
                             {item.status === "partially_booked" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
                                 ◐ प्रयोग भइरहेको
                               </span>
                             )}
@@ -1623,11 +1623,11 @@ function AssetsPage() {
                           <td className="px-3.5 py-3 font-mono">
                             {item.last_voucher_booked ? (
                               <div>
-                                <span className="font-bold text-blue-700">{item.last_voucher_booked}</span>
+                                <span className="font-bold text-info">{item.last_voucher_booked}</span>
                                 <div className="text-[10px] text-muted-foreground">
                                   काटियो: {item.booked_vouchers_count || 0}
                                   {(item.cancelled_count || 0) > 0 && (
-                                    <span className="ml-1 text-rose-600">
+                                    <span className="ml-1 text-destructive">
                                       | रद्द: {item.cancelled_count}
                                     </span>
                                   )}
@@ -1640,14 +1640,14 @@ function AssetsPage() {
                           <td className="px-3.5 py-3 text-right font-mono font-semibold">
                             {money(item.amount_booked || 0)}
                           </td>
-                          <td className="px-3.5 py-3 text-right font-mono text-emerald-700 font-semibold">
+                          <td className="px-3.5 py-3 text-right font-mono text-success font-semibold">
                             {money(item.amount_obtained || 0)}
                           </td>
                           <td className="px-3.5 py-3 text-right font-mono">
                             <span
                               className={`rounded px-1.5 py-0.5 font-bold ${
                                 (item.balance || 0) > 0
-                                  ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
+                                  ? "bg-destructive/10 text-destructive border border-destructive/20"
                                   : "text-muted-foreground"
                               }`}
                             >
@@ -1674,7 +1674,7 @@ function AssetsPage() {
                                 <>
                                   <Button
                                     size="sm"
-                                    className="h-7 px-2 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1"
+                                    className="h-7 px-2 text-[11px] font-bold bg-success hover:bg-success/90 text-success-foreground flex items-center gap-1"
                                     onClick={() => handleOpenReportModal(item)}
                                     title="दैनिक संकलन र क्लोजिङ रिपोर्टिङ"
                                   >
@@ -1685,7 +1685,7 @@ function AssetsPage() {
                                     size="sm"
                                     variant="outline"
                                     disabled={converting}
-                                    className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 flex items-center gap-1"
+                                    className="h-7 px-2 text-[11px] font-bold text-success border-success/40 hover:bg-success/10 flex items-center gap-1"
                                     onClick={() => openConvertDialog(item)}
                                     title="संकलित रकम भुक्तानी दाखिला / रसिद रूपान्तरण"
                                   >
@@ -1697,7 +1697,7 @@ function AssetsPage() {
                               {item.status === "completed" && (
                                 <>
                                   {item.converted_to_receipt ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/30 px-2 py-1 text-[10px] font-bold text-success">
                                       ✓ रूपान्तरित
                                     </span>
                                   ) : (
@@ -1705,7 +1705,7 @@ function AssetsPage() {
                                       size="sm"
                                       variant="outline"
                                       disabled={converting}
-                                      className="h-7 px-2 text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 flex items-center gap-1"
+                                      className="h-7 px-2 text-[11px] font-bold text-success border-success/40 hover:bg-success/10 flex items-center gap-1"
                                       onClick={() => openConvertDialog(item)}
                                     >
                                       <HandCoins className="size-3" />
@@ -1870,7 +1870,7 @@ function AssetsPage() {
                   </div>
                   <div>
                     <span className="text-[10px] text-muted-foreground block">जम्मा थेली संख्या (Theli Books)</span>
-                    <span className="text-lg font-extrabold font-mono text-emerald-700">
+                    <span className="text-lg font-extrabold font-mono text-success">
                       {batchCounts.totalTheli} थेली
                     </span>
                   </div>
@@ -2061,7 +2061,7 @@ function AssetsPage() {
                               isSelected
                                 ? "border-primary bg-primary/10 ring-2 ring-primary/30"
                                 : isRemaining
-                                  ? "border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10"
+                                  ? "border-warning/40 bg-warning/5 hover:bg-warning/10"
                                   : "border-border bg-card hover:bg-muted/40"
                             }`}
                           >
@@ -2079,7 +2079,7 @@ function AssetsPage() {
                                     {item.range_from} – {item.range_to}
                                   </span>
                                   {isRemaining && (
-                                    <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-[9px] font-extrabold text-amber-800 animate-pulse">
+                                    <span className="rounded-full bg-warning/20 border border-warning/30 px-2 py-0.5 text-[9px] font-extrabold text-warning animate-pulse">
                                       ★ बाँकी रहेको चालु थेली (पहिले जारी गर्नुहोस्)
                                     </span>
                                   )}
@@ -2094,7 +2094,7 @@ function AssetsPage() {
                               <span className="font-bold text-xs text-foreground font-mono">
                                 {item.total_vouchers} रसिद
                               </span>
-                              <div className="text-[10px] text-emerald-600 font-semibold">उपलब्ध</div>
+                              <div className="text-[10px] text-success font-semibold">उपलब्ध</div>
                             </div>
                           </div>
                         );
@@ -2168,8 +2168,8 @@ function AssetsPage() {
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                             carryBalance > 0
-                              ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
-                              : "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
+                              ? "bg-destructive/10 text-destructive border border-destructive/20"
+                              : "bg-success/10 text-success border border-success/20"
                           }`}
                         >
                           अन्तर: {money(carryBalance)}
@@ -2178,7 +2178,7 @@ function AssetsPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-5 px-1.5 text-[9px] font-bold text-emerald-700 border-emerald-600/30 hover:bg-emerald-500/10"
+                            className="h-5 px-1.5 text-[9px] font-bold text-success border-success/30 hover:bg-success/10"
                             onClick={() => openConvertDialog(allEmpItems[0])}
                             title="बक्यौता दाखिला गर्नुहोस्"
                           >
@@ -2196,7 +2196,7 @@ function AssetsPage() {
                       </div>
                       <div>
                         <span className="text-[10px] text-muted-foreground block">बुझाएको रकम</span>
-                        <span className="font-bold font-mono text-emerald-700">{money(totalObtained)}</span>
+                        <span className="font-bold font-mono text-success">{money(totalObtained)}</span>
                       </div>
                     </div>
 
@@ -2229,8 +2229,8 @@ function AssetsPage() {
                                     <span
                                       className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
                                         it.converted_to_receipt
-                                          ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
-                                          : "bg-blue-500/10 text-blue-700 border border-blue-500/20"
+                                          ? "bg-success/10 text-success border border-success/20"
+                                          : "bg-info/10 text-info border border-info/20"
                                       }`}
                                     >
                                       {it.converted_to_receipt ? "दाखिला सम्पन्न" : "सम्पन्न / फिर्ता"}
@@ -2249,7 +2249,7 @@ function AssetsPage() {
                                       size="sm"
                                       variant="outline"
                                       disabled={converting}
-                                      className="w-full h-6 text-[10px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 flex items-center justify-center gap-1 mt-1"
+                                      className="w-full h-6 text-[10px] font-bold text-success border-success/40 hover:bg-success/10 flex items-center justify-center gap-1 mt-1"
                                       onClick={() => openConvertDialog(it)}
                                     >
                                       <HandCoins className="size-2.5" />
@@ -2265,15 +2265,15 @@ function AssetsPage() {
                         issued.map((it) => (
                           <div
                             key={it.id}
-                            className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-2.5 text-xs space-y-1.5"
+                            className="rounded-lg border border-info/20 bg-info/5 p-2.5 text-xs space-y-1.5"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="font-mono font-extrabold text-blue-900">
+                              <span className="font-mono font-extrabold text-info">
                                 {it.status === "partially_booked" && it.remaining_range_from
                                   ? `${it.remaining_range_from} – ${it.range_to}`
                                   : `${it.range_from} – ${it.range_to}`}
                               </span>
-                              <span className="rounded bg-blue-500/20 px-1.5 py-0.2 text-[9px] font-bold text-blue-800">
+                              <span className="rounded bg-info/20 px-1.5 py-0.2 text-[9px] font-bold text-info">
                                 {it.status === "partially_booked" && it.remaining_vouchers_count !== undefined
                                   ? `${it.remaining_vouchers_count} बाँकी`
                                   : `${it.total_vouchers} रसिद`}
@@ -2283,14 +2283,14 @@ function AssetsPage() {
                             <div className="text-[10px] text-muted-foreground flex items-center justify-between">
                               <span>वडा {it.ward} ({it.fiscal_year})</span>
                               {it.last_voucher_booked && (
-                                <span className="font-bold text-purple-700">
+                                <span className="font-bold text-primary">
                                   अन्तिम काटियो: {it.last_voucher_booked}
                                 </span>
                               )}
                             </div>
 
                             {it.status === "partially_booked" && it.remaining_range_from && (
-                              <div className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-1 text-[10px] font-semibold text-amber-800">
+                              <div className="rounded bg-warning/10 border border-warning/20 px-2 py-1 text-[10px] font-semibold text-warning">
                                 ◐ आंशिक — बाँकी दायरा: {it.remaining_range_from} देखि {it.range_to}
                               </div>
                             )}
@@ -2298,7 +2298,7 @@ function AssetsPage() {
                             <div className="grid grid-cols-2 gap-1.5 mt-1">
                               <Button
                                 size="sm"
-                                className="text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-7 flex items-center justify-center gap-1"
+                                className="text-[11px] font-bold bg-success hover:bg-success/90 text-success-foreground h-7 flex items-center justify-center gap-1"
                                 onClick={() => handleOpenReportModal(it)}
                               >
                                 <PenLine className="size-3" />
@@ -2308,7 +2308,7 @@ function AssetsPage() {
                                 size="sm"
                                 variant="outline"
                                 disabled={converting}
-                                className="text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 h-7 flex items-center justify-center gap-1"
+                                className="text-[11px] font-bold text-success border-success/40 hover:bg-success/10 h-7 flex items-center justify-center gap-1"
                                 onClick={() => openConvertDialog(it)}
                                 title="संकलित रकम भुक्तानी दाखिला / रसिद रूपान्तरण"
                               >
@@ -2355,25 +2355,25 @@ function AssetsPage() {
                 <div className="text-[10px] text-muted-foreground">फिल्ड संकलन रेकर्डहरू</div>
               </div>
 
-              <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 shadow-2xs">
-                <span className="text-[11px] text-blue-700 font-semibold">कुल काटिएको रकम</span>
-                <div className="text-xl font-extrabold text-blue-700 mt-0.5">
+              <div className="rounded-xl border border-info/20 bg-info/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-info font-semibold">कुल काटिएको रकम</span>
+                <div className="text-xl font-extrabold text-info mt-0.5">
                   {money(dailyLogs.reduce((s, l) => s + (Number(l.amount) || 0), 0))}
                 </div>
-                <div className="text-[10px] text-blue-600 font-semibold">रसिदबाट उठेको रकम</div>
+                <div className="text-[10px] text-info font-semibold">रसिदबाट उठेको रकम</div>
               </div>
 
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 shadow-2xs">
-                <span className="text-[11px] text-emerald-700 font-semibold">कुल बुझाइएको रकम</span>
-                <div className="text-xl font-extrabold text-emerald-700 mt-0.5">
+              <div className="rounded-xl border border-success/20 bg-success/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-success font-semibold">कुल बुझाइएको रकम</span>
+                <div className="text-xl font-extrabold text-success mt-0.5">
                   {money(dailyLogs.reduce((s, l) => s + (Number(l.cleared_amount) || 0), 0))}
                 </div>
-                <div className="text-[10px] text-emerald-600 font-semibold">संस्थामा दाखिला भएको</div>
+                <div className="text-[10px] text-success font-semibold">संस्थामा दाखिला भएको</div>
               </div>
 
-              <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 shadow-2xs">
-                <span className="text-[11px] text-rose-700 font-semibold">कुल बाँकी क्यारी अन्तर</span>
-                <div className="text-xl font-extrabold text-rose-700 mt-0.5">
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 shadow-2xs">
+                <span className="text-[11px] text-destructive font-semibold">कुल बाँकी क्यारी अन्तर</span>
+                <div className="text-xl font-extrabold text-destructive mt-0.5">
                   {money(
                     dailyLogs.reduce(
                       (s, l) =>
@@ -2382,7 +2382,7 @@ function AssetsPage() {
                     ),
                   )}
                 </div>
-                <div className="text-[10px] text-rose-600 font-semibold">कर्मचारीहरूको खातामा</div>
+                <div className="text-[10px] text-destructive font-semibold">कर्मचारीहरूको खातामा</div>
               </div>
             </div>
 
@@ -2528,20 +2528,20 @@ function AssetsPage() {
                             </span>
                           </td>
                           <td className="px-3.5 py-3 font-mono text-xs">{outStr}</td>
-                          <td className="px-3.5 py-3 font-mono font-bold text-blue-700">
+                          <td className="px-3.5 py-3 font-mono font-bold text-info">
                             {log.closing_serial || "—"}
                           </td>
                           <td className="px-3.5 py-3 text-right font-mono font-semibold">
                             {money(log.amount || 0)}
                           </td>
-                          <td className="px-3.5 py-3 text-right font-mono text-emerald-700 font-semibold">
+                          <td className="px-3.5 py-3 text-right font-mono text-success font-semibold">
                             {money(log.cleared_amount || 0)}
                           </td>
                           <td className="px-3.5 py-3 text-right font-mono">
                             <span
                               className={`rounded px-1.5 py-0.5 font-bold ${
                                 diff > 0
-                                  ? "bg-rose-500/10 text-rose-700 border border-rose-500/20"
+                                  ? "bg-destructive/10 text-destructive border border-destructive/20"
                                   : "text-muted-foreground"
                               }`}
                             >
@@ -2556,7 +2556,7 @@ function AssetsPage() {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteDailyLog(log.id!)}
-                                className="rounded p-1 text-red-500 hover:bg-red-500/10 transition-colors"
+                                className="rounded p-1 text-destructive hover:bg-destructive/10 transition-colors"
                                 title="दैनिक रेकर्ड मेटाउनुहोस्"
                               >
                                 <Trash2 className="size-3.5" />
@@ -2578,7 +2578,7 @@ function AssetsPage() {
               <div className="border-b pb-3 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
-                    <PenLine className="size-4 text-emerald-600" />
+                    <PenLine className="size-4 text-success" />
                     <span>दैनिक थेली रिपोर्टिङ — {reportingItem.issued_to_name}</span>
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -2604,7 +2604,7 @@ function AssetsPage() {
                   </span>
                   <span
                     className={`font-mono font-bold text-xs ${
-                      employeeCarriedBalance > 0 ? "text-rose-600" : "text-emerald-600"
+                      employeeCarriedBalance > 0 ? "text-destructive" : "text-success"
                     }`}
                   >
                     {money(employeeCarriedBalance)}
@@ -2628,16 +2628,16 @@ function AssetsPage() {
                     }
                   />
                   {reportingItem.status === "partially_booked" && reportingItem.remaining_range_from && (
-                    <div className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+                    <div className="text-[11px] text-warning bg-warning/10 border border-warning/20 rounded px-2 py-1">
                       यसअघि अन्तिम काटिएको रसिद: <strong>{reportingItem.last_voucher_booked}</strong> | अब गणना सुरु हुने रसिद: <strong className="font-mono">{reportingItem.remaining_range_from}</strong>
                     </div>
                   )}
                   {liveReportCalc && (
                     <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold pt-1">
-                      <div className="text-emerald-700">
+                      <div className="text-success">
                         काटिएको रसिद: <strong>{liveReportCalc.bookedCount} वटा</strong>
                       </div>
-                      <div className="text-purple-700">
+                      <div className="text-primary">
                         बाँकी रसिद: <strong>{liveReportCalc.remainingCount} वटा</strong>
                       </div>
                     </div>
@@ -2645,8 +2645,8 @@ function AssetsPage() {
                 </div>
 
                 {/* Cancelled Rasids input */}
-                <div className="rounded-xl border border-rose-400/30 bg-rose-500/5 p-3 space-y-2">
-                  <label className="block text-[11px] font-bold text-rose-700">
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                  <label className="block text-[11px] font-bold text-destructive">
                     २. रद्द रसिद संख्या (Cancelled Vouchers Count)
                   </label>
                   <input
@@ -2655,11 +2655,11 @@ function AssetsPage() {
                     max={liveReportCalc?.bookedCount ?? 9999}
                     value={reportCancelledCount}
                     onChange={(e) => setReportCancelledCount(Math.max(0, Number(e.target.value) || 0))}
-                    className={`${inputCls} font-mono font-bold text-rose-700`}
+                    className={`${inputCls} font-mono font-bold text-destructive`}
                     placeholder="0"
                   />
                   {liveReportCalc && reportCancelledCount > 0 && (
-                    <div className="text-[11px] font-semibold text-rose-800 bg-rose-100/60 rounded px-2 py-1">
+                    <div className="text-[11px] font-semibold text-destructive bg-destructive/10 rounded px-2 py-1">
                       काटिएको {liveReportCalc.bookedCount} − रद्द {liveReportCalc.cancelledCount} ={" "}
                       <strong>खुद वैध रसिद: {liveReportCalc.netValidCount} वटा</strong>
                     </div>
@@ -2691,7 +2691,7 @@ function AssetsPage() {
                       min={0}
                       value={reportAmountObtained}
                       onChange={(e) => setReportAmountObtained(e.target.value)}
-                      className={`${inputCls} font-mono font-bold text-emerald-700`}
+                      className={`${inputCls} font-mono font-bold text-success`}
                       placeholder="0"
                     />
                   </div>
@@ -2699,12 +2699,12 @@ function AssetsPage() {
 
                 {/* Live Balance / Credit Calculation */}
                 {liveReportCalc && (
-                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center justify-between text-xs">
+                  <div className="rounded-xl border border-warning/20 bg-warning/5 p-3 flex items-center justify-between text-xs">
                     <div>
                       <span className="text-[10px] text-muted-foreground block">
                         नयाँ बक्यौता अन्तर (Running Balance on Credit)
                       </span>
-                      <span className="font-extrabold text-sm font-mono text-amber-900">
+                      <span className="font-extrabold text-sm font-mono text-warning">
                         {money(liveReportCalc.newBalance)}
                       </span>
                     </div>
@@ -2716,8 +2716,8 @@ function AssetsPage() {
 
                 {/* Remaining Range: Returned or Kept Issued? */}
                 {liveReportCalc && liveReportCalc.remainingRange && (
-                  <div className="rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-2">
-                    <div className="font-bold text-purple-900 text-xs">
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+                    <div className="font-bold text-primary text-xs">
                       बाँकी रसिद दायरा ({liveReportCalc.remainingRange.from} देखि {liveReportCalc.remainingRange.to}) — के गर्ने?
                     </div>
 
@@ -2788,7 +2788,7 @@ function AssetsPage() {
                     size="sm"
                     disabled={savingReport || !reportLastVoucher}
                     onClick={handleSaveReport}
-                    className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="font-bold bg-success hover:bg-success/90 text-success-foreground"
                   >
                     {savingReport ? "सुरक्षित हुँदै…" : "दैनिक रिपोर्ट सुरक्षित गर्नुहोस्"}
                   </Button>
@@ -2840,7 +2840,7 @@ function AssetsPage() {
                 className={`${inputCls} font-mono`}
               />
               {convertCustomAmount <= 0 && Number(convertTarget?.amount_booked) <= 0 && (
-                <p className="mt-1 text-[10px] text-amber-600 font-semibold">
+                <p className="mt-1 text-[10px] text-warning font-semibold">
                   रिपोर्टिङ नभएकोले रकम थाहा छैन — माथि संकलित रकम हाल्नुहोस्।
                 </p>
               )}
@@ -2902,7 +2902,7 @@ function AssetsPage() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 px-1.5 text-rose-600 border-rose-500/30 hover:bg-rose-500/10"
+                        className="h-7 px-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
                         onClick={() =>
                           setConvertAllocations((prev) => prev.filter((_, idx) => idx !== i))
                         }
@@ -2931,10 +2931,10 @@ function AssetsPage() {
                   <span
                     className={`font-mono font-bold text-[11px] ${
                       convertRemaining < 0
-                        ? "text-rose-600"
+                        ? "text-destructive"
                         : convertRemaining > 0
-                          ? "text-amber-700"
-                          : "text-emerald-700"
+                          ? "text-warning"
+                          : "text-success"
                     }`}
                   >
                     बाँकी: रु. {convertRemaining.toLocaleString("en-IN")}
@@ -2942,7 +2942,7 @@ function AssetsPage() {
                 </div>
               </div>
               {rpAccounts.length === 0 && !rpAccountsQuery.isLoading && (
-                <p className="mt-1 text-[10px] text-rose-600">
+                <p className="mt-1 text-[10px] text-destructive">
                   कुनै नगद/बैंक खाता फेला परेन। कृपया नगद तथा बैंक मास्टर (Receipts & Payments) मा खाता थप्नुहोस्।
                 </p>
               )}
@@ -2980,7 +2980,7 @@ function AssetsPage() {
                 e.preventDefault();
                 void handleConfirmConvertToReceipt();
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-success hover:bg-success/90 text-success-foreground"
             >
               {converting ? "रूपान्तरण हुँदै…" : "हो, रसिदमा रूपान्तरण गर्नुहोस्"}
             </AlertDialogAction>

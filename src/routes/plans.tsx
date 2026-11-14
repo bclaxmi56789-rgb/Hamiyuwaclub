@@ -273,7 +273,7 @@ function PlansPage() {
                   <td className="p-4 text-right font-mono font-medium">
                     {money(p.rate ?? p.amount)}
                   </td>
-                  <td className="p-4 text-right font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                  <td className="p-4 text-right font-mono font-medium text-success">
                     {p.incentive > 0 ? `- ${money(p.incentive)}` : "रु. ०"}
                   </td>
                   <td className="p-4 text-right font-mono text-base font-extrabold text-primary">
@@ -288,7 +288,7 @@ function PlansPage() {
                   </td>
                   <td className="p-4 text-center">
                     {p.is_active !== false ? (
-                      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <span className="inline-flex items-center gap-1 rounded bg-success/10 px-2 py-0.5 text-xs font-semibold text-success border border-success/20">
                         <CheckCircle2 className="size-3" /> सक्रिय
                       </span>
                     ) : (

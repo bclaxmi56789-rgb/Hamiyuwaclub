@@ -691,7 +691,7 @@ function Index() {
 
           {/* found person banner */}
           {found ? (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-green-500/30 bg-green-500/10 p-2.5 text-xs sm:text-sm text-green-800">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-success/30 bg-success/10 p-2.5 text-xs sm:text-sm text-success">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span>
                   ✓ <b>{found.name}</b>
@@ -751,7 +751,7 @@ function Index() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 text-xs text-green-800"
+                className="h-6 text-xs text-success hover:text-success/80"
                 onClick={() => {
                   setP({
                     card: "",
@@ -774,12 +774,12 @@ function Index() {
               </Button>
             </div>
           ) : p.card.trim() || p.name.trim() || p.phone.trim() ? (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/30 bg-warning/10 p-2.5 text-xs text-warning">
               <span>⚠ यो ग्राहक People Master मा दर्ता छैन।</span>
               <Button
                 asChild
                 size="sm"
-                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                className="h-7 text-xs bg-warning hover:bg-warning/90 text-warning-foreground"
               >
                 <Link to="/masters">People Master मा दर्ता गर्नुहोस्</Link>
               </Button>
@@ -896,10 +896,10 @@ function Index() {
                               className={`rounded border-2 p-2 transition-colors ${
                                 on
                                   ? isOverdue
-                                    ? "border-red-400 bg-red-50 shadow-sm dark:bg-red-950/30"
+                                    ? "border-destructive/60 bg-destructive/10 shadow-sm"
                                     : "border-primary bg-accent shadow-sm"
                                   : isOverdue
-                                    ? "border-red-300/60 bg-red-50/40 hover:border-red-400"
+                                    ? "border-destructive/30 bg-destructive/5 hover:border-destructive/50"
                                     : "border-border hover:border-border/80"
                               }`}
                             >
@@ -913,7 +913,7 @@ function Index() {
                                 {MONTHS[m]} {np(monthYear(f, m))}
                               </label>
                               {isOverdue ? (
-                                <div className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-red-600">
+                                <div className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-destructive">
                                   <AlertTriangle className="size-3" /> बाँकी (Overdue)
                                 </div>
                               ) : (
@@ -940,8 +940,8 @@ function Index() {
                 })}
               </div>
             ) : found && dueMonths.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 py-8 text-emerald-700 dark:bg-emerald-950/30">
-                <CheckCircle2 className="size-8 text-emerald-500" />
+              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-success/30 bg-success/10 py-8 text-success">
+                <CheckCircle2 className="size-8 text-success" />
                 <p className="font-semibold">सबै महिना तिरिसकेको छ!</p>
                 <p className="text-xs">All months cleared — no dues pending.</p>
               </div>
@@ -1013,7 +1013,7 @@ function Index() {
               <div className="text-sm">कुल जम्मा · {selectedCount} महिना</div>
               <div className="text-3xl font-extrabold text-ink">{money(total)}</div>
               {overdueCount > 0 && (
-                <div className="mt-1 text-xs font-semibold text-red-600">
+                <div className="mt-1 text-xs font-semibold text-destructive">
                   ⚠ {overdueCount} महिना बाँकी (Overdue)
                 </div>
               )}

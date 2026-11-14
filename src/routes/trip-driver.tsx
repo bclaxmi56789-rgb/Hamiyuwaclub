@@ -1066,15 +1066,15 @@ function TripDriverPage() {
             ))}
           </select>
 
-          <div className="flex items-center gap-1.5 rounded-lg bg-red-500/10 border border-red-500/20 px-2.5 py-1 text-red-700 dark:text-red-300 font-bold">
-            <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+          <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 border border-destructive/20 px-2.5 py-1 text-destructive font-bold">
+            <span className="size-2 rounded-full bg-destructive animate-pulse" />
             <span>सुरु हुन बाँकी: {stats.red}</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-amber-700 dark:text-amber-300 font-bold">
-            <span className="size-2 rounded-full bg-amber-500" />
+          <div className="flex items-center gap-1.5 rounded-lg bg-warning/10 border border-warning/20 px-2.5 py-1 text-warning font-bold">
+            <span className="size-2 rounded-full bg-warning" />
             <span>जारी छ: {stats.orange}</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-emerald-700 dark:text-emerald-300 font-bold">
+          <div className="flex items-center gap-1.5 rounded-lg bg-success/10 border border-success/20 px-2.5 py-1 text-success font-bold">
             <CheckCircle2 className="size-3.5" />
             <span>पूरा: {stats.green}</span>
           </div>
@@ -1118,8 +1118,8 @@ function TripDriverPage() {
             onClick={toggleLocationTracking}
             className={`gap-1.5 text-xs font-bold ${
               trackingLocation
-                ? "bg-violet-600 hover:bg-violet-700 text-white shadow-[0_0_12px_rgba(124,58,237,0.4)]"
-                : "border-violet-500/40 text-violet-700 hover:bg-violet-50 dark:text-violet-300"
+                ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
+                : "border-primary/40 text-primary hover:bg-primary/10"
             }`}
           >
             <LocateFixed className={`size-3.5 ${trackingLocation ? "animate-spin" : ""}`} />
@@ -1139,7 +1139,7 @@ function TripDriverPage() {
                 setLocatingStatus("");
               }
             }}
-            className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-amber-500 bg-amber-50 text-amber-900 font-bold dark:bg-amber-950/50 dark:text-amber-200" : ""}`}
+            className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-warning/50 bg-warning/10 text-warning font-bold" : ""}`}
           >
             <MousePointer className="size-3.5" />
             {settingDriverMode ? "नक्सामा थिच्नुहोस्..." : "📍 नक्सामा प्रमुख राख्नुहोस्"}
@@ -1151,7 +1151,7 @@ function TripDriverPage() {
               size="sm"
               variant="outline"
               onClick={centerOnDriver}
-              className="h-8 text-xs gap-1 text-violet-600 border-violet-400/50 hover:bg-violet-50"
+              className="h-8 text-xs gap-1 text-primary border-primary/50 hover:bg-primary/10"
             >
               <Truck className="size-3.5" /> म भएको ठाउँ
             </Button>
@@ -1170,25 +1170,25 @@ function TripDriverPage() {
       </div>
 
       {/* Trip session panel: start GPS-tracked trip (collection / dumping) → end trip */}
-      <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border-2 border-violet-500/30 bg-violet-500/5 p-2">
-        <span className="text-xs font-extrabold text-violet-800 dark:text-violet-200">
+      <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border-2 border-primary/30 bg-primary/5 p-2">
+        <span className="text-xs font-extrabold text-primary">
           🛻 ट्रिप:
         </span>
 
         {!activeTrip ? (
           <>
-            <div className="flex overflow-hidden rounded-md border border-violet-400/50 text-xs font-bold">
+            <div className="flex overflow-hidden rounded-md border border-primary/50 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => setTripType("collection")}
-                className={`px-3 py-1.5 ${tripType === "collection" ? "bg-blue-600 text-white" : "bg-card text-blue-700 hover:bg-blue-50 dark:text-blue-300"}`}
+                className={`px-3 py-1.5 ${tripType === "collection" ? "bg-info text-info-foreground" : "bg-card text-info hover:bg-info/10"}`}
               >
                 🚚 संकलन (Collection)
               </button>
               <button
                 type="button"
                 onClick={() => setTripType("dumping")}
-                className={`px-3 py-1.5 ${tripType === "dumping" ? "bg-amber-600 text-white" : "bg-card text-amber-700 hover:bg-amber-50 dark:text-amber-300"}`}
+                className={`px-3 py-1.5 ${tripType === "dumping" ? "bg-warning text-warning-foreground" : "bg-card text-warning hover:bg-warning/10"}`}
               >
                 🗑️ मल फाल्ने (Dumping)
               </button>
@@ -1198,7 +1198,7 @@ function TripDriverPage() {
               size="sm"
               disabled={tripSessionBusy}
               onClick={handleStartTrip}
-              className="h-8 px-4 text-xs font-extrabold bg-green-600 hover:bg-green-700 text-white"
+              className="h-8 px-4 text-xs font-extrabold bg-success hover:bg-success/90 text-success-foreground"
             >
               {tripSessionBusy ? "सुरु हुँदैछ..." : "▶ ट्रिप सुरु गर्नुहोस् (Start Trip)"}
             </Button>
@@ -1209,20 +1209,20 @@ function TripDriverPage() {
           </>
         ) : (
           <>
-            <span className="rounded-full bg-blue-600 px-2.5 py-1 text-[11px] font-extrabold text-white">
+            <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-extrabold text-primary-foreground">
               {activeTrip.trip_type === "dumping"
                 ? "🗑️ मल फाल्ने (Dumping)"
                 : "🚚 संकलन (Collection)"}
             </span>
             <span
-              className="flex items-center gap-1.5 rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-extrabold text-white"
+              className="flex items-center gap-1.5 rounded-full bg-destructive px-2.5 py-1 text-[11px] font-extrabold text-destructive-foreground"
               title="लाइभ ट्रिप — स्थान प्रशासकलाई पठाइँदैछ"
             >
               <span className="inline-block size-2 animate-pulse rounded-full bg-white" />
               लाइभ ट्रिप चलिरहेको छ
             </span>
             <span
-              className="text-[11px] font-bold text-violet-800 dark:text-violet-200"
+              className="text-[11px] font-bold text-primary"
               suppressHydrationWarning
             >
               ⏱️ {Math.floor(durationSeconds / 3600)}:
@@ -1235,7 +1235,7 @@ function TripDriverPage() {
               size="sm"
               disabled={tripSessionBusy}
               onClick={handleEndTrip}
-              className="h-8 px-4 text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white"
+              className="h-8 px-4 text-xs font-extrabold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {tripSessionBusy ? "बन्द हुँदैछ..." : "■ ट्रिप समाप्त गर्नुहोस् (End Trip)"}
             </Button>
@@ -1243,28 +1243,28 @@ function TripDriverPage() {
         )}
 
         {tripSessionErr && (
-          <span className="text-[11px] font-bold text-rose-600">{tripSessionErr}</span>
+          <span className="text-[11px] font-bold text-destructive">{tripSessionErr}</span>
         )}
       </div>
 
       {locatingStatus && (
-        <div className="mb-2 flex items-center gap-2 rounded-lg bg-violet-500/10 border border-violet-500/20 p-2 text-xs text-violet-700 dark:text-violet-300 font-medium">
-          <LocateFixed className="size-3.5 shrink-0 animate-spin text-violet-600" />
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 p-2 text-xs text-primary font-medium">
+          <LocateFixed className="size-3.5 shrink-0 animate-spin text-primary" />
           <span>{locatingStatus}</span>
         </div>
       )}
 
       {locationError && (
-        <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+        <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-warning/10 border border-warning/30 p-2.5 text-xs text-warning">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+            <AlertTriangle className="size-4 shrink-0 text-warning" />
             <span>{locationError}</span>
           </div>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="h-6 px-2 text-[11px] font-bold border-amber-600/50 text-amber-900 hover:bg-amber-100"
+            className="h-6 px-2 text-[11px] font-bold border-warning/50 text-warning hover:bg-warning/10"
             onClick={() => {
               setSettingDriverMode(true);
               setLocationError("");
@@ -1328,22 +1328,22 @@ function TripDriverPage() {
         {!hideBoxes && (
           <div className="absolute top-3 left-3 z-[1000] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[220px]">
             <div className="font-bold text-foreground mb-1.5 flex items-center gap-1">
-              <Truck className="size-3.5 text-violet-600" />
+              <Truck className="size-3.5 text-primary" />
               <span>मासिक ट्रिप अवस्था ({MONTHS[month]})</span>
             </div>
             <div className="space-y-1 text-muted-foreground">
               <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full bg-red-600 animate-pulse shrink-0" />
+                <span className="size-3 rounded-full bg-destructive animate-pulse shrink-0" />
                 <span>रातो: ट्रिप सुरु हुन बाँकी (0 सम्म)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full bg-amber-500 shrink-0" />
+                <span className="size-3 rounded-full bg-warning shrink-0" />
                 <span>
                   सुन्तला: ट्रिप जारी (जस्तै 1/3, ..., {stats.plannedTotal > 3 ? "7/8" : "2/3"})
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full bg-emerald-500 shrink-0" />
+                <span className="size-3 rounded-full bg-success shrink-0" />
                 <span>
                   हरियो: तोकिएका सबै पूरा (जस्तै {stats.plannedTotal > 3 ? `8/8, 12/12` : "3/3"}),
                   अतिरिक्त ट्रिप छ भने <b>✓ अतिरिक्त</b> देखाउँछ
@@ -1351,7 +1351,7 @@ function TripDriverPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className="size-5 rounded-full bg-violet-600 text-white font-bold flex items-center justify-center shrink-0"
+                  className="size-5 rounded-full bg-primary text-primary-foreground font-bold flex items-center justify-center shrink-0"
                   style={{ fontSize: "8px" }}
                 >
                   🛻
@@ -1361,7 +1361,7 @@ function TripDriverPage() {
             </div>
             <div className="mt-2 pt-2 border-t border-border/60 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-full border border-amber-500 bg-amber-100" />
+                <span className="size-2.5 rounded-full border border-warning bg-warning/20" />
                 <span>पहेँलो किनारा: वडा क्षेत्र अनुमान</span>
               </div>
             </div>
@@ -1369,7 +1369,7 @@ function TripDriverPage() {
         )}
 
         {settingDriverMode && (
-          <div className="absolute top-3 right-14 z-[1000] rounded-lg bg-amber-500 text-amber-950 font-bold text-xs px-3 py-1.5 shadow-xl animate-bounce flex items-center gap-1.5">
+          <div className="absolute top-3 right-14 z-[1000] rounded-lg bg-warning text-warning-foreground font-bold text-xs px-3 py-1.5 shadow-xl animate-bounce flex items-center gap-1.5">
             <MousePointer className="size-4" />
             <span>नक्सामा जहाँ प्रमुख चालक छ, त्यहाँ क्लिक गर्नुहोस्</span>
           </div>
@@ -1429,7 +1429,7 @@ function TripDriverPage() {
                         className={`h-2.5 flex-1 rounded-full ${
                           i < selectedCustomer.done
                             ? isExtra
-                              ? "bg-emerald-800"
+                              ? "bg-success/80"
                               : ""
                             : "bg-muted-foreground/20"
                         }`}
@@ -1444,7 +1444,7 @@ function TripDriverPage() {
                 )}
               </div>
               {selectedCustomer.complete && (
-                <p className="mt-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                <p className="mt-1.5 text-[10px] font-semibold text-success">
                   ✓ तोकिएका सबै {np(selectedCustomer.planned)} ट्रिप पूरा भयो
                   {selectedCustomer.extra > 0
                     ? ` — अतिरिक्त ${np(selectedCustomer.extra)} ट्रिप गरिएको छ।`
@@ -1478,7 +1478,7 @@ function TripDriverPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => handleOpenDirections(selectedCustomer)}
-                className="h-9 gap-1 text-xs border-blue-400/40 text-blue-600 hover:bg-blue-50"
+                className="h-9 gap-1 text-xs border-info/40 text-info hover:bg-info/10"
                 title="Google Maps मा दिशा हेर्नुहोस्"
               >
                 <Navigation className="size-3.5" />
@@ -1490,7 +1490,7 @@ function TripDriverPage() {
                 size="sm"
                 onClick={() => void handleMarkTrip(selectedCustomer)}
                 disabled={busyTrip || selectedCustomer.complete}
-                className="h-9 gap-1.5 bg-emerald-600 font-extrabold text-white hover:bg-emerald-700 shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-emerald-600"
+                className="h-9 gap-1.5 bg-success font-extrabold text-success-foreground hover:bg-success/90 shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-success"
                 title={
                   selectedCustomer.complete
                     ? "तोकिएका सबै ट्रिप पूरा भए — नयाँ ट्रिप दर्ता गर्न पछाडि योजना सच्याउनुहोस्"
@@ -1578,7 +1578,7 @@ function TripDriverPage() {
                           <div className="font-bold text-foreground flex items-center gap-1.5">
                             <span>{c.name}</span>
                             <span title="निश्चित GPS पिन">
-                              <MapPin className="size-3 text-emerald-600" />
+                              <MapPin className="size-3 text-success" />
                             </span>
                           </div>
                           <div className="text-[11px] text-muted-foreground">
@@ -1593,7 +1593,7 @@ function TripDriverPage() {
                         </span>
                       </div>
                       {c.distanceFromDriver !== undefined && (
-                        <div className="mt-0.5 text-[10px] font-semibold text-violet-600">
+                        <div className="mt-0.5 text-[10px] font-semibold text-primary">
                           {formatDistance(c.distanceFromDriver)} टाढा
                         </div>
                       )}

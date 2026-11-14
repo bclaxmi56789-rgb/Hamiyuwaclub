@@ -74,12 +74,12 @@ function Reports() {
       {/* Summary strip */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border bg-card p-5">
-          <TrendingUp className="mb-4 size-5 text-emerald-600" />
+          <TrendingUp className="mb-4 size-5 text-success" />
           <p className="text-sm text-muted-foreground">कुल संकलन (Total collection)</p>
           <p className="mt-1 break-words text-2xl font-extrabold text-ink">{money(total)}</p>
         </div>
         <div className="rounded-lg border bg-card p-5">
-          <TrendingDown className="mb-4 size-5 text-red-600" />
+          <TrendingDown className="mb-4 size-5 text-destructive" />
           <p className="text-sm text-muted-foreground">कुल खर्च (Total expenses)</p>
           <p className="mt-1 break-words text-2xl font-extrabold text-ink">{money(expenseTotal)}</p>
         </div>
@@ -174,7 +174,7 @@ function Reports() {
                     <td className="p-3 text-right">{money(exp)}</td>
                     <td
                       className={`p-3 text-right font-bold ${
-                        col - exp >= 0 ? "text-emerald-600" : "text-red-600"
+                        col - exp >= 0 ? "text-success" : "text-destructive"
                       }`}
                     >
                       {money(col - exp)}

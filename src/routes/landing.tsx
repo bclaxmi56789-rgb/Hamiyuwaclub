@@ -61,7 +61,7 @@ export function LandingPage() {
       <div className="border-b bg-card/60 backdrop-blur-md text-muted-foreground text-xs py-2 px-4 shadow-xs relative z-50">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-medium">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex h-2 w-2 rounded-full bg-success animate-pulse" />
             <MapPin className="h-3.5 w-3.5 text-primary" />
             <span>{appConfig.address}</span>
           </div>
@@ -94,7 +94,7 @@ export function LandingPage() {
                 }}
                 className="size-11 sm:size-12 object-contain rounded-xl bg-card p-1"
               />
-              <span className="absolute -bottom-1 -right-1 size-3.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+              <span className="absolute -bottom-1 -right-1 size-3.5 rounded-full bg-success ring-2 ring-background" />
             </div>
             <div className="flex flex-col">
               <span className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-foreground flex items-center gap-1.5">
@@ -225,21 +225,21 @@ export function LandingPage() {
         {/* Layered 3D Ambient Orbs */}
         <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden">
           <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-primary/20 dark:bg-primary/15 rounded-full blur-[100px]" />
-          <div className="absolute -top-10 left-10 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl" />
-          <div className="absolute top-40 right-10 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" />
+          <div className="absolute -top-10 left-10 w-72 h-72 bg-warning/10 rounded-full blur-3xl" />
+          <div className="absolute top-40 right-10 w-80 h-80 bg-info/10 rounded-full blur-3xl" />
         </div>
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-8">
           {/* 3D Elevated Tagline Badge */}
           <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border bg-card/90 backdrop-blur-md text-xs sm:text-sm font-bold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all">
             <span className="flex h-2.5 w-2.5 rounded-full bg-primary animate-ping" />
-            <Sparkles className="h-4 w-4 text-amber-500" />
+            <Sparkles className="h-4 w-4 text-warning" />
             <span>{appConfig.address}</span>
           </div>
 
           {/* 3D Styled Headline */}
           <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-foreground leading-[1.12]">
-            युवा सोच, <span className="bg-gradient-to-r from-primary via-primary/90 to-emerald-600 bg-clip-text text-transparent">सशक्त राष्ट्र।</span>
+            युवा सोच, <span className="bg-gradient-to-r from-primary via-primary/90 to-success bg-clip-text text-transparent">सशक्त राष्ट्र।</span>
           </h1>
 
           {/* Subtitle */}
@@ -302,7 +302,7 @@ export function LandingPage() {
             </div>
 
             <div className="group rounded-3xl border bg-card/70 backdrop-blur-xl p-5 shadow-[0_10px_25px_rgba(0,0,0,0.05)] hover:shadow-[0_18px_35px_rgba(0,0,0,0.12)] hover:-translate-y-1.5 transition-all duration-300">
-              <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold mb-3 shadow-xs">
+              <div className="size-10 rounded-xl bg-success/10 text-success flex items-center justify-center font-bold mb-3 shadow-xs">
                 <Leaf className="h-5 w-5" />
               </div>
               <div className="text-2xl sm:text-3xl font-black text-foreground">१६+</div>
@@ -310,7 +310,7 @@ export function LandingPage() {
             </div>
 
             <div className="group rounded-3xl border bg-card/70 backdrop-blur-xl p-5 shadow-[0_10px_25px_rgba(0,0,0,0.05)] hover:shadow-[0_18px_35px_rgba(0,0,0,0.12)] hover:-translate-y-1.5 transition-all duration-300">
-              <div className="size-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold mb-3 shadow-xs">
+              <div className="size-10 rounded-xl bg-info/10 text-info flex items-center justify-center font-bold mb-3 shadow-xs">
                 <Receipt className="h-5 w-5" />
               </div>
               <div className="text-2xl sm:text-3xl font-black text-primary">डिजिटल</div>
@@ -318,7 +318,7 @@ export function LandingPage() {
             </div>
 
             <div className="group rounded-3xl border bg-card/70 backdrop-blur-xl p-5 shadow-[0_10px_25px_rgba(0,0,0,0.05)] hover:shadow-[0_18px_35px_rgba(0,0,0,0.12)] hover:-translate-y-1.5 transition-all duration-300">
-              <div className="size-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold mb-3 shadow-xs">
+              <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold mb-3 shadow-xs">
                 <Award className="h-5 w-5" />
               </div>
               <div className="text-2xl sm:text-3xl font-black text-foreground">कर्णाली</div>
@@ -375,9 +375,9 @@ export function LandingPage() {
           {/* 3D Elevated Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
             {/* Pillar 1: युवा वकालत */}
-            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-amber-500/50 transition-all duration-300 flex flex-col justify-between">
+            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-warning/50 transition-all duration-300 flex flex-col justify-between">
               <div className="space-y-5">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-[0_8px_20px_rgba(245,158,11,0.2)] group-hover:scale-110 group-hover:rotate-2 transition-all">
+                <div className="size-16 rounded-2xl bg-gradient-to-br from-warning/20 to-warning/5 text-warning flex items-center justify-center shadow-[0_8px_20px_rgba(245,158,11,0.2)] group-hover:scale-110 group-hover:rotate-2 transition-all">
                   <Megaphone className="h-8 w-8" />
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-foreground">
@@ -387,16 +387,16 @@ export function LandingPage() {
                   शिक्षा, रोजगारी र मानसिक स्वास्थ्यजस्ता सरोकारका विषयमा युवाको सशक्त प्रतिनिधित्व सुनिश्चित गर्ने मञ्च।
                 </p>
               </div>
-              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
+              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-warning">
                 <span>स्थानीय तहसँग प्रत्यक्ष संवाद र नीतिगत पैरवी</span>
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
 
             {/* Pillar 2: सामुदायिक कार्य */}
-            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-blue-500/50 transition-all duration-300 flex flex-col justify-between">
+            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-info/50 transition-all duration-300 flex flex-col justify-between">
               <div className="space-y-5">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-[0_8px_20px_rgba(59,130,246,0.2)] group-hover:scale-110 group-hover:-rotate-2 transition-all">
+                <div className="size-16 rounded-2xl bg-gradient-to-br from-info/20 to-info/5 text-info flex items-center justify-center shadow-[0_8px_20px_rgba(59,130,246,0.2)] group-hover:scale-110 group-hover:-rotate-2 transition-all">
                   <Users className="h-8 w-8" />
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-foreground">
@@ -406,16 +406,16 @@ export function LandingPage() {
                   स्थानीय निकायसँगको सहकार्यमा समुदायका यथार्थ चुनौतीको दिगो समाधानतर्फ अग्रसर।
                 </p>
               </div>
-              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
+              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-info">
                 <span>दिगो सहकार्य र प्रभावकारी कार्यान्वयन</span>
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
 
             {/* Pillar 3: वातावरण */}
-            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-emerald-500/50 transition-all duration-300 flex flex-col justify-between">
+            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-success/50 transition-all duration-300 flex flex-col justify-between">
               <div className="space-y-5">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-[0_8px_20px_rgba(16,185,129,0.2)] group-hover:scale-110 group-hover:rotate-2 transition-all">
+                <div className="size-16 rounded-2xl bg-gradient-to-br from-success/20 to-success/5 text-success flex items-center justify-center shadow-[0_8px_20px_rgba(16,185,129,0.2)] group-hover:scale-110 group-hover:rotate-2 transition-all">
                   <Leaf className="h-8 w-8" />
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-foreground">
@@ -425,16 +425,16 @@ export function LandingPage() {
                   सरसफाइ अभियान र फोहोरमुक्त वडाको पहलमार्फत स्वच्छ, हरित र दिगो सहरको निर्माण।
                 </p>
               </div>
-              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-success">
                 <span>फोहोर व्यवस्थापन र हरित बीरेन्द्रनगर</span>
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
 
             {/* Pillar 4: नेतृत्व */}
-            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-purple-500/50 transition-all duration-300 flex flex-col justify-between">
+            <div className="group rounded-3xl border bg-card/85 backdrop-blur-xl p-8 sm:p-10 shadow-[0_12px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(0,0,0,0.14)] hover:-translate-y-2 hover:border-primary/50 transition-all duration-300 flex flex-col justify-between">
               <div className="space-y-5">
-                <div className="size-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-purple-500/5 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-[0_8px_20px_rgba(168,85,247,0.2)] group-hover:scale-110 group-hover:-rotate-2 transition-all">
+                <div className="size-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary flex items-center justify-center shadow-[0_8px_20px_rgba(168,85,247,0.2)] group-hover:scale-110 group-hover:-rotate-2 transition-all">
                   <Award className="h-8 w-8" />
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-foreground">
@@ -444,7 +444,7 @@ export function LandingPage() {
                   आत्मविश्वासी, उत्तरदायी र परिवर्तनकारी नयाँ पुस्ताको नेतृत्व विकास।
                 </p>
               </div>
-              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400">
+              <div className="pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold text-primary">
                 <span>नयाँ पुस्ताको सशक्त क्षमता विकास</span>
                 <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </div>
@@ -580,7 +580,7 @@ export function LandingPage() {
               <div className="p-8 sm:p-10 space-y-5">
                 <Badge
                   variant="secondary"
-                  className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-bold text-xs px-3 py-1 rounded-full"
+                  className="bg-success/10 text-success border-success/30 font-bold text-xs px-3 py-1 rounded-full"
                 >
                   वातावरण · विशेष कार्य
                 </Badge>
@@ -609,7 +609,7 @@ export function LandingPage() {
               <div className="p-8 sm:p-10 space-y-5">
                 <Badge
                   variant="secondary"
-                  className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 font-bold text-xs px-3 py-1 rounded-full"
+                  className="bg-info/10 text-info border-info/30 font-bold text-xs px-3 py-1 rounded-full"
                 >
                   वकालत · नयाँ कथा
                 </Badge>

@@ -57,8 +57,8 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
         </p>
 
         {/* Display real error details for quick diagnosis */}
-        <div className="mt-4 text-left rounded-lg bg-red-950/20 border border-red-500/30 p-3 max-h-60 overflow-auto">
-          <pre className="text-xs text-red-600 dark:text-red-400 font-mono whitespace-pre-wrap">
+        <div className="mt-4 text-left rounded-lg bg-destructive/10 border border-destructive/30 p-3 max-h-60 overflow-auto">
+          <pre className="text-xs text-destructive font-mono whitespace-pre-wrap">
             {errorMessage}
           </pre>
         </div>
@@ -101,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;800&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Mukta:wght@400;500;600;700;800&display=swap" },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
     ],
   }),

@@ -1028,18 +1028,18 @@ function Masters() {
                         const remain = peopleDues.get(`${p.ward}-${p.card}`);
                         if (!remain) {
                           return (
-                            <span className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                            <span className="inline-block rounded-full bg-success/10 border border-success/30 px-2 py-0.5 text-[10px] font-bold text-success">
                               ✓ चुक्ता
                             </span>
                           );
                         }
                         return remain.months.length > 0 ? (
-                          <span className="inline-block rounded-full bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                          <span className="inline-block rounded-full bg-warning/10 border border-warning/30 px-2 py-0.5 text-[10px] font-bold text-warning">
                             बाँकी: रु. {remain.total.toLocaleString("en-IN")} (
                             {remain.months.length} महिना)
                           </span>
                         ) : (
-                          <span className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                          <span className="inline-block rounded-full bg-success/10 border border-success/30 px-2 py-0.5 text-[10px] font-bold text-success">
                             ✓ चुक्ता
                           </span>
                         );
@@ -1054,18 +1054,18 @@ function Masters() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 gap-1 border-emerald-500/40 bg-emerald-50 px-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+                          className="h-8 gap-1 border-success/40 bg-success/10 px-2 text-xs font-semibold text-success hover:bg-success/20"
                           title="नक्सामा हेर्नुहोस् (View on GPS Map)"
                           onClick={() => setViewingMapPerson(p)}
                         >
-                          <MapPin className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <MapPin className="size-3.5 text-success" />
                           <span className="hidden sm:inline">नक्सा</span>
                         </Button>
                       )}
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 gap-1 border-blue-400/40 bg-blue-50 px-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300"
+                        className="h-8 gap-1 border-info/40 bg-info/10 px-2 text-xs font-semibold text-info hover:bg-info/20"
                         title="डिजिटल परिचय पत्र (Digital ID Card)"
                         onClick={() => setViewingCardPerson(p)}
                       >
@@ -1415,7 +1415,7 @@ function Masters() {
                         className={
                           "flex-1 " +
                           ((form.plans?.length || 0) === 0
-                            ? "[&_button]:border-amber-400 [&_button]:bg-amber-50/60 [&_button]:font-semibold [&_button]:text-amber-800 dark:[&_button]:border-amber-500/40 dark:[&_button]:bg-amber-950/20 dark:[&_button]:text-amber-300"
+                            ? "[&_button]:border-warning/40 [&_button]:bg-warning/10 [&_button]:font-semibold [&_button]:text-warning"
                             : "")
                         }
                         value=""
@@ -1631,10 +1631,10 @@ function Masters() {
 
                 {/* ══════ Row 4.5: OPENING DUES + AUTO DUE BOX ══════ */}
                 {/* Opening Dues — for pre-2083-04-01 customers */}
-                <div className="rounded-xl border-2 border-amber-400/30 bg-amber-50/60 dark:bg-amber-950/20 p-4 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-400/20 pb-2.5">
+                <div className="rounded-xl border-2 border-warning/30 bg-warning/10 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-warning/20 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="size-4 text-amber-600" />
+                      <AlertTriangle className="size-4 text-warning" />
                       <div>
                         <span className="text-xs font-bold text-foreground block">
                           पुरानो/शुरुवाती बक्यौता (Opening Balance Dues)
@@ -1646,7 +1646,7 @@ function Masters() {
                       </div>
                     </div>
                     {(form.opening_dues ?? []).length > 0 && (
-                      <span className="rounded-md bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
+                      <span className="rounded-md bg-warning/15 border border-warning/30 px-2.5 py-1 text-xs font-bold text-warning">
                         {(form.opening_dues ?? []).length} महिना ▸ रु.{" "}
                         {(form.opening_dues ?? [])
                           .reduce((s, d) => s + d.amount, 0)
@@ -1661,12 +1661,12 @@ function Masters() {
                       {(form.opening_dues ?? []).map((od, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between rounded-md border border-amber-300/40 bg-card px-3 py-1.5 text-xs"
+                          className="flex items-center justify-between rounded-md border border-warning/30 bg-card px-3 py-1.5 text-xs"
                         >
                           <span className="font-semibold text-foreground">
                             आ.व. {fiscalLabel(od.fy)} — {MONTHS[od.month]}
                           </span>
-                          <span className="font-mono font-bold text-amber-700 dark:text-amber-300">
+                          <span className="font-mono font-bold text-warning">
                             रु. {od.amount.toLocaleString("en-IN")}
                           </span>
                           <button
@@ -1755,7 +1755,7 @@ function Masters() {
                         }));
                         setOpeningDueAmount("");
                       }}
-                      className="rounded-md bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 text-xs font-semibold shrink-0"
+                      className="rounded-md bg-warning hover:bg-warning/90 text-warning-foreground px-3 py-1.5 text-xs font-semibold shrink-0"
                     >
                       + थप्नुहोस्
                     </button>
@@ -1782,12 +1782,12 @@ function Masters() {
                     </div>
                     <div>
                       {formDueMonths.length > 0 ? (
-                        <span className="rounded-md bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
+                        <span className="rounded-md bg-warning/15 border border-warning/30 px-2.5 py-1 text-xs font-bold text-warning">
                           कुल बाँकी: रु. {formTotalDueAmount.toLocaleString("en-IN")} (
                           {formDueMonths.length} महिना)
                         </span>
                       ) : (
-                        <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                        <span className="rounded-md bg-success/15 border border-success/30 px-2.5 py-1 text-xs font-bold text-success flex items-center gap-1">
                           <Check className="size-3.5" /> कुनै बाँकी छैन (All Paid)
                         </span>
                       )}
@@ -1795,8 +1795,8 @@ function Masters() {
                   </div>
 
                   {formDueMonths.length === 0 ? (
-                    <div className="flex items-center gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
-                      <Check className="size-4 shrink-0 text-emerald-600" />
+                    <div className="flex items-center gap-2.5 rounded-lg border border-success/20 bg-success/10 p-3 text-xs text-success">
+                      <Check className="size-4 shrink-0 text-success" />
                       <div>
                         <p className="font-semibold">सबै महिना चुक्ता भइसकेको छ!</p>
                         <p className="text-[11px] opacity-80">
@@ -1832,8 +1832,8 @@ function Masters() {
                                   key={`${dm.fy}-${dm.month}`}
                                   className={`rounded-md px-2 py-0.5 text-xs font-medium ${
                                     dm.isOverdue
-                                      ? "bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30"
-                                      : "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/30"
+                                      ? "bg-destructive/10 text-destructive border border-destructive/30"
+                                      : "bg-info/10 text-info border border-info/30"
                                   }`}
                                 >
                                   {MONTHS[dm.month]}
@@ -1856,7 +1856,7 @@ function Masters() {
                       हुनेछ।
                     </span>
                     {formOverdueCount > 0 && (
-                      <span className="text-red-600 dark:text-red-400 font-semibold">
+                      <span className="text-destructive font-semibold">
                         ⚠ {formOverdueCount} महिना Overdue बाँकी
                       </span>
                     )}
@@ -2025,12 +2025,12 @@ function Masters() {
                     />
                   </div>
                   {camOpening && (
-                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400" role="status">
+                    <p className="mt-2 text-xs text-warning" role="status">
                       क्यामेरा खुल्दैछ… (केही सेकेन्ड लाग्न सक्छ)
                     </p>
                   )}
                   {photoBusy && (
-                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400" role="status">
+                    <p className="mt-2 text-xs text-warning" role="status">
                       फोटो प्रशोधन गरी अपलोड हुँदैछ… (ठूलो फोटोमा केही सेकेन्ड लाग्न सक्छ)
                     </p>
                   )}
@@ -2452,7 +2452,7 @@ function Masters() {
                   <div className="text-sm font-mono font-semibold text-foreground">
                     {viewingPerson.latitude.toFixed(7)}, {viewingPerson.longitude.toFixed(7)}
                     {typeof viewingPerson.gps_accuracy === "number" && (
-                      <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                      <span className="ml-2 rounded bg-info/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-info">
                         ±{viewingPerson.gps_accuracy}m
                       </span>
                     )}
@@ -2472,7 +2472,7 @@ function Masters() {
                     setViewingPerson(null);
                   }}
                 >
-                  <MapPin className="size-3.5 text-emerald-600" />
+                  <MapPin className="size-3.5 text-success" />
                   नक्सामा हेर्नुहोस्
                 </Button>
                 <Button
@@ -2484,7 +2484,7 @@ function Masters() {
                     setViewingPerson(null);
                   }}
                 >
-                  <CreditCard className="size-3.5 text-blue-600" />
+                  <CreditCard className="size-3.5 text-info" />
                   परिचय पत्र
                 </Button>
               </div>

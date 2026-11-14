@@ -380,24 +380,24 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
             <div className="absolute right-10 bottom-[-30px] size-24 rounded-full bg-white/5" />
             <div className="relative flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold tracking-widest uppercase text-sky-200 mb-0.5">
+                <p className="text-[10px] font-bold tracking-widest uppercase text-white/80 mb-0.5">
                   द्वारा संचालित
                 </p>
                 <h1 className="text-xl font-extrabold tracking-tight leading-tight">{person.name}</h1>
-                <p className="mt-1 text-sm text-sky-100">
+                <p className="mt-1 text-sm text-white/90">
                   <span className="opacity-70">Card #</span>{" "}
                   <span className="font-mono font-bold text-white">{person.card}</span>
                   {person.phone && <span className="ml-3 opacity-80">📞 {person.phone}</span>}
                 </p>
-                <p className="text-xs text-sky-200 mt-0.5 leading-relaxed">
+                <p className="text-xs text-white/80 mt-0.5 leading-relaxed">
                   {[person.municipality, `वडा ${person.ward}`, person.tole]
                     .filter(Boolean)
                     .join(" • ")}
                 </p>
-                {person.email && <p className="text-[11px] text-sky-300 mt-0.5">✉ {person.email}</p>}
-                {person.pan && <p className="text-[11px] text-sky-300 mt-0.5 font-mono">PAN: {person.pan}</p>}
+                {person.email && <p className="text-[11px] text-white/70 mt-0.5">✉ {person.email}</p>}
+                {person.pan && <p className="text-[11px] text-white/70 mt-0.5 font-mono">PAN: {person.pan}</p>}
                 {person.joining_date && (
-                  <p className="mt-1.5 text-[11px] text-sky-200">
+                  <p className="mt-1.5 text-[11px] text-white/80">
                     दर्ता मिति:{" "}
                     <span className="font-mono font-bold text-white">{np(person.joining_date)}</span>
                   </p>
@@ -413,14 +413,14 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
                     className={qrReady ? "" : "opacity-20"}
                   />
                 </div>
-                <p className="text-[10px] text-sky-300">QR स्क्यान</p>
+                <p className="text-[10px] text-white/70">QR स्क्यान</p>
               </div>
             </div>
           </div>
 
           {/* Body — details only */}
           <div className="bg-white px-5 py-4">
-            <div className="divide-y divide-dashed divide-slate-200">
+            <div className="divide-y divide-dashed divide-border">
               {[
                 ["कार्ड नं.", person.card],
                 person.email && ["इमेल", person.email],
@@ -443,16 +443,16 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
                 .filter((r): r is [string, string] => Boolean(r))
                 .map(([label, value]) => (
                   <div key={label} className="flex items-baseline justify-between gap-3 py-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
-                    <span className="text-sm font-semibold text-slate-700 text-right break-words">{value}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{label}</span>
+                    <span className="text-sm font-semibold text-neutral-800 text-right break-words">{value}</span>
                   </div>
                 ))}
             </div>
 
             {/* Barcode */}
-            <div className="flex flex-col items-center justify-center border-t border-dashed border-slate-200 pt-3 mt-3">
+            <div className="flex flex-col items-center justify-center border-t border-dashed border-border pt-3 mt-3">
               <svg ref={barcodeRef} className="max-w-full" />
-              <p className="mt-0.5 text-[10px] text-slate-400 font-mono">
+              <p className="mt-0.5 text-[10px] text-neutral-400 font-mono">
                 {person.card}
               </p>
             </div>
@@ -461,7 +461,7 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
           {/* Footer */}
           <div
             style={{ background: "linear-gradient(90deg, #1e3a5f, #1d4ed8)" }}
-            className="px-5 py-2 flex items-center justify-between text-[10px] text-sky-200"
+            className="px-5 py-2 flex items-center justify-between text-[10px] text-white/80"
           >
             <span>{person.municipality || ""} • {person.district || ""}</span>
             <span className="font-mono">{np(today)}</span>

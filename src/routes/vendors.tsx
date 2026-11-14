@@ -500,18 +500,18 @@ function VendorsPage() {
                 </TableHeader>
                 <TableBody>
                   {ledgerRows.map((row, i) => (
-                    <TableRow key={row.id ?? i} className={i === 0 ? "bg-blue-50 dark:bg-blue-950/20 font-medium" : ""}>
+                    <TableRow key={row.id ?? i} className={i === 0 ? "bg-info/10 font-medium" : ""}>
                       <TableCell className="font-mono">{row.date_bs}</TableCell>
                       <TableCell>{row.description}</TableCell>
-                      <TableCell className="text-right font-mono text-red-600">
+                      <TableCell className="text-right font-mono text-destructive">
                         {row.dr > 0 ? fmt(row.dr) : ""}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-green-600">
+                      <TableCell className="text-right font-mono text-success">
                         {row.cr > 0 ? fmt(row.cr) : ""}
                       </TableCell>
                       <TableCell className="text-right font-mono font-semibold">
                         {fmt(row.running)}{" "}
-                        <span className={`text-xs ${row.runType === "cr" ? "text-green-600" : "text-red-600"}`}>
+                        <span className={`text-xs ${row.runType === "cr" ? "text-success" : "text-destructive"}`}>
                           {row.runType.toUpperCase()}
                         </span>
                       </TableCell>

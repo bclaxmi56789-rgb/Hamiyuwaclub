@@ -187,7 +187,7 @@ export function CameraBarcodeScanner({ onScan, onClose }: CameraBarcodeScannerPr
               <div className="absolute -bottom-1 -right-1 h-4 w-4 border-b-4 border-r-4 border-primary rounded-br-sm" />
 
               {/* Animated Laser Scanning Beam */}
-              <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_8px_#ef4444] animate-[scanLaser_2s_ease-in-out_infinite]" />
+              <div className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-destructive to-transparent shadow-[0_0_8px_var(--color-destructive)] animate-[scanLaser_2s_ease-in-out_infinite]" />
             </div>
             <p className="mt-2 text-center text-xs font-semibold text-white drop-shadow bg-black/60 px-3 py-1 rounded-full">
               कार्डको QR कोड वा Barcode फ्रेमभित्र राख्नुहोस्
@@ -197,18 +197,18 @@ export function CameraBarcodeScanner({ onScan, onClose }: CameraBarcodeScannerPr
 
         {/* Scan Success Flash */}
         {scannedSuccess && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/80 backdrop-blur-xs text-white">
-            <CheckCircle2 className="size-12 text-emerald-400 animate-bounce" />
-            <p className="mt-2 font-bold text-emerald-300">स्क्यान सफल भयो!</p>
-            <p className="mt-1 font-mono text-xs text-emerald-100 max-w-[80%] truncate">{scannedSuccess}</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-success/90 backdrop-blur-xs text-success-foreground">
+            <CheckCircle2 className="size-12 text-success-foreground animate-bounce" />
+            <p className="mt-2 font-bold text-success-foreground">स्क्यान सफल भयो!</p>
+            <p className="mt-1 font-mono text-xs text-success-foreground max-w-[80%] truncate">{scannedSuccess}</p>
           </div>
         )}
 
         {/* Camera Error / Not active */}
         {cameraError && !cameraActive && (
-          <div className="p-6 text-center text-white bg-zinc-900 min-h-[200px] flex flex-col items-center justify-center">
-            <CameraOff className="size-10 text-amber-400 mb-2" />
-            <p className="text-xs text-amber-200">{cameraError}</p>
+          <div className="p-6 text-center text-foreground bg-card border min-h-[200px] flex flex-col items-center justify-center">
+            <CameraOff className="size-10 text-warning mb-2" />
+            <p className="text-xs text-warning">{cameraError}</p>
           </div>
         )}
       </div>

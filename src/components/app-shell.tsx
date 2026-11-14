@@ -678,7 +678,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
+              <ShieldCheck className="h-3.5 w-3.5 text-warning" />
               <span>👑 Admin (व्यवस्थापक)</span>
             </button>
             <button
@@ -769,7 +769,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div
                 className={`p-3 rounded-xl text-xs font-medium flex items-start gap-2 ${
                   gateError.includes("सेट गरिएको छैन")
-                    ? "bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400"
+                    ? "bg-warning/10 border border-warning/30 text-warning"
                     : "bg-destructive/10 border border-destructive/20 text-destructive"
                 }`}
               >
@@ -998,7 +998,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                             </span>
                             {isReadOnly && (
                               <span
-                                className={`ml-auto rounded bg-blue-500/20 px-1 py-0.2 text-[8px] font-bold text-blue-700 ${collapsed ? "lg:hidden" : ""}`}
+                                className={`ml-auto rounded bg-info/20 px-1 py-0.2 text-[8px] font-bold text-info ${collapsed ? "lg:hidden" : ""}`}
                               >
                                 Read
                               </span>
@@ -1115,7 +1115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           {/* Read-only mode banner — shown when active employee has read_only on current page */}
           {activeEmployeeId && isPageReadOnly(location.pathname) && (
-            <div className="no-print flex items-center gap-2 bg-blue-500/10 border-b border-blue-500/30 px-5 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300">
+            <div className="no-print flex items-center gap-2 bg-info/10 border-b border-info/30 px-5 py-2 text-xs font-semibold text-info">
               <Eye className="h-3.5 w-3.5 shrink-0" />
               <span>
                 👁 हेर्न मात्र पहुँच (Read-only Mode) —{" "}

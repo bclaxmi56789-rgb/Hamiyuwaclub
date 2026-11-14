@@ -419,7 +419,7 @@ function ItemsAndAssetsPage() {
               <span>नयाँ सामग्री थप्नुहोस्</span>
             </Button>
           ) : (
-            <Button onClick={() => handleOpenAssetDialog()} className="gap-1.5 shadow-xs bg-purple-600 hover:bg-purple-700 text-white">
+            <Button onClick={() => handleOpenAssetDialog()} className="gap-1.5 shadow-xs bg-primary hover:bg-primary/90 text-primary-foreground">
               <Plus className="h-4 w-4" />
               <span>नयाँ स्थिर सम्पत्ति थप्नुहोस्</span>
             </Button>
@@ -468,9 +468,9 @@ function ItemsAndAssetsPage() {
             <div className="rounded-xl border bg-card p-4 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                 <span>जम्मा परिमाण (Units)</span>
-                <Scale className="h-4 w-4 text-emerald-600" />
+                <Scale className="h-4 w-4 text-success" />
               </div>
-              <div className="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+              <div className="mt-2 text-2xl font-bold text-success">
                 {totalItemUnits.toLocaleString("ne-NP")}
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">सबै सामग्रीहरूको कुल एकाइ</p>
@@ -479,9 +479,9 @@ function ItemsAndAssetsPage() {
             <div className="rounded-xl border bg-card p-4 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                 <span>कुल मूल्याङ्कन रकम</span>
-                <DollarSign className="h-4 w-4 text-blue-600" />
+                <DollarSign className="h-4 w-4 text-info" />
               </div>
-              <div className="mt-2 text-2xl font-bold text-blue-700 dark:text-blue-400">
+              <div className="mt-2 text-2xl font-bold text-info">
                 रु. {fmt(totalItemValuation)}
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">एकाइ × दर अनुसार कुल रकम</p>
@@ -490,7 +490,7 @@ function ItemsAndAssetsPage() {
             <div className="rounded-xl border bg-card p-4 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                 <span>मुख्य वर्ग (Categories)</span>
-                <FolderTree className="h-4 w-4 text-amber-600" />
+                <FolderTree className="h-4 w-4 text-warning" />
               </div>
               <div className="mt-2 text-2xl font-bold">{uniqueItemParents}</div>
               <p className="text-[11px] text-muted-foreground mt-0.5">सामग्री वर्गीकरण समूहहरू</p>
@@ -641,18 +641,18 @@ function ItemsAndAssetsPage() {
             <div className="rounded-xl border bg-card p-4 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                 <span>स्थिर सम्पत्ति प्रकार</span>
-                <Building className="h-4 w-4 text-purple-600" />
+                <Building className="h-4 w-4 text-primary" />
               </div>
-              <div className="mt-2 text-2xl font-bold text-purple-700 dark:text-purple-400">{assets.length}</div>
+              <div className="mt-2 text-2xl font-bold text-primary">{assets.length}</div>
               <p className="text-[11px] text-muted-foreground mt-0.5">सम्पत्ति वर्ग तथा शीर्षकहरू</p>
             </div>
 
             <div className="rounded-xl border bg-card p-4 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                 <span>जम्मा सम्पत्ति एकाइ (Units)</span>
-                <Scale className="h-4 w-4 text-emerald-600" />
+                <Scale className="h-4 w-4 text-success" />
               </div>
-              <div className="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+              <div className="mt-2 text-2xl font-bold text-success">
                 {totalAssetUnits.toLocaleString("ne-NP")}
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">कुल स्थिर सम्पत्ति परिमाण</p>
@@ -661,9 +661,9 @@ function ItemsAndAssetsPage() {
             <div className="rounded-xl border bg-card p-4 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                 <span>कुल सम्पत्ति लागत/मूल्याङ्कन</span>
-                <DollarSign className="h-4 w-4 text-blue-600" />
+                <DollarSign className="h-4 w-4 text-info" />
               </div>
-              <div className="mt-2 text-2xl font-bold text-blue-700 dark:text-blue-400">
+              <div className="mt-2 text-2xl font-bold text-info">
                 रु. {fmt(totalAssetValuation)}
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">संस्थाको कुल स्थिर सम्पत्ति मूल्य</p>
@@ -672,7 +672,7 @@ function ItemsAndAssetsPage() {
             <div className="rounded-xl border bg-card p-4 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                 <span>मुख्य सम्पत्ति वर्ग</span>
-                <FolderTree className="h-4 w-4 text-amber-600" />
+                <FolderTree className="h-4 w-4 text-warning" />
               </div>
               <div className="mt-2 text-2xl font-bold">{uniqueAssetParents}</div>
               <p className="text-[11px] text-muted-foreground mt-0.5">गाडी, मेसिनरी, भवन, फर्निचर, आदि</p>
@@ -750,8 +750,8 @@ function ItemsAndAssetsPage() {
                       const totalVal = (Number(asset.units) || 1) * (Number(asset.amount) || 0);
                       return (
                         <tr key={asset.id || asset.code} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-3 font-mono font-bold text-purple-700 dark:text-purple-400">
-                            <Badge variant="outline" className="font-mono bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-300">
+                          <td className="px-4 py-3 font-mono font-bold text-primary">
+                            <Badge variant="outline" className="font-mono bg-primary/10 text-primary border-primary/20">
                               {asset.code}
                             </Badge>
                           </td>
@@ -974,7 +974,7 @@ function ItemsAndAssetsPage() {
           <div className="bg-card border rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95">
             <div className="flex items-center justify-between border-b px-6 py-4 bg-muted/30">
               <div className="flex items-center gap-2">
-                <Building className="h-5 w-5 text-purple-600" />
+                <Building className="h-5 w-5 text-primary" />
                 <h3 className="font-bold text-lg">
                   {editingAsset ? "स्थिर सम्पत्ति सम्पादन" : "नयाँ स्थिर सम्पत्ति दर्ता (Fixed Asset Master)"}
                 </h3>
@@ -996,7 +996,7 @@ function ItemsAndAssetsPage() {
                     value={assetCode}
                     onChange={(e) => setAssetCode(e.target.value.toUpperCase())}
                     placeholder="उदा. FA-001"
-                    className="font-mono font-bold text-purple-700 dark:text-purple-300"
+                    className="font-mono font-bold text-primary"
                     required
                   />
                 </div>
@@ -1091,9 +1091,9 @@ function ItemsAndAssetsPage() {
               </div>
 
               {/* Total Calculation Note */}
-              <div className="rounded-lg bg-purple-500/10 border border-purple-500/20 p-3 flex items-center justify-between text-xs">
-                <span className="font-medium text-purple-900 dark:text-purple-200">कुल सम्पत्ति मूल्य (Units × Amount):</span>
-                <span className="font-bold font-mono text-purple-700 dark:text-purple-300 text-sm">
+              <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 flex items-center justify-between text-xs">
+                <span className="font-medium text-primary">कुल सम्पत्ति मूल्य (Units × Amount):</span>
+                <span className="font-bold font-mono text-primary text-sm">
                   रु. {fmt((Number(assetUnits) || 1) * (Number(assetAmount) || 0))}
                 </span>
               </div>
@@ -1110,7 +1110,7 @@ function ItemsAndAssetsPage() {
                 <Button
                   type="submit"
                   disabled={savingAsset}
-                  className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+                  className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>{savingAsset ? "सुरक्षित गर्दै..." : "सुरक्षित गर्नुहोस्"}</span>

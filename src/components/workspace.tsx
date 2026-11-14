@@ -105,7 +105,7 @@ export function WorkspacePage({
           <h1 className="text-2xl font-extrabold text-ink flex items-center gap-2">
             <span>{title}</span>
             {readOnly && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-xs font-bold text-blue-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-info/10 border border-info/20 px-2.5 py-0.5 text-xs font-bold text-info">
                 <Eye className="size-3.5" />
                 हेर्न मात्र (Read-only)
               </span>
@@ -116,8 +116,8 @@ export function WorkspacePage({
       </div>
 
       {readOnly && (
-        <div className="mb-4 rounded-xl border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2 font-medium">
-          <AlertCircle className="size-4 shrink-0 text-blue-600" />
+        <div className="mb-4 rounded-xl border border-info/30 bg-info/5 p-3 text-xs text-info flex items-center gap-2 font-medium">
+          <AlertCircle className="size-4 shrink-0 text-info" />
           <span>
             तपाईं यस पृष्ठमा <strong>हेर्न मात्र (Read-only)</strong> पहुँचमा हुनुहुन्छ। नयाँ रेकर्ड
             थप्ने वा सच्याउने अनुमति छैन।
@@ -132,12 +132,12 @@ export function WorkspacePage({
       ) : !allowed ? (
         <div
           role="alert"
-          className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-8 text-center space-y-3 my-6"
+          className="rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center space-y-3 my-6"
         >
-          <div className="mx-auto size-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-600">
+          <div className="mx-auto size-12 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
             <Lock className="size-6" />
           </div>
-          <h3 className="text-lg font-bold text-rose-700">पहुँच निषेध गरिएको छ (Access Denied)</h3>
+          <h3 className="text-lg font-bold text-destructive">पहुँच निषेध गरिएको छ (Access Denied)</h3>
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
             तपाईंको कर्मचारी खातालाई यस पृष्ठमा प्रवेश गर्ने अनुमति दिइएको छैन। कृपया व्यवस्थापक वा
             सुपरभाइजरसँग सम्पर्क गर्नुहोस्।

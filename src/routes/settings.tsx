@@ -663,7 +663,7 @@ function SettingsPage() {
       </div>
 
       {savedSuccess && (
-        <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-3 text-green-700 dark:text-green-300 text-sm flex items-center gap-2">
+        <div className="rounded-lg bg-success/10 border border-success/30 p-3 text-success text-sm flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>
             कन्फिगरेसन सफलतापूर्वक सुरक्षित गरियो! लोगो र संस्था विवरण सबै कागजातहरूमा अद्यावधिक
@@ -673,8 +673,8 @@ function SettingsPage() {
       )}
 
       {vaultSavedMessage && (
-        <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs animate-in fade-in">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+        <div className="rounded-xl bg-success/10 border border-success/30 p-3.5 text-success text-sm flex items-center gap-2 shadow-xs animate-in fade-in">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
           <span className="font-semibold">{vaultSavedMessage}</span>
         </div>
       )}
@@ -702,16 +702,16 @@ function SettingsPage() {
         {/* ─── TAB 0: EMPLOYEE PAGE PERMISSIONS ───────────────────────────── */}
         <TabsContent value="permissions" className="mt-6 space-y-6">
           {/* Admin Vault Box for Admin PIN */}
-          <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 p-5 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
+          <div className="rounded-2xl border-2 border-warning/30 bg-warning/5 p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-warning/20 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                <div className="p-2 rounded-xl bg-warning/10 text-warning border border-warning/30">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-black text-foreground flex items-center gap-2">
                     <span>मुख्य व्यवस्थापक PIN भण्डार (Admin PIN Vault)</span>
-                    <Badge className="bg-amber-500 text-white text-[10px]">गोप्य / Secure</Badge>
+                    <Badge className="bg-warning text-warning-foreground text-[10px]">गोप्य / Secure</Badge>
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     लगइन गर्दा मुख्य व्यवस्थापक (Admin Full Access) को लागि प्रयोग हुने ४ अंकको गोप्य PIN।
@@ -754,7 +754,7 @@ function SettingsPage() {
                   type="button"
                   onClick={handleSaveAdminPin}
                   disabled={savingAdminPin || adminPinInput.length !== 4}
-                  className="w-full h-10 font-bold gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+                  className="w-full h-10 font-bold gap-2 bg-warning hover:bg-warning/90 text-warning-foreground"
                 >
                   {savingAdminPin ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
@@ -774,7 +774,7 @@ function SettingsPage() {
             )}
 
             {adminPinSuccess && (
-              <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-medium flex items-start gap-2">
+              <div className="p-3 rounded-xl bg-success/10 border border-success/30 text-success text-xs font-medium flex items-start gap-2">
                 <Check className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>{adminPinSuccess}</span>
               </div>
@@ -804,14 +804,14 @@ function SettingsPage() {
             </div>
 
             {permSuccessMessage && (
-              <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+              <div className="rounded-xl bg-success/10 border border-success/30 p-3.5 text-success text-sm flex items-center gap-2 shadow-xs">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
                 <span className="font-semibold">{permSuccessMessage}</span>
               </div>
             )}
 
             {accessLoadError && (
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2">
+              <div className="rounded-xl bg-warning/10 border border-warning/30 p-3.5 text-warning text-xs flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>
                   अनुमति लोड हुन सकेन — देखाइएको स्थिति saved data होइन। {accessLoadError}
@@ -820,7 +820,7 @@ function SettingsPage() {
             )}
 
             {credLoadError && (
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-700 dark:text-amber-400 text-xs flex items-start gap-2">
+              <div className="rounded-xl bg-warning/10 border border-warning/30 p-3.5 text-warning text-xs flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>लगइन/PIN भण्डार लोड हुन सकेन। {credLoadError}</span>
               </div>
@@ -842,7 +842,7 @@ function SettingsPage() {
                 {loadingEmployees ? (
                   <p className="text-xs text-muted-foreground">कर्मचारी लोड हुँदैछ...</p>
                 ) : employees.length === 0 ? (
-                  <p className="text-xs text-rose-600 font-semibold">
+                  <p className="text-xs text-destructive font-semibold">
                     हाल कुनै कर्मचारी फेला परेन। पहिले 'Members & Staff' पृष्ठमा कर्मचारी दर्ता
                     गर्नुहोस्।
                   </p>
@@ -874,7 +874,7 @@ function SettingsPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs font-semibold text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    className="h-8 text-xs font-semibold text-success border-success/40 hover:bg-success/10"
                     onClick={() => handleSetAllPermissions("full_access")}
                   >
                     सबै पूर्ण पहुँच (All Edit)
@@ -883,7 +883,7 @@ function SettingsPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs font-semibold text-blue-700 border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                    className="h-8 text-xs font-semibold text-info border-info/40 hover:bg-info/10"
                     onClick={() => handleSetAllPermissions("read_only")}
                   >
                     सबै पढ्न मात्र (All Read-only)
@@ -892,7 +892,7 @@ function SettingsPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs font-semibold text-rose-700 border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                    className="h-8 text-xs font-semibold text-destructive border-destructive/40 hover:bg-destructive/10"
                     onClick={() => handleSetAllPermissions("no_access")}
                   >
                     सबै बन्द (All No Access)
@@ -912,7 +912,7 @@ function SettingsPage() {
                 </div>
                 {selectedEmpId &&
                   (credentialsList.some((c) => c.employee_id === selectedEmpId) ? (
-                    <Badge className="bg-green-600 text-white text-[10px]">
+                    <Badge className="bg-success text-success-foreground text-[10px]">
                       ✓ भण्डारमा सुरक्षित (Saved)
                     </Badge>
                   ) : (
@@ -987,7 +987,7 @@ function SettingsPage() {
               )}
 
               {credSuccessMessage && (
-                <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-300 text-xs font-medium flex items-start gap-2">
+                <div className="p-3 rounded-xl bg-success/10 border border-success/30 text-success text-xs font-medium flex items-start gap-2">
                   <Check className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>{credSuccessMessage} — सर्भरबाट पुन: पढेर पुष्टि गरिएको।</span>
                 </div>
@@ -1102,7 +1102,7 @@ function SettingsPage() {
                                 onClick={() => handlePermissionChange(page.path, "full_access")}
                                 className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
                                   currentLevel === "full_access"
-                                    ? "bg-emerald-600 text-white shadow-xs font-bold"
+                                    ? "bg-success text-success-foreground shadow-xs font-bold"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 }`}
                               >
@@ -1114,7 +1114,7 @@ function SettingsPage() {
                                 onClick={() => handlePermissionChange(page.path, "read_only")}
                                 className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
                                   currentLevel === "read_only"
-                                    ? "bg-blue-600 text-white shadow-xs font-bold"
+                                    ? "bg-info text-info-foreground shadow-xs font-bold"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 }`}
                               >
@@ -1126,7 +1126,7 @@ function SettingsPage() {
                                 onClick={() => handlePermissionChange(page.path, "no_access")}
                                 className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
                                   currentLevel === "no_access"
-                                    ? "bg-rose-600 text-white shadow-xs font-bold"
+                                    ? "bg-destructive text-destructive-foreground shadow-xs font-bold"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 }`}
                               >
@@ -1187,8 +1187,8 @@ function SettingsPage() {
             </div>
 
             {/* Diagnostic Alert: Why error happened */}
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs space-y-1.5 text-foreground">
-              <div className="font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+            <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 text-xs space-y-1.5 text-foreground">
+              <div className="font-bold flex items-center gap-2 text-warning">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>पहिले किन "कुनै पनि बचत गरिएको AI API बाट बिल स्क्यान हुन सकेन" भन्यो?</span>
               </div>
@@ -1202,38 +1202,38 @@ function SettingsPage() {
             {/* Priority Fallback Chain Display */}
             <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
               <div className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-500" />
+                <Sparkles className="h-4 w-4 text-warning" />
                 <span>स्वचालित प्रदायक प्राथमिकता क्रम (Automatic Fallback Chain):</span>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-card shadow-2xs">
-                  <span className="size-2 rounded-full bg-purple-500" />
+                  <span className="size-2 rounded-full bg-primary" />
                   <span>
                     १. OpenRouter (
                     {form.openrouter_model?.split("/").pop() || "gemma-4-31b-it:free"})
                   </span>
                   {form.openrouter_api_key ? (
-                    <span className="text-green-600 text-[10px]">✓ सक्रिय</span>
+                    <span className="text-success text-[10px]">✓ सक्रिय</span>
                   ) : (
                     <span className="text-muted-foreground text-[10px]">खाली</span>
                   )}
                 </div>
                 <span className="text-muted-foreground font-mono">➔</span>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-card shadow-2xs">
-                  <span className="size-2 rounded-full bg-blue-500" />
+                  <span className="size-2 rounded-full bg-info" />
                   <span>२. Google Gemini ({form.gemini_model || "gemini-3.8-flash"})</span>
                   {form.gemini_api_key ? (
-                    <span className="text-green-600 text-[10px]">✓ सक्रिय</span>
+                    <span className="text-success text-[10px]">✓ सक्रिय</span>
                   ) : (
                     <span className="text-muted-foreground text-[10px]">खाली</span>
                   )}
                 </div>
                 <span className="text-muted-foreground font-mono">➔</span>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-card shadow-2xs">
-                  <span className="size-2 rounded-full bg-emerald-500" />
+                  <span className="size-2 rounded-full bg-success" />
                   <span>३. OpenAI ({form.openai_model || "gpt-4o-mini"})</span>
                   {form.openai_api_key ? (
-                    <span className="text-green-600 text-[10px]">✓ सक्रिय</span>
+                    <span className="text-success text-[10px]">✓ सक्रिय</span>
                   ) : (
                     <span className="text-muted-foreground text-[10px]">खाली</span>
                   )}
@@ -1250,7 +1250,7 @@ function SettingsPage() {
           <div className="rounded-2xl border bg-card p-6 shadow-sm space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-purple-600/10 text-purple-600 font-black text-xs flex items-center justify-center">
+                <div className="size-8 rounded-lg bg-primary/10 text-primary font-black text-xs flex items-center justify-center">
                   OR
                 </div>
                 <div>
@@ -1264,7 +1264,7 @@ function SettingsPage() {
                 variant="outline"
                 className={`text-xs px-2.5 py-0.5 font-semibold ${
                   form.openrouter_api_key
-                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30"
+                    ? "bg-success/10 text-success border-success/30"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
@@ -1305,7 +1305,7 @@ function SettingsPage() {
                     size="sm"
                     onClick={() => handleSaveVaultKey("openrouter")}
                     disabled={saving}
-                    className="gap-1.5 shrink-0 bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                    className="gap-1.5 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                   >
                     <Save className="h-3.5 w-3.5" />
                     <span>भण्डारमा सेभ</span>
@@ -1366,7 +1366,7 @@ function SettingsPage() {
                     {fetchingOpenRouterModels ? (
                       <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                      <Sparkles className="h-3.5 w-3.5 text-warning" />
                     )}
                     <span>नयाँ मोडलहरू खोज्नुहोस्</span>
                   </Button>
@@ -1379,7 +1379,7 @@ function SettingsPage() {
           <div className="rounded-2xl border bg-card p-6 shadow-sm space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-blue-600/10 text-blue-600 font-black text-xs flex items-center justify-center">
+                <div className="size-8 rounded-lg bg-info/10 text-info font-black text-xs flex items-center justify-center">
                   G
                 </div>
                 <div>
@@ -1393,7 +1393,7 @@ function SettingsPage() {
                 variant="outline"
                 className={`text-xs px-2.5 py-0.5 font-semibold ${
                   form.gemini_api_key
-                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30"
+                    ? "bg-success/10 text-success border-success/30"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
@@ -1426,7 +1426,7 @@ function SettingsPage() {
                     size="sm"
                     onClick={() => handleSaveVaultKey("gemini")}
                     disabled={saving}
-                    className="gap-1.5 shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                    className="gap-1.5 shrink-0 bg-info hover:bg-info/90 text-info-foreground font-semibold"
                   >
                     <Save className="h-3.5 w-3.5" />
                     <span>भण्डारमा सेभ</span>
@@ -1464,7 +1464,7 @@ function SettingsPage() {
           <div className="rounded-2xl border bg-card p-6 shadow-sm space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-emerald-600/10 text-emerald-600 font-black text-xs flex items-center justify-center">
+                <div className="size-8 rounded-lg bg-success/10 text-success font-black text-xs flex items-center justify-center">
                   OA
                 </div>
                 <div>
@@ -1478,7 +1478,7 @@ function SettingsPage() {
                 variant="outline"
                 className={`text-xs px-2.5 py-0.5 font-semibold ${
                   form.openai_api_key
-                    ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30"
+                    ? "bg-success/10 text-success border-success/30"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
@@ -1511,7 +1511,7 @@ function SettingsPage() {
                     size="sm"
                     onClick={() => handleSaveVaultKey("openai")}
                     disabled={saving}
-                    className="gap-1.5 shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                    className="gap-1.5 shrink-0 bg-success hover:bg-success/90 text-success-foreground font-semibold"
                   >
                     <Save className="h-3.5 w-3.5" />
                     <span>भण्डारमा सेभ</span>
@@ -1565,7 +1565,7 @@ function SettingsPage() {
               {testingAI ? (
                 <RefreshCw className="h-4 w-4 animate-spin text-primary" />
               ) : (
-                <Sparkles className="h-4 w-4 text-amber-500" />
+                <Sparkles className="h-4 w-4 text-warning" />
               )}
               <span>AI जडान परीक्षण गर्नुहोस्</span>
             </Button>
@@ -1575,7 +1575,7 @@ function SettingsPage() {
             <div
               className={`rounded-xl border p-4 text-xs font-medium flex items-start gap-2.5 ${
                 aiTestResult.success
-                  ? "bg-green-500/10 border-green-500/30 text-green-800 dark:text-green-300"
+                  ? "bg-success/10 border-success/30 text-success"
                   : "bg-destructive/10 border-destructive/30 text-destructive"
               }`}
             >
@@ -1595,8 +1595,8 @@ function SettingsPage() {
 
           {/* ─── Vault Tab Save Button ─── */}
           {vaultSavedMessage && (
-            <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+            <div className="rounded-xl bg-success/10 border border-success/30 p-3.5 text-success text-sm flex items-center gap-2 shadow-xs">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
               <span className="font-semibold">{vaultSavedMessage}</span>
             </div>
           )}
@@ -1773,7 +1773,7 @@ function SettingsPage() {
                   आर्थिक वर्ष चयनित: {fiscalLabel(fyNum)} ({fyNum} साउन १ – {fyNum + 1} असार मसान्त)
                 </div>
               ) : (
-                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                <div className="rounded-lg bg-warning/10 border border-warning/30 px-3 py-2 text-xs font-semibold text-warning">
                   सुरू मिति खाली/अमान्य छ — पूर्ण BS मिति छान्नुहोस्।
                 </div>
               );
@@ -1823,8 +1823,8 @@ function SettingsPage() {
           </div>
 
           {profileSuccessMessage && (
-            <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+            <div className="rounded-xl bg-success/10 border border-success/30 p-3.5 text-success text-sm flex items-center gap-2 shadow-xs">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
               <span className="font-semibold">{profileSuccessMessage}</span>
             </div>
           )}
@@ -1850,7 +1850,7 @@ function SettingsPage() {
           <div className="rounded-xl border p-6 bg-card space-y-5">
             <div>
               <h3 className="text-lg font-bold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amber-500" />
+                <Sparkles className="h-5 w-5 text-warning" />
                 एजेन्टिक AI र मोडल कन्फिगरेसन (AI OCR Scanner)
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
@@ -1872,10 +1872,10 @@ function SettingsPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <div className="rounded-lg bg-blue-500/10 p-2 text-blue-600 font-bold text-base">
+                    <div className="rounded-lg bg-info/10 p-2 text-info font-bold text-base">
                       G
                     </div>
-                    <Badge className="bg-green-600 hover:bg-green-600 text-[10px] py-0">
+                    <Badge className="bg-success hover:bg-success text-success-foreground text-[10px] py-0">
                       निःशुल्क
                     </Badge>
                   </div>
@@ -1896,10 +1896,10 @@ function SettingsPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <div className="rounded-lg bg-purple-500/10 p-2 text-purple-600 font-bold text-base">
+                    <div className="rounded-lg bg-primary/10 p-2 text-primary font-bold text-base">
                       OR
                     </div>
-                    <Badge className="bg-purple-600 hover:bg-purple-600 text-[10px] py-0">
+                    <Badge className="bg-primary hover:bg-primary text-primary-foreground text-[10px] py-0">
                       धेरै निःशुल्क मोडल
                     </Badge>
                   </div>
@@ -1920,7 +1920,7 @@ function SettingsPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600 font-bold text-base">
+                    <div className="rounded-lg bg-success/10 p-2 text-success font-bold text-base">
                       O
                     </div>
                     <Badge variant="secondary" className="text-[10px] py-0">
@@ -2266,8 +2266,8 @@ function SettingsPage() {
                 <div
                   className={`text-sm px-3 py-1.5 rounded-lg border flex items-center gap-2 ${
                     aiTestResult.success
-                      ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300"
-                      : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300"
+                      ? "bg-success/10 border-success/30 text-success"
+                      : "bg-destructive/10 border-destructive/30 text-destructive"
                   }`}
                 >
                   {aiTestResult.success ? (
@@ -2282,8 +2282,8 @@ function SettingsPage() {
           </div>
 
           {aiSuccessMessage && (
-            <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3.5 text-green-700 dark:text-green-300 text-sm flex items-center gap-2 shadow-xs">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+            <div className="rounded-xl bg-success/10 border border-success/30 p-3.5 text-success text-sm flex items-center gap-2 shadow-xs">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
               <span className="font-semibold">{aiSuccessMessage}</span>
             </div>
           )}

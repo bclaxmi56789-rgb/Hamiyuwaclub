@@ -597,8 +597,8 @@ function MinutesPage() {
                         className={
                           "inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold " +
                           (pending === 0
-                            ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                            : "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-400")
+                            ? "border-success/30 bg-success/15 text-success"
+                            : "border-warning/30 bg-warning/15 text-warning")
                         }
                       >
                         {pending === 0 ? "सबै एजेन्डा पूरा" : `${pending} जारी`}
@@ -743,10 +743,10 @@ function MinutesPage() {
                         className={
                           "text-xs font-bold px-2.5 py-0.5 " +
                           (selectedEvent.status === "completed"
-                            ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                            ? "bg-success/15 border-success/30 text-success"
                             : selectedEvent.status === "ongoing"
-                              ? "bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-300"
-                              : "bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300")
+                              ? "bg-info/15 border-info/30 text-info"
+                              : "bg-warning/15 border-warning/30 text-warning")
                         }
                       >
                         {selectedEvent.status === "completed"
@@ -771,7 +771,7 @@ function MinutesPage() {
                     </div>
 
                     <div className="flex items-center gap-2 rounded-lg bg-background/80 p-2 border">
-                      <Coins className="size-4 shrink-0 text-emerald-600" />
+                      <Coins className="size-4 shrink-0 text-success" />
                       <div>
                         <span className="text-[10px] text-muted-foreground font-semibold">आवश्यक तथा विनियोजित बजेट:</span>
                         <div className="font-bold text-foreground">
@@ -1067,7 +1067,7 @@ function MinutesPage() {
                 </div>
 
                 {carryInAgendas.length > 0 && (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-50/70 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
                     💡 <strong>{carryInAgendas.length} वटा अपूरा एजेन्डा</strong> अघिल्लो बैठकबाट स्वतः समेटिएका छन्। निर्णय पूरा नभएसम्म आगामी बैठकहरूमा पनि स्वतः निरन्तरता पाउनेछन्।
                   </div>
                 )}
@@ -1097,14 +1097,14 @@ function MinutesPage() {
                           {a.done ? (
                             <Badge
                               variant="outline"
-                              className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold"
+                              className="border-success/40 bg-success/10 text-success text-[10px] font-bold"
                             >
                               ✓ निर्णय कार्यान्वयन पूरा
                             </Badge>
                           ) : (
                             <Badge
                               variant="outline"
-                              className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold"
+                              className="border-warning/40 bg-warning/10 text-warning text-[10px] font-bold"
                             >
                               ⏳ छलफल / कार्यान्वयन जारी
                             </Badge>
@@ -1117,12 +1117,12 @@ function MinutesPage() {
                               type="checkbox"
                               checked={a.done}
                               onChange={(e) => updateAgenda(a.id, { done: e.target.checked })}
-                              className="size-4 rounded accent-emerald-600 cursor-pointer"
+                              className="size-4 rounded accent-primary cursor-pointer"
                             />
                             <span
                               className={
                                 a.done
-                                  ? "text-emerald-700 dark:text-emerald-400 font-extrabold"
+                                  ? "text-success font-extrabold"
                                   : "text-muted-foreground"
                               }
                             >
@@ -1188,7 +1188,7 @@ function MinutesPage() {
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <Label className="flex items-center gap-1.5 text-xs font-extrabold text-foreground">
-                            <CheckCircle2 className="size-3.5 text-emerald-600" />
+                            <CheckCircle2 className="size-3.5 text-success" />
                             <span>भएको निर्णय तथा निष्कर्ष (Decision / Resolution)</span>
                           </Label>
                           <Button
@@ -1266,7 +1266,7 @@ function MinutesPage() {
                 </div>
 
                 {aiErr && (
-                  <p className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 text-xs text-amber-700 dark:text-amber-300">
+                  <p className="rounded-lg bg-warning/10 border border-warning/20 p-2 text-xs text-warning">
                     {aiErr}
                   </p>
                 )}
@@ -1432,7 +1432,7 @@ function MinutesPage() {
                       <div
                         className={
                           "text-[10px] font-bold " +
-                          (a.done ? "text-emerald-600" : "text-amber-600")
+                          (a.done ? "text-success" : "text-warning")
                         }
                       >
                         {a.done ? "✓ कार्यान्वयन पूरा" : "○ अर्को सभामा जारी"}

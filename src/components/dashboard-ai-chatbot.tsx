@@ -265,9 +265,9 @@ export function DashboardAIChatbot({
               </h3>
               <Badge
                 variant="outline"
-                className="bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30 text-[10px] py-0 px-2 font-mono gap-1"
+                className="bg-success/10 text-success border-success/30 text-[10px] py-0 px-2 font-mono gap-1"
               >
-                <span className="size-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="size-1.5 rounded-full bg-success animate-pulse" />
                 {activeModelInfo
                   ? `${activeModelInfo.provider}`
                   : primaryProvider === "openrouter"
@@ -310,7 +310,7 @@ export function DashboardAIChatbot({
           {/* Quick Questions Pills */}
           <div className="px-4 py-2 border-b bg-muted/10 overflow-x-auto flex items-center gap-1.5 scrollbar-none">
             <span className="text-[11px] font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-amber-500" /> द्रुत प्रश्नहरू:
+              <Sparkles className="h-3 w-3 text-warning" /> द्रुत प्रश्नहरू:
             </span>
             {QUICK_QUESTIONS.map((q, idx) => (
               <button
@@ -403,7 +403,7 @@ export function DashboardAIChatbot({
               disabled={loading}
               className={`shrink-0 px-3 gap-1.5 transition-all ${
                 isListening
-                  ? "bg-red-500 hover:bg-red-600 border-red-500 text-white animate-pulse"
+                  ? "bg-destructive hover:bg-destructive/90 border-destructive text-destructive-foreground animate-pulse"
                   : "text-muted-foreground hover:text-primary"
               }`}
               title={isListening ? "रोक्नुहोस् (Stop listening)" : "आवाजबाट सोध्नुहोस् (Voice Input)"}
@@ -428,7 +428,7 @@ export function DashboardAIChatbot({
               }
               disabled={loading}
               className={`text-xs sm:text-sm bg-muted/20 transition-all ${
-                isListening ? "border-red-400 ring-1 ring-red-400/30 placeholder:text-red-400/80" : ""
+                isListening ? "border-destructive ring-1 ring-destructive/30 placeholder:text-destructive/80" : ""
               }`}
             />
 

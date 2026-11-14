@@ -114,7 +114,7 @@ export function PaySlipVoucher({
             <div>
               <div className="text-muted-foreground">भुक्तानी स्थिति</div>
               <div
-                className={`font-bold ${record.payment_status === "paid" ? "text-emerald-600" : "text-amber-600"}`}
+                className={`font-bold ${record.payment_status === "paid" ? "text-success" : "text-warning"}`}
               >
                 {record.payment_status === "paid" ? "भुक्तानी भइसकेको" : "बाँकी"}
               </div>
@@ -130,7 +130,7 @@ export function PaySlipVoucher({
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Earnings */}
             <div className="rounded-lg border bg-card p-3">
-              <div className="border-b pb-1.5 text-xs font-bold text-emerald-700">
+              <div className="border-b pb-1.5 text-xs font-bold text-success">
                 आम्दानी विवरण (Earnings)
               </div>
               <table className="mt-2 w-full text-xs">
@@ -155,7 +155,7 @@ export function PaySlipVoucher({
                   )}
                   <tr className="font-bold text-foreground">
                     <td className="pt-2">कुल आम्दानी (Gross Salary)</td>
-                    <td className="pt-2 text-right text-emerald-700 font-extrabold">
+                    <td className="pt-2 text-right text-success font-extrabold">
                       {money(record.gross_salary)}
                     </td>
                   </tr>
@@ -165,32 +165,32 @@ export function PaySlipVoucher({
 
             {/* Deductions */}
             <div className="rounded-lg border bg-card p-3">
-              <div className="border-b pb-1.5 text-xs font-bold text-rose-700">
+              <div className="border-b pb-1.5 text-xs font-bold text-destructive">
                 कट्टी विवरण (Deductions)
               </div>
               <table className="mt-2 w-full text-xs">
                 <tbody>
                   <tr className="border-b border-dashed">
                     <td className="py-1">आयकर / सामाजिक सुरक्षा कर (TDS/Tax)</td>
-                    <td className="py-1 text-right font-medium text-rose-600">
+                    <td className="py-1 text-right font-medium text-destructive">
                       - {money(record.tax || 0)}
                     </td>
                   </tr>
                   <tr className="border-b border-dashed">
                     <td className="py-1">पेश्की कट्टी (Advance Adjustment)</td>
-                    <td className="py-1 text-right font-medium text-rose-600">
+                    <td className="py-1 text-right font-medium text-destructive">
                       - {money(record.advance_adjusted || 0)}
                     </td>
                   </tr>
                   <tr className="border-b border-dashed">
                     <td className="py-1">अन्य कट्टी (Other Deductions)</td>
-                    <td className="py-1 text-right font-medium text-rose-600">
+                    <td className="py-1 text-right font-medium text-destructive">
                       - {money(record.other_deductions || 0)}
                     </td>
                   </tr>
                   <tr className="font-bold text-foreground">
                     <td className="pt-2">कुल कट्टी (Total Deductions)</td>
-                    <td className="pt-2 text-right text-rose-700 font-extrabold">
+                    <td className="pt-2 text-right text-destructive font-extrabold">
                       {money(totalDeductions)}
                     </td>
                   </tr>

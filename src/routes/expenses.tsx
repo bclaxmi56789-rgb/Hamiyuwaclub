@@ -232,13 +232,13 @@ function BillMatchBadge({
 }) {
   if (status === "match")
     return (
-      <Badge className="bg-green-600 hover:bg-green-600 text-white gap-1 text-xs">
+      <Badge className="bg-success hover:bg-success text-success-foreground gap-1 text-xs">
         <CheckCircle2 className="h-3 w-3" /> बिल मेल (Match)
       </Badge>
     );
   if (status === "mismatch")
     return (
-      <Badge className="bg-red-600 hover:bg-red-600 text-white gap-1 text-xs">
+      <Badge className="bg-destructive hover:bg-destructive text-destructive-foreground gap-1 text-xs">
         <XCircle className="h-3 w-3" /> मेल छैन | फरक: रु.{fmt(Math.abs(computed - scanned))}
       </Badge>
     );
@@ -707,7 +707,7 @@ function AssetItemForm({
       <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
         <div className="space-y-0.5">
           <div className="text-sm font-bold flex items-center gap-2 text-foreground">
-            <Sparkles className="h-4 w-4 text-amber-500" />
+            <Sparkles className="h-4 w-4 text-warning" />
             <span>AI बिल स्क्यानर (Agentic OCR Scanner)</span>
             <Badge
               variant="outline"
@@ -777,7 +777,7 @@ function AssetItemForm({
       </div>
 
       {scanNotice && (
-        <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-2.5 text-xs text-green-700 dark:text-green-300 flex items-center gap-2">
+        <div className="rounded-lg bg-success/10 border border-success/30 p-2.5 text-xs text-success flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{scanNotice}</span>
         </div>
@@ -826,9 +826,9 @@ function AssetItemForm({
 
         {/* New Vendor Save Prompt */}
         {vendorName.trim() && (!vendorId || vendorId === "none") && !vendorSaved && (
-          <div className="col-span-2 md:col-span-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 flex items-center justify-between gap-3 text-xs">
+          <div className="col-span-2 md:col-span-3 rounded-xl border border-warning/30 bg-warning/5 p-3 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
               <span>
                 <b>"{vendorName}"</b> — नयाँ Vendor हो। Vendor Master मा सेभ गर्ने हो?
               </span>
@@ -859,7 +859,7 @@ function AssetItemForm({
           </div>
         )}
         {vendorSaved && vendorName.trim() && (
-          <div className="col-span-2 md:col-span-3 rounded-xl border border-green-500/30 bg-green-500/5 p-2.5 flex items-center gap-2 text-xs text-green-700 dark:text-green-300">
+          <div className="col-span-2 md:col-span-3 rounded-xl border border-success/30 bg-success/5 p-2.5 flex items-center gap-2 text-xs text-success">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>
               <b>"{vendorName}"</b> Vendor Master मा सफलतापूर्वक सेभ भयो!
@@ -919,8 +919,8 @@ function AssetItemForm({
 
         {/* ─── REIMBURSEMENT QUESTION ─── */}
         {linkedEmployee && linkedEmployee !== "none" && (
-          <div className="col-span-1 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs space-y-1.5">
-            <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+          <div className="col-span-1 rounded-lg border border-warning/40 bg-warning/5 p-2.5 text-xs space-y-1.5">
+            <p className="font-bold text-warning flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5" />
               के यो बिल कर्मचारी रिइम्बर्समेन्ट (Reimbursement) हो?
             </p>
@@ -977,8 +977,8 @@ function AssetItemForm({
         <div
           className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
             budgetExceeded
-              ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200"
-              : "bg-blue-500/10 border-blue-500/30 text-blue-800 dark:text-blue-200"
+              ? "bg-warning/10 border-warning/30 text-warning"
+              : "bg-info/10 border-info/30 text-info"
           }`}
         >
           <div className="flex items-center gap-2">
@@ -1251,7 +1251,7 @@ function AssetItemForm({
                     <Badge
                       variant="secondary"
                       className={`text-[10px] ${
-                        matched ? "" : "bg-emerald-600/10 text-emerald-700 dark:text-emerald-300"
+                        matched ? "" : "bg-success/10 text-success"
                       }`}
                     >
                       {matched ? "अपडेट" : "नयाँ"}
@@ -1325,7 +1325,7 @@ function AssetItemForm({
             <span>अन्य शुल्क (+) {otherChargesDesc ? `· ${otherChargesDesc}` : ""}:</span>
             <span className="font-mono">+ रु. {fmt(otherCharges)}</span>
           </div>
-          <div className="flex justify-between text-sm text-red-600 dark:text-red-400">
+          <div className="flex justify-between text-sm text-destructive">
             <span>छुट (−) {discountDesc ? `· ${discountDesc}` : ""}:</span>
             <span className="font-mono">− रु. {fmt(discount)}</span>
           </div>
@@ -1663,14 +1663,14 @@ function OpExForm({
         <div className="space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-sm font-bold flex items-center gap-2 text-foreground">
-              <Sparkles className="h-4 w-4 text-amber-500" />
+              <Sparkles className="h-4 w-4 text-warning" />
               AI बिल स्क्यानर (OpEx OCR Scanner)
             </div>
             <Badge
               variant="outline"
-              className="bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30 text-[10px] py-0 px-2 font-mono gap-1"
+              className="bg-success/10 text-success border-success/30 text-[10px] py-0 px-2 font-mono gap-1"
             >
-              <span className="size-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="size-1.5 rounded-full bg-success animate-pulse" />
               AI Vault:{" "}
               {config.openrouter_api_key
                 ? "OpenRouter"
@@ -1733,7 +1733,7 @@ function OpExForm({
       </div>
 
       {scanNotice && (
-        <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-2.5 text-xs text-green-700 dark:text-green-300 flex items-center gap-2">
+        <div className="rounded-lg bg-success/10 border border-success/30 p-2.5 text-xs text-success flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{scanNotice}</span>
         </div>
@@ -1781,9 +1781,9 @@ function OpExForm({
 
         {/* New Vendor Save Prompt */}
         {vendorName.trim() && (!vendorId || vendorId === "none") && !vendorSaved && (
-          <div className="col-span-2 md:col-span-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 flex items-center justify-between gap-3 text-xs">
+          <div className="col-span-2 md:col-span-3 rounded-xl border border-warning/30 bg-warning/5 p-3 flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
               <span>
                 <b>"{vendorName}"</b> — नयाँ Vendor हो। Vendor Master मा सेभ गर्ने हो?
               </span>
@@ -1814,7 +1814,7 @@ function OpExForm({
           </div>
         )}
         {vendorSaved && vendorName.trim() && (
-          <div className="col-span-2 md:col-span-3 rounded-xl border border-green-500/30 bg-green-500/5 p-2.5 flex items-center gap-2 text-xs text-green-700 dark:text-green-300">
+          <div className="col-span-2 md:col-span-3 rounded-xl border border-success/30 bg-success/5 p-2.5 flex items-center gap-2 text-xs text-success">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>
               <b>"{vendorName}"</b> Vendor Master मा सफलतापूर्वक सेभ भयो!
@@ -1874,8 +1874,8 @@ function OpExForm({
 
         {/* ─── REIMBURSEMENT QUESTION ─── */}
         {linkedEmployee && linkedEmployee !== "none" && (
-          <div className="col-span-1 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs space-y-1.5">
-            <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+          <div className="col-span-1 rounded-lg border border-warning/40 bg-warning/5 p-2.5 text-xs space-y-1.5">
+            <p className="font-bold text-warning flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5" />
               के यो बिल कर्मचारी रिइम्बर्समेन्ट (Reimbursement) हो?
             </p>
@@ -1932,8 +1932,8 @@ function OpExForm({
         <div
           className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
             budgetExceeded
-              ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-200"
-              : "bg-blue-500/10 border-blue-500/30 text-blue-800 dark:text-blue-200"
+              ? "bg-warning/10 border-warning/30 text-warning"
+              : "bg-info/10 border-info/30 text-info"
           }`}
         >
           <div className="flex items-center gap-2">
@@ -2033,7 +2033,7 @@ function OpExForm({
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-right text-xs font-mono text-orange-600">
+                <TableCell className="text-right text-xs font-mono text-warning">
                   {row.tds_applicable ? fmt(row.tds_amount) : "—"}
                 </TableCell>
                 <TableCell className="text-right text-xs font-mono font-bold text-primary">
@@ -2092,7 +2092,7 @@ function OpExForm({
             <span className="font-mono">रु. {fmt(total)}</span>
           </div>
           {(Number(discount) || 0) > 0 && (
-            <div className="flex justify-between text-sm text-orange-600 dark:text-orange-400">
+            <div className="flex justify-between text-sm text-warning">
               <span>छुट (Discount) (−):</span>
               <span className="font-mono">− रु. {fmt(discount)}</span>
             </div>
@@ -2190,7 +2190,7 @@ function ExpenseListTable({
                       {matchedMember && (
                         <Badge
                           variant="outline"
-                          className="text-[11px] py-0 gap-1 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                          className="text-[11px] py-0 gap-1 bg-info/10 text-info"
                         >
                           <UserCheck className="h-3 w-3" />
                           {matchedMember.name}
@@ -2199,7 +2199,7 @@ function ExpenseListTable({
                       {matchedEmployee && (
                         <Badge
                           variant="outline"
-                          className="text-[11px] py-0 gap-1 bg-purple-500/10 text-purple-700 dark:text-purple-300"
+                          className="text-[11px] py-0 gap-1 bg-primary/10 text-primary"
                         >
                           <Users className="h-3 w-3" />
                           {matchedEmployee.name}
@@ -2208,7 +2208,7 @@ function ExpenseListTable({
                       {matchedEvent && (
                         <Badge
                           variant="outline"
-                          className="text-[11px] py-0 gap-1 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                          className="text-[11px] py-0 gap-1 bg-warning/10 text-warning"
                         >
                           <CalendarDays className="h-3 w-3" />
                           {matchedEvent.title}

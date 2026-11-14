@@ -644,12 +644,12 @@ function EventsPage() {
       case "ongoing":
         return {
           label: "जारी (Ongoing)",
-          bg: "bg-blue-500/15 text-blue-700 border-blue-500/30",
+          bg: "bg-info/15 text-info border-info/30",
         };
       case "completed":
         return {
           label: "सम्पन्न (Completed)",
-          bg: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+          bg: "bg-success/15 text-success border-success/30",
         };
       case "postponed":
         return {
@@ -659,7 +659,7 @@ function EventsPage() {
       default:
         return {
           label: "योजना गरिएको (Planned)",
-          bg: "bg-amber-500/15 text-amber-700 border-amber-500/30",
+          bg: "bg-warning/15 text-warning border-warning/30",
         };
     }
   };
@@ -695,12 +695,12 @@ function EventsPage() {
           <div className="text-xs text-muted-foreground font-medium">कुल कार्यक्रमहरू</div>
           <div className="mt-1 text-2xl font-extrabold text-foreground">{stats.total}</div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            जारी: <strong className="text-blue-600">{stats.ongoing}</strong> | योजना: {stats.planned}
+            जारी: <strong className="text-info">{stats.ongoing}</strong> | योजना: {stats.planned}
           </div>
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-xs">
           <div className="text-xs text-muted-foreground font-medium">सम्पन्न कार्यक्रमहरू</div>
-          <div className="mt-1 text-2xl font-extrabold text-emerald-600">
+          <div className="mt-1 text-2xl font-extrabold text-success">
             {stats.completed}
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -718,7 +718,7 @@ function EventsPage() {
         </div>
         <div className="rounded-xl border bg-card p-4 shadow-xs">
           <div className="text-xs text-muted-foreground font-medium">वास्तविक खर्च (Actual Spent)</div>
-          <div className="mt-1 text-xl font-extrabold text-purple-600 dark:text-purple-400">
+          <div className="mt-1 text-xl font-extrabold text-primary">
             {money(stats.totalSpent)}
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -840,7 +840,7 @@ function EventsPage() {
                         <span className="text-muted-foreground">वास्तविक खर्च:</span>
                         <span
                           className={`font-black ${
-                            bStats.isOverspent ? "text-destructive" : "text-purple-600 dark:text-purple-400"
+                            bStats.isOverspent ? "text-destructive" : "text-primary"
                           }`}
                         >
                           {money(bStats.actualSpent)}
@@ -855,7 +855,7 @@ function EventsPage() {
                               bStats.isOverspent
                                 ? "bg-destructive"
                                 : bStats.burnPercent > 80
-                                  ? "bg-amber-500"
+                                  ? "bg-warning"
                                   : "bg-primary"
                             }`}
                             style={{ width: `${Math.min(bStats.burnPercent, 100)}%` }}
@@ -940,10 +940,10 @@ function EventsPage() {
                                 className={
                                   "text-[10px] font-bold px-2 py-0.2 " +
                                   (minSummary.isAllDone
-                                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                                    ? "bg-success/15 border-success/30 text-success"
                                     : minSummary.pendingAgendas > 0
-                                      ? "bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300"
-                                      : "bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-300")
+                                      ? "bg-warning/15 border-warning/30 text-warning"
+                                      : "bg-info/15 border-info/30 text-info")
                                 }
                               >
                                 {minSummary.stage}
@@ -1120,7 +1120,7 @@ function EventsPage() {
                           <span className="text-muted-foreground">खर्च:</span>
                           <span
                             className={`font-black ${
-                              bStats.isOverspent ? "text-destructive" : "text-purple-600 dark:text-purple-400"
+                              bStats.isOverspent ? "text-destructive" : "text-primary"
                             }`}
                           >
                             {money(bStats.actualSpent)}
@@ -1317,11 +1317,11 @@ function EventsPage() {
                       {money(bStats.budgetTotal)}
                     </div>
                   </div>
-                  <div className="rounded-xl border bg-purple-500/10 border-purple-500/20 p-3">
-                    <div className="text-[11px] text-purple-700 dark:text-purple-300 font-bold">
+                  <div className="rounded-xl border bg-primary/10 border-primary/20 p-3">
+                    <div className="text-[11px] text-primary font-bold">
                       वास्तविक भएको खर्च (Spent)
                     </div>
-                    <div className="mt-1 text-lg font-black text-purple-700 dark:text-purple-300">
+                    <div className="mt-1 text-lg font-black text-primary">
                       {money(bStats.actualSpent)}
                     </div>
                   </div>
@@ -1329,19 +1329,19 @@ function EventsPage() {
                     className={`rounded-xl border p-3 ${
                       bStats.isOverspent
                         ? "bg-destructive/10 border-destructive/30"
-                        : "bg-emerald-500/10 border-emerald-500/20"
+                        : "bg-success/10 border-success/20"
                     }`}
                   >
                     <div
                       className={`text-[11px] font-bold ${
-                        bStats.isOverspent ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"
+                        bStats.isOverspent ? "text-destructive" : "text-success"
                       }`}
                     >
                       {bStats.isOverspent ? "बजेट नाघेको (Overspent)" : "बाँकी बजेट बचत"}
                     </div>
                     <div
                       className={`mt-1 text-lg font-black ${
-                        bStats.isOverspent ? "text-destructive" : "text-emerald-700 dark:text-emerald-300"
+                        bStats.isOverspent ? "text-destructive" : "text-success"
                       }`}
                     >
                       {money(Math.abs(bStats.remainingBudget))}
@@ -1370,7 +1370,7 @@ function EventsPage() {
                         bStats.isOverspent
                           ? "bg-destructive"
                           : bStats.burnPercent > 80
-                            ? "bg-amber-500"
+                            ? "bg-warning"
                             : "bg-primary"
                       }`}
                       style={{ width: `${Math.min(bStats.burnPercent, 100)}%` }}
@@ -1481,7 +1481,7 @@ function EventsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-semibold text-muted-foreground">
-                        कुल खर्च: <strong className="text-purple-600 dark:text-purple-400">{money(bStats.actualSpent)}</strong>
+                        कुल खर्च: <strong className="text-primary">{money(bStats.actualSpent)}</strong>
                       </span>
                       <Button
                         size="sm"
@@ -1530,7 +1530,7 @@ function EventsPage() {
                               <td className="p-2 border font-medium">
                                 {exp.vendor_name || "—"}
                               </td>
-                              <td className="p-2 border text-right font-mono font-black text-purple-700 dark:text-purple-300">
+                              <td className="p-2 border text-right font-mono font-black text-primary">
                                 {money(exp.final_amount)}
                               </td>
                               <td className="p-2 border text-muted-foreground truncate max-w-xs">
@@ -1544,7 +1544,7 @@ function EventsPage() {
                             <td colSpan={5} className="p-2 border text-right">
                               कुल खर्च रकम (Total Spent):
                             </td>
-                            <td className="p-2 border text-right font-mono text-purple-700 dark:text-purple-300 text-sm">
+                            <td className="p-2 border text-right font-mono text-primary text-sm">
                               {money(bStats.actualSpent)}
                             </td>
                             <td className="p-2 border"></td>
@@ -1828,7 +1828,7 @@ function EventsPage() {
                 {/* Preset Templates */}
                 <div className="rounded-lg bg-card border p-2.5">
                   <div className="text-[11px] font-bold text-muted-foreground mb-1.5 flex items-center gap-1">
-                    <Sparkles className="size-3 text-amber-500" />
+                    <Sparkles className="size-3 text-warning" />
                     <span>छिटो भर्न टेम्प्लेट छान्नुहोस्:</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -2079,10 +2079,10 @@ function EventsPage() {
                           <span
                             className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${
                               p.type === "employee"
-                                ? "bg-blue-500/10 text-blue-700"
+                                ? "bg-info/10 text-info"
                                 : p.type === "member"
-                                  ? "bg-purple-500/10 text-purple-700"
-                                  : "bg-amber-500/10 text-amber-700"
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-warning/10 text-warning"
                             }`}
                           >
                             {p.type === "employee"
@@ -2448,14 +2448,14 @@ function EventsPage() {
                             {a.done ? (
                               <Badge
                                 variant="outline"
-                                className="text-[9px] font-bold bg-emerald-500/15 border-emerald-500/30 text-emerald-700"
+                                className="text-[9px] font-bold bg-success/15 border-success/30 text-success"
                               >
                                 ✓ पूरा भयो
                               </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
-                                className="text-[9px] font-bold bg-amber-500/15 border-amber-500/30 text-amber-700"
+                                className="text-[9px] font-bold bg-warning/15 border-warning/30 text-warning"
                               >
                                 ⏳ जारी
                               </Badge>

@@ -571,23 +571,23 @@ export function LocationMap({
             type="button"
             size="sm"
             variant="outline"
-            className="border-emerald-500/50 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300"
+            className="border-success/50 bg-success/10 text-success hover:bg-success/20"
             onClick={handleGetLiveGPS}
             disabled={locating}
           >
             {locating ? (
               <span className="flex items-center gap-1.5">
-                <LocateFixed className="size-4 animate-spin text-emerald-600" />
+                <LocateFixed className="size-4 animate-spin text-success" />
                 लोकेसन लिँदैछ (Getting GPS)…
               </span>
             ) : gpsSuccess ? (
-              <span className="flex items-center gap-1.5 text-emerald-700">
+              <span className="flex items-center gap-1.5 text-success">
                 <Check className="size-4" />
                 लोकेसन प्राप्त भयो!
               </span>
             ) : (
               <span className="flex items-center gap-1.5">
-                <LocateFixed className="size-4 text-emerald-600" />
+                <LocateFixed className="size-4 text-success" />
                 📍 लाइभ GPS लोकेसन लिनुहोस् (Get Live GPS)
               </span>
             )}
@@ -599,7 +599,7 @@ export function LocationMap({
                 {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
               </span>
               {typeof accuracy === "number" && (
-                <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+                <span className="rounded bg-info/10 px-1.5 py-0.5 text-[10px] text-info">
                   ±{accuracy}m
                 </span>
               )}
@@ -609,29 +609,29 @@ export function LocationMap({
       )}
 
       {geocoding && (
-        <div className="flex items-center gap-1.5 rounded border border-blue-500/30 bg-blue-500/10 p-2 text-xs text-blue-700 dark:text-blue-300">
+        <div className="flex items-center gap-1.5 rounded border border-info/30 bg-info/10 p-2 text-xs text-info">
           <Loader2 className="size-4 shrink-0 animate-spin" />
           <span>नक्साबाट ठेगाना पत्ता लगाउँदैछ (Detecting address from map)...</span>
         </div>
       )}
 
       {refiningNotice && (
-        <div className="flex items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 p-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-          <LocateFixed className="size-4 shrink-0 animate-pulse text-amber-600" />
+        <div className="flex items-center gap-1.5 rounded border border-warning/30 bg-warning/5 p-2 text-xs font-medium text-warning">
+          <LocateFixed className="size-4 shrink-0 animate-pulse text-warning" />
           <span>{refiningNotice}</span>
         </div>
       )}
 
       {geocodedNotice && !geocoding && !refining && (
-        <div className="flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 p-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+        <div className="flex items-center gap-1.5 rounded border border-success/30 bg-success/10 p-2 text-xs font-medium text-success">
           <Check className="size-4 shrink-0" />
           <span>{geocodedNotice}</span>
         </div>
       )}
 
       {gpsError && (
-        <div className="flex items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
-          <AlertCircle className="size-4 shrink-0 text-amber-600" />
+        <div className="flex items-center gap-1.5 rounded border border-warning/30 bg-warning/10 p-2 text-xs text-warning">
+          <AlertCircle className="size-4 shrink-0 text-warning" />
           <span>{gpsError}</span>
         </div>
       )}

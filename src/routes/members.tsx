@@ -1211,9 +1211,9 @@ function MembersPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Briefcase className="size-4 text-emerald-600" />
+            <Briefcase className="size-4 text-success" />
             <span>कर्मचारीहरू (Employees)</span>
-            <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.2 text-[10px] font-bold text-emerald-600">
+            <span className="rounded-full bg-success/10 px-1.5 py-0.2 text-[10px] font-bold text-success">
               {empList.length}
             </span>
           </button>
@@ -1225,7 +1225,7 @@ function MembersPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Calculator className="size-4 text-amber-600" />
+            <Calculator className="size-4 text-warning" />
             <span>मासिक पेरोल (Payroll)</span>
           </button>
         </div>
@@ -1246,7 +1246,7 @@ function MembersPage() {
             </div>
             <div className="rounded-xl border bg-card p-4 shadow-xs">
               <div className="text-xs text-muted-foreground font-medium">सक्रिय सदस्यहरू (Active Members)</div>
-              <div className="mt-1 text-2xl font-extrabold text-emerald-600">
+              <div className="mt-1 text-2xl font-extrabold text-success">
                 {memberList.filter((b) => b.status === "active").length} जना
               </div>
             </div>
@@ -1325,7 +1325,7 @@ function MembersPage() {
                         <span
                           className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
                             item.status === "active"
-                              ? "bg-emerald-500/10 text-emerald-600"
+                              ? "bg-success/10 text-success"
                               : "bg-muted text-muted-foreground"
                           }`}
                         >
@@ -1378,7 +1378,7 @@ function MembersPage() {
             </div>
             <div className="rounded-xl border bg-card p-4 shadow-xs">
               <div className="text-xs text-muted-foreground font-medium">चालक तथा संकलकहरू</div>
-              <div className="mt-1 text-2xl font-extrabold text-emerald-600">
+              <div className="mt-1 text-2xl font-extrabold text-success">
                 {
                   empList.filter((e) =>
                     e.designation.includes("चालक") || e.designation.includes("संकलक"),
@@ -1409,7 +1409,7 @@ function MembersPage() {
             <Button
               onClick={handleOpenAddEmp}
               size="sm"
-              className="flex items-center gap-1.5 font-bold shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="flex items-center gap-1.5 font-bold shadow-xs bg-success hover:bg-success/90 text-success-foreground"
             >
               <Plus className="size-4" />
               <span>नयाँ कर्मचारी थप्नुहोस्</span>
@@ -1459,7 +1459,7 @@ function MembersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-700">
+                        <span className="rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
                           {item.designation}
                         </span>
                       </td>
@@ -1471,13 +1471,13 @@ function MembersPage() {
                       <td className="px-4 py-3">
                         <div className="font-medium">
                           {item.allowance_type === "trip" && (
-                            <span className="text-amber-700">प्रति ट्रिप {money(item.allowance_rate || 0)}</span>
+                            <span className="text-warning">प्रति ट्रिप {money(item.allowance_rate || 0)}</span>
                           )}
                           {item.allowance_type === "day" && (
-                            <span className="text-blue-700">दैनिक {money(item.allowance_rate || 0)}</span>
+                            <span className="text-info">दैनिक {money(item.allowance_rate || 0)}</span>
                           )}
                           {item.allowance_type === "fixed" && (
-                            <span className="text-purple-700">मासिक एकमुष्ट {money(item.allowance_rate || 0)}</span>
+                            <span className="text-primary">मासिक एकमुष्ट {money(item.allowance_rate || 0)}</span>
                           )}
                           {(!item.allowance_type || item.allowance_type === "none") && (
                             <span className="text-muted-foreground">भत्ता छैन</span>
@@ -1492,9 +1492,9 @@ function MembersPage() {
                         <span
                           className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
                             item.status === "active"
-                              ? "bg-emerald-500/10 text-emerald-600"
+                              ? "bg-success/10 text-success"
                               : item.status === "on_leave"
-                                ? "bg-amber-500/10 text-amber-600"
+                                ? "bg-warning/10 text-warning"
                                 : "bg-muted text-muted-foreground"
                           }`}
                         >
@@ -1506,11 +1506,11 @@ function MembersPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-[11px] font-semibold text-emerald-700 border-emerald-600/30 hover:bg-emerald-50"
+                            className="h-7 px-2 text-[11px] font-semibold text-success border-success/30 hover:bg-success/10"
                             title="यस कर्मचारीको खाता / लेजर हेर्नुहोस्"
                             onClick={() => handleOpenEmpLedger(item.id)}
                           >
-                            <BookOpen className="mr-1 size-3 text-emerald-600" />
+                            <BookOpen className="mr-1 size-3 text-success" />
                             <span>लेजर</span>
                           </Button>
                           <Button
@@ -1631,7 +1631,7 @@ function MembersPage() {
                   </div>
 
                   <div className="pt-5">
-                    <span className="rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-700">
+                    <span className="rounded-md bg-warning/10 px-2.5 py-1 text-xs font-bold text-warning">
                       {MONTHS[payrollMonth]} {payrollYear} को पेरोल
                     </span>
                   </div>
@@ -1656,7 +1656,7 @@ function MembersPage() {
                     if (allPaid) {
                       return (
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-500/20">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1.5 text-xs font-bold text-success border border-success/20">
                             <CheckCircle2 className="size-3.5" />
                             चरण ३: सबै भुक्तानी सम्पन्न (स्थिर)
                           </span>
@@ -1676,7 +1676,7 @@ function MembersPage() {
                     if (allBooked) {
                       return (
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-500/20">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-2.5 py-1 text-xs font-bold text-warning border border-warning/20">
                             <Lock className="size-3.5" />
                             चरण २: बुक गरिएको (लक)
                           </span>
@@ -1684,7 +1684,7 @@ function MembersPage() {
                           <Button
                             size="sm"
                             onClick={handleOpenPayAll}
-                            className="text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md ring-2 ring-emerald-500/30 flex items-center gap-1.5 px-3.5"
+                            className="text-xs font-extrabold bg-success hover:bg-success/90 text-success-foreground shadow-md ring-2 ring-success/30 flex items-center gap-1.5 px-3.5"
                             title="अर्को चरण: सबै कर्मचारीको तलब भुक्तानी गर्नुहोस् र भुक्तानी भौचर सिर्जना गर्नुहोस्"
                           >
                             <CreditCard className="size-3.5" />
@@ -1725,7 +1725,7 @@ function MembersPage() {
                           size="sm"
                           onClick={handleBookPayroll}
                           disabled={bookingPayroll || payrollRows.length === 0}
-                          className="text-xs font-extrabold bg-amber-600 hover:bg-amber-700 text-white shadow-md flex items-center gap-1.5 px-3.5"
+                          className="text-xs font-extrabold bg-warning hover:bg-warning/90 text-warning-foreground shadow-md flex items-center gap-1.5 px-3.5"
                           title="अर्को चरण: पेरोल बुक गर्नुहोस् — हिसाब लक गरी भुक्तानीका लागि तयार गर्नुहोस्"
                         >
                           <BookCheck className="size-3.5" />
@@ -1760,18 +1760,18 @@ function MembersPage() {
                   <div className="flex items-center gap-1.5 text-xs font-bold">
                     <span className="text-muted-foreground text-[11px]">वर्तमान अवस्था:</span>
                     {currentSheetStage === 3 ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 text-[11px]">
-                        <CheckCircle2 className="size-3 text-emerald-600" />
+                      <span className="inline-flex items-center gap-1 text-success bg-success/10 px-2.5 py-0.5 rounded-full border border-success/20 text-[11px]">
+                        <CheckCircle2 className="size-3 text-success" />
                         चरण ३: भुक्तानी सम्पन्न (स्थिर / Fixed)
                       </span>
                     ) : currentSheetStage === 2 ? (
-                      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 text-[11px]">
-                        <Lock className="size-3 text-amber-600" />
+                      <span className="inline-flex items-center gap-1 text-warning bg-warning/10 px-2.5 py-0.5 rounded-full border border-warning/20 text-[11px]">
+                        <Lock className="size-3 text-warning" />
                         चरण २: बुक गरिएको (भुक्तानीका लागि तयार)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-sky-700 bg-sky-500/10 px-2.5 py-0.5 rounded-full border border-sky-500/20 text-[11px]">
-                        <Edit2 className="size-3 text-sky-600" />
+                      <span className="inline-flex items-center gap-1 text-info bg-info/10 px-2.5 py-0.5 rounded-full border border-info/20 text-[11px]">
+                        <Edit2 className="size-3 text-info" />
                         चरण १: मस्यौदा / ड्राफ्ट (सम्पादन योग्य)
                       </span>
                     )}
@@ -1784,7 +1784,7 @@ function MembersPage() {
                     className={`p-3 rounded-lg border text-xs transition-all flex flex-col justify-between ${
                       currentSheetStage >= 1
                         ? currentSheetStage > 1
-                          ? "border-emerald-500/30 bg-emerald-500/5"
+                          ? "border-success/30 bg-success/5"
                           : "border-primary bg-primary/5 ring-1 ring-primary/20"
                         : "border-border bg-muted/20 opacity-60"
                     }`}
@@ -1793,7 +1793,7 @@ function MembersPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold flex items-center gap-1.5">
                           {currentSheetStage > 1 ? (
-                            <CheckCircle2 className="size-3.5 text-emerald-600" />
+                            <CheckCircle2 className="size-3.5 text-success" />
                           ) : (
                             <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] text-white font-mono">
                               १
@@ -1802,7 +1802,7 @@ function MembersPage() {
                           <span>१. ड्राफ्ट तयार (Draft)</span>
                         </span>
                         {currentSheetStage > 1 && (
-                          <span className="text-[10px] font-bold text-emerald-600">सम्पन्न ✓</span>
+                          <span className="text-[10px] font-bold text-success">सम्पन्न ✓</span>
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
@@ -1816,7 +1816,7 @@ function MembersPage() {
                           size="sm"
                           onClick={handleBookPayroll}
                           disabled={bookingPayroll}
-                          className="w-full h-7 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                          className="w-full h-7 text-xs font-bold bg-warning hover:bg-warning/90 text-warning-foreground"
                         >
                           <BookCheck className="mr-1 size-3" />
                           <span>{bookingPayroll ? "बुक हुँदैछ…" : "पेरोल बुक गर्नुहोस् ➔"}</span>
@@ -1830,8 +1830,8 @@ function MembersPage() {
                     className={`p-3 rounded-lg border text-xs transition-all flex flex-col justify-between ${
                       currentSheetStage >= 2
                         ? currentSheetStage > 2
-                          ? "border-emerald-500/30 bg-emerald-500/5"
-                          : "border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/20"
+                          ? "border-success/30 bg-success/5"
+                          : "border-warning bg-warning/5 ring-1 ring-warning/20"
                         : "border-border bg-muted/20 opacity-60"
                     }`}
                   >
@@ -1839,9 +1839,9 @@ function MembersPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold flex items-center gap-1.5">
                           {currentSheetStage > 2 ? (
-                            <CheckCircle2 className="size-3.5 text-emerald-600" />
+                            <CheckCircle2 className="size-3.5 text-success" />
                           ) : currentSheetStage === 2 ? (
-                            <Lock className="size-3.5 text-amber-600" />
+                            <Lock className="size-3.5 text-warning" />
                           ) : (
                             <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[10px] font-mono">
                               २
@@ -1850,12 +1850,12 @@ function MembersPage() {
                           <span>२. पेरोल बुकिङ (Booked)</span>
                         </span>
                         {currentSheetStage === 2 && (
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-bold text-warning bg-warning/10 px-1.5 py-0.5 rounded">
                             सक्रिय
                           </span>
                         )}
                         {currentSheetStage > 2 && (
-                          <span className="text-[10px] font-bold text-emerald-600">सम्पन्न ✓</span>
+                          <span className="text-[10px] font-bold text-success">सम्पन्न ✓</span>
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
@@ -1868,7 +1868,7 @@ function MembersPage() {
                         <Button
                           size="sm"
                           onClick={handleOpenPayAll}
-                          className="w-full h-7 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="w-full h-7 text-xs font-bold bg-success hover:bg-success/90 text-success-foreground"
                         >
                           <CreditCard className="mr-1 size-3" />
                           <span>सबै भुक्तानी गर्नुहोस् (Pay All) ➔</span>
@@ -1881,7 +1881,7 @@ function MembersPage() {
                   <div
                     className={`p-3 rounded-lg border text-xs transition-all flex flex-col justify-between ${
                       currentSheetStage === 3
-                        ? "border-emerald-600 bg-emerald-500/10 ring-1 ring-emerald-600/30"
+                        ? "border-success bg-success/10 ring-1 ring-success/30"
                         : "border-border bg-muted/20 opacity-60"
                     }`}
                   >
@@ -1889,7 +1889,7 @@ function MembersPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-bold flex items-center gap-1.5">
                           {currentSheetStage === 3 ? (
-                            <CheckCircle2 className="size-3.5 text-emerald-600" />
+                            <CheckCircle2 className="size-3.5 text-success" />
                           ) : (
                             <span className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/30 text-[10px] font-mono">
                               ३
@@ -1898,7 +1898,7 @@ function MembersPage() {
                           <span>३. भुक्तानी सम्पन्न (Paid & Fixed)</span>
                         </span>
                         {currentSheetStage === 3 && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-bold text-success bg-success/10 px-1.5 py-0.5 rounded">
                             स्थिर / बन्द
                           </span>
                         )}
@@ -1910,7 +1910,7 @@ function MembersPage() {
 
                     {currentSheetStage === 3 && (
                       <div className="mt-2.5 pt-2 border-t">
-                        <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                        <span className="text-[11px] font-semibold text-success flex items-center gap-1">
                           <CheckCircle2 className="size-3" />
                           <span>भौचर जारी भएको छ</span>
                         </span>
@@ -1925,7 +1925,7 @@ function MembersPage() {
                 <div
                   className={`rounded-lg p-3 text-xs font-semibold ${
                     payrollNotice.type === "success"
-                      ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
+                      ? "bg-success/10 text-success border border-success/20"
                       : "bg-destructive/10 text-destructive border border-destructive/20"
                   }`}
                 >
@@ -1981,9 +1981,9 @@ function MembersPage() {
                             key={row.employee_id || idx}
                             className={`transition-colors ${
                               isPaid
-                                ? "bg-emerald-500/5 opacity-95"
+                                ? "bg-success/5 opacity-95"
                                 : isBooked
-                                  ? "bg-amber-500/5"
+                                  ? "bg-warning/5"
                                   : "hover:bg-muted/15"
                             }`}
                           >
@@ -1997,10 +1997,10 @@ function MembersPage() {
                               >
                                 <span>{row.employee_name}</span>
                                 {isPaid && (
-                                  <Lock className="size-3 text-emerald-600/70 inline" title="भुक्तानी सम्पन्न — लक गरिएको" />
+                                  <Lock className="size-3 text-success/70 inline" title="भुक्तानी सम्पन्न — लक गरिएको" />
                                 )}
                                 {isBooked && !isPaid && (
-                                  <Lock className="size-3 text-amber-600/70 inline" title="बुक गरिएको — भुक्तानी बाँकी" />
+                                  <Lock className="size-3 text-warning/70 inline" title="बुक गरिएको — भुक्तानी बाँकी" />
                                 )}
                               </button>
                               <div className="text-[10px] text-muted-foreground">{row.designation}</div>
@@ -2049,7 +2049,7 @@ function MembersPage() {
                             {/* Allowance */}
                             <td className="px-2 py-2.5 text-right">
                               {isLocked ? (
-                                <span className="font-mono text-xs text-emerald-700 font-semibold">
+                                <span className="font-mono text-xs text-success font-semibold">
                                   {money(row.allowance)}
                                 </span>
                               ) : (
@@ -2060,7 +2060,7 @@ function MembersPage() {
                                   onChange={(e) =>
                                     updatePayrollField(idx, "allowance", Number(e.target.value) || 0)
                                   }
-                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-emerald-700 font-semibold focus:ring-1 focus:ring-primary"
+                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-success font-semibold focus:ring-1 focus:ring-primary"
                                 />
                               )}
                             </td>
@@ -2068,7 +2068,7 @@ function MembersPage() {
                             {/* Other Allowance */}
                             <td className="px-2 py-2.5 text-right">
                               {isLocked ? (
-                                <span className="font-mono text-xs text-emerald-700 font-semibold">
+                                <span className="font-mono text-xs text-success font-semibold">
                                   {money(row.other_allowance || 0)}
                                 </span>
                               ) : (
@@ -2080,7 +2080,7 @@ function MembersPage() {
                                   onChange={(e) =>
                                     updatePayrollField(idx, "other_allowance", Number(e.target.value) || 0)
                                   }
-                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-emerald-700 font-semibold focus:ring-1 focus:ring-primary"
+                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-success font-semibold focus:ring-1 focus:ring-primary"
                                 />
                               )}
                             </td>
@@ -2093,7 +2093,7 @@ function MembersPage() {
                             {/* Tax (TDS/SST) */}
                             <td className="px-2 py-2.5 text-right">
                               {isLocked ? (
-                                <span className="font-mono text-xs text-rose-600">
+                                <span className="font-mono text-xs text-destructive">
                                   {money(row.tax)}
                                 </span>
                               ) : (
@@ -2105,7 +2105,7 @@ function MembersPage() {
                                     updatePayrollField(idx, "tax", Number(e.target.value) || 0)
                                   }
                                   placeholder="0"
-                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-rose-600 focus:ring-1 focus:ring-primary"
+                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-destructive focus:ring-1 focus:ring-primary"
                                 />
                               )}
                             </td>
@@ -2113,7 +2113,7 @@ function MembersPage() {
                             {/* Advance adjusted */}
                             <td className="px-2 py-2.5 text-right">
                               {isLocked ? (
-                                <span className="font-mono text-xs text-rose-600">
+                                <span className="font-mono text-xs text-destructive">
                                   {money(row.advance_adjusted)}
                                 </span>
                               ) : (
@@ -2125,7 +2125,7 @@ function MembersPage() {
                                     updatePayrollField(idx, "advance_adjusted", Number(e.target.value) || 0)
                                   }
                                   placeholder="0"
-                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-rose-600 focus:ring-1 focus:ring-primary"
+                                  className="w-20 rounded border bg-background px-1.5 py-1 text-right font-mono text-xs text-destructive focus:ring-1 focus:ring-primary"
                                 />
                               )}
                             </td>
@@ -2135,9 +2135,9 @@ function MembersPage() {
                               <span
                                 className={`inline-block rounded-md px-2 py-1 font-extrabold text-xs ${
                                   isPaid
-                                    ? "bg-emerald-500/15 text-emerald-700"
+                                    ? "bg-success/15 text-success"
                                     : isBooked
-                                      ? "bg-amber-500/15 text-amber-700"
+                                      ? "bg-warning/15 text-warning"
                                       : "bg-primary/10 text-primary"
                                 }`}
                               >
@@ -2149,8 +2149,8 @@ function MembersPage() {
                             <td className="px-3 py-2.5 text-center">
                               {isPaid ? (
                                 <div className="flex flex-col items-center justify-center gap-0.5">
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                                    <CheckCircle2 className="size-3 text-emerald-600" />
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-[10px] font-bold text-success">
+                                    <CheckCircle2 className="size-3 text-success" />
                                     <span>भुक्तानी भयो</span>
                                   </span>
                                   {row.voucher_ref ? (
@@ -2165,12 +2165,12 @@ function MembersPage() {
                                   )}
                                 </div>
                               ) : isBooked ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-700">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-[10px] font-bold text-warning">
                                   <Lock className="size-3" />
                                   <span>बुक गरिएको</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[10px] font-bold text-sky-700">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-info/15 px-2.5 py-0.5 text-[10px] font-bold text-info">
                                   <span>ड्राफ्ट</span>
                                 </span>
                               )}
@@ -2183,7 +2183,7 @@ function MembersPage() {
                                 {isBooked && !isPaid && (
                                   <Button
                                     size="sm"
-                                    className="h-7 px-2 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                                    className="h-7 px-2 text-[11px] font-bold bg-success hover:bg-success/90 text-success-foreground shadow-xs"
                                     onClick={() => handleOpenPaySingle(row)}
                                     title="यस कर्मचारीको तलब भुक्तानी गर्नुहोस् र भौचर बनाउनुहोस्"
                                   >
@@ -2204,7 +2204,7 @@ function MembersPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 px-1.5 text-[11px] text-emerald-700 hover:bg-emerald-50"
+                                  className="h-7 px-1.5 text-[11px] text-success hover:bg-success/10"
                                   onClick={() => handleOpenEmpLedger(row.employee_id)}
                                   title="यस कर्मचारीको खाता / लेजर हेर्नुहोस्"
                                 >
@@ -2229,19 +2229,19 @@ function MembersPage() {
                         <td colSpan={2} className="text-center text-muted-foreground text-[10px]">
                           —
                         </td>
-                        <td className="px-3 py-3 text-right text-emerald-700">
+                        <td className="px-3 py-3 text-right text-success">
                           {money(payrollTotals.allowance)}
                         </td>
-                        <td className="px-3 py-3 text-right text-emerald-700">
+                        <td className="px-3 py-3 text-right text-success">
                           {money(payrollTotals.other_allowance)}
                         </td>
                         <td className="px-3 py-3 text-right text-foreground">
                           {money(payrollTotals.gross)}
                         </td>
-                        <td className="px-3 py-3 text-right text-rose-600">
+                        <td className="px-3 py-3 text-right text-destructive">
                           - {money(payrollTotals.tax)}
                         </td>
-                        <td className="px-3 py-3 text-right text-rose-600">
+                        <td className="px-3 py-3 text-right text-destructive">
                           - {money(payrollTotals.advance)}
                         </td>
                         <td className="px-3 py-3 text-right text-primary text-sm font-extrabold">
@@ -2399,17 +2399,17 @@ function MembersPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
-                        <span className="flex items-center gap-1 rounded-full bg-sky-500/10 text-sky-700 px-2 py-0.5 border border-sky-500/20">
+                        <span className="flex items-center gap-1 rounded-full bg-info/10 text-info px-2 py-0.5 border border-info/20">
                           <Edit2 className="size-3" />
                           चरण १: ड्राफ्ट
                         </span>
                         <ArrowRight className="size-3 text-muted-foreground" />
-                        <span className="flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-700 px-2 py-0.5 border border-amber-500/20">
+                        <span className="flex items-center gap-1 rounded-full bg-warning/10 text-warning px-2 py-0.5 border border-warning/20">
                           <Lock className="size-3" />
                           चरण २: बुक गरिएको (लक)
                         </span>
                         <ArrowRight className="size-3 text-muted-foreground" />
-                        <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-700 px-2 py-0.5 border border-emerald-500/20">
+                        <span className="flex items-center gap-1 rounded-full bg-success/10 text-success px-2 py-0.5 border border-success/20">
                           <CheckCircle2 className="size-3" />
                           चरण ३: भुक्तानी सम्पन्न (स्थिर)
                         </span>
@@ -2430,11 +2430,11 @@ function MembersPage() {
                           key={box.monthIndex}
                           className={`rounded-xl border transition-all duration-200 flex flex-col justify-between shadow-xs hover:shadow-md ${
                             isPaid
-                              ? "bg-emerald-500/[0.03] border-emerald-500/30 ring-1 ring-emerald-500/10"
+                              ? "bg-success/[0.03] border-success/30 ring-1 ring-success/10"
                               : isBooked
-                                ? "bg-amber-500/[0.04] border-amber-500/40 ring-1 ring-amber-500/20"
+                                ? "bg-warning/[0.04] border-warning/40 ring-1 ring-warning/20"
                                 : isDraft
-                                  ? "bg-sky-500/[0.02] border-sky-500/30"
+                                  ? "bg-info/[0.02] border-info/30"
                                   : "bg-card border-border hover:border-foreground/20"
                           }`}
                         >
@@ -2453,18 +2453,18 @@ function MembersPage() {
                               {/* Stage Badge */}
                               <div>
                                 {isPaid ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-500/20">
-                                    <CheckCircle2 className="size-3 text-emerald-600" />
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success border border-success/20">
+                                    <CheckCircle2 className="size-3 text-success" />
                                     <span>भुक्तानी सम्पन्न</span>
                                   </span>
                                 ) : isBooked ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-500/20">
-                                    <Lock className="size-3 text-amber-600" />
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning border border-warning/20">
+                                    <Lock className="size-3 text-warning" />
                                     <span>बुक गरिएको</span>
                                   </span>
                                 ) : isDraft ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-700 border border-sky-500/20">
-                                    <Edit2 className="size-3 text-sky-600" />
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-info/15 px-2 py-0.5 text-[10px] font-bold text-info border border-info/20">
+                                    <Edit2 className="size-3 text-info" />
                                     <span>ड्राफ्ट</span>
                                   </span>
                                 ) : (
@@ -2481,10 +2481,10 @@ function MembersPage() {
                                 className={`h-1.5 rounded-full transition-all ${
                                   box.stage >= 1
                                     ? isPaid
-                                      ? "bg-emerald-600"
+                                      ? "bg-success"
                                       : isBooked
-                                        ? "bg-amber-500"
-                                        : "bg-sky-500"
+                                        ? "bg-warning"
+                                        : "bg-info"
                                     : "bg-muted"
                                 }`}
                                 title="चरण १: ड्राफ्ट"
@@ -2493,15 +2493,15 @@ function MembersPage() {
                                 className={`h-1.5 rounded-full transition-all ${
                                   box.stage >= 2
                                     ? isPaid
-                                      ? "bg-emerald-600"
-                                      : "bg-amber-500"
+                                      ? "bg-success"
+                                      : "bg-warning"
                                     : "bg-muted"
                                 }`}
                                 title="चरण २: बुक गरिएको (लक)"
                               />
                               <div
                                 className={`h-1.5 rounded-full transition-all ${
-                                  box.stage >= 3 ? "bg-emerald-600" : "bg-muted"
+                                  box.stage >= 3 ? "bg-success" : "bg-muted"
                                 }`}
                                 title="चरण ३: भुक्तानी सम्पन्न (स्थिर)"
                               />
@@ -2509,7 +2509,7 @@ function MembersPage() {
                             <div className="flex justify-between text-[9px] text-muted-foreground font-mono">
                               <span className={box.stage >= 1 ? "font-bold text-foreground" : ""}>१. ड्राफ्ट</span>
                               <span className={box.stage >= 2 ? "font-bold text-foreground" : ""}>२. बुकिङ</span>
-                              <span className={box.stage >= 3 ? "font-bold text-emerald-700" : ""}>३. भुक्तानी</span>
+                              <span className={box.stage >= 3 ? "font-bold text-success" : ""}>३. भुक्तानी</span>
                             </div>
                           </div>
 
@@ -2520,7 +2520,7 @@ function MembersPage() {
                                 <div className="flex items-baseline justify-between">
                                   <span className="text-[11px] text-muted-foreground">खुद तलब (Net Pay):</span>
                                   <span className={`text-base font-extrabold font-mono ${
-                                    isPaid ? "text-emerald-700" : isBooked ? "text-amber-800" : "text-foreground"
+                                    isPaid ? "text-success" : isBooked ? "text-warning" : "text-foreground"
                                   }`}>
                                     {money(box.totalNet)}
                                   </span>
@@ -2537,12 +2537,12 @@ function MembersPage() {
                                     <span>कुल तलब (Gross):</span>
                                     <span className="font-mono">{money(box.totalGross)}</span>
                                   </div>
-                                  <div className="flex justify-between text-rose-600">
+                                  <div className="flex justify-between text-destructive">
                                     <span>TDS/SST कट्टी:</span>
                                     <span className="font-mono">- {money(box.totalTax)}</span>
                                   </div>
                                   {box.totalAdvance > 0 && (
-                                    <div className="flex justify-between text-orange-600">
+                                    <div className="flex justify-between text-warning">
                                       <span>पेश्की कट्टी:</span>
                                       <span className="font-mono">- {money(box.totalAdvance)}</span>
                                     </div>
@@ -2551,21 +2551,21 @@ function MembersPage() {
 
                                 {/* Paid Details Stamp */}
                                 {isPaid && (
-                                  <div className="mt-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2 text-[10px] space-y-0.5">
-                                    <div className="flex items-center justify-between font-bold text-emerald-800">
+                                  <div className="mt-2 rounded-lg bg-success/10 border border-success/20 p-2 text-[10px] space-y-0.5">
+                                    <div className="flex items-center justify-between font-bold text-success">
                                       <span>भुक्तानी भौचर:</span>
-                                      <span className="font-mono bg-card px-1.5 py-0.2 rounded border border-emerald-500/30">
+                                      <span className="font-mono bg-card px-1.5 py-0.2 rounded border border-success/30">
                                         {box.voucherRefs.join(", ") || "P-भौचर"}
                                       </span>
                                     </div>
                                     {box.paymentDates[0] && (
-                                      <div className="flex items-center justify-between text-emerald-700">
+                                      <div className="flex items-center justify-between text-success">
                                         <span>भुक्तानी मिति:</span>
                                         <span className="font-mono">{box.paymentDates[0]}</span>
                                       </div>
                                     )}
-                                    <div className="flex items-center gap-1 text-[9px] text-emerald-700 font-semibold pt-0.5">
-                                      <Lock className="size-2.5 text-emerald-600" />
+                                    <div className="flex items-center gap-1 text-[9px] text-success font-semibold pt-0.5">
+                                      <Lock className="size-2.5 text-success" />
                                       <span>यो पेरोल स्थिर (Fixed & Locked) छ</span>
                                     </div>
                                   </div>
@@ -2573,12 +2573,12 @@ function MembersPage() {
 
                                 {/* Booked Details Stamp */}
                                 {isBooked && !isPaid && (
-                                  <div className="mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-2 text-[10px] space-y-0.5">
-                                    <div className="flex items-center gap-1 font-bold text-amber-800">
-                                      <Lock className="size-3 text-amber-600" />
+                                  <div className="mt-2 rounded-lg bg-warning/10 border border-warning/20 p-2 text-[10px] space-y-0.5">
+                                    <div className="flex items-center gap-1 font-bold text-warning">
+                                      <Lock className="size-3 text-warning" />
                                       <span>पेरोल बुक भएको छ (हिसाब लक)</span>
                                     </div>
-                                    <div className="text-[10px] text-amber-700">
+                                    <div className="text-[10px] text-warning">
                                       भुक्तानी गर्नका लागि 'भुक्तानी गर्नुहोस्' बटन थिच्नुहोस्।
                                     </div>
                                   </div>
@@ -2600,16 +2600,16 @@ function MembersPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenMonthSheet(box.year, box.monthIndex)}
-                                className="w-full h-8 text-xs font-bold text-emerald-700 border-emerald-500/30 hover:bg-emerald-50"
+                                className="w-full h-8 text-xs font-bold text-success border-success/30 hover:bg-success/10"
                               >
-                                <CheckCircle2 className="mr-1.5 size-3.5 text-emerald-600" />
+                                <CheckCircle2 className="mr-1.5 size-3.5 text-success" />
                                 <span>स्लिप तथा सिट हेर्नुहोस्</span>
                               </Button>
                             ) : isBooked ? (
                               <Button
                                 size="sm"
                                 onClick={() => handleOpenMonthSheet(box.year, box.monthIndex)}
-                                className="w-full h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                                className="w-full h-8 text-xs font-bold bg-success hover:bg-success/90 text-success-foreground shadow-xs"
                               >
                                 <CreditCard className="mr-1.5 size-3.5" />
                                 <span>भुक्तानी गर्नुहोस् (Pay All)</span>
@@ -2619,9 +2619,9 @@ function MembersPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenMonthSheet(box.year, box.monthIndex)}
-                                className="w-full h-8 text-xs font-bold text-sky-700 border-sky-500/30 hover:bg-sky-50"
+                                className="w-full h-8 text-xs font-bold text-info border-info/30 hover:bg-info/10"
                               >
-                                <Edit2 className="mr-1.5 size-3.5 text-sky-600" />
+                                <Edit2 className="mr-1.5 size-3.5 text-info" />
                                 <span>सिट सम्पादन / बुक गर्नुहोस्</span>
                               </Button>
                             ) : (
@@ -2665,18 +2665,18 @@ function MembersPage() {
                       <div className="text-[10px] text-muted-foreground mt-0.5">सकल आम्दानी</div>
                     </div>
                     <div className="rounded-xl border bg-card p-3 shadow-xs">
-                      <div className="text-rose-600 text-[11px] font-semibold">कुल कर कट्टी (TDS/SST)</div>
-                      <div className="text-base font-extrabold text-rose-600 mt-0.5">
+                      <div className="text-destructive text-[11px] font-semibold">कुल कर कट्टी (TDS/SST)</div>
+                      <div className="text-base font-extrabold text-destructive mt-0.5">
                         {money(historyTotals.tax)}
                       </div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">राजस्व खातामा संचित</div>
                     </div>
                     <div className="rounded-xl border bg-card p-3 shadow-xs">
-                      <div className="text-emerald-700 text-[11px] font-semibold">कुल खुद तलब (Net Pay)</div>
-                      <div className="text-base font-extrabold text-emerald-700 mt-0.5">
+                      <div className="text-success text-[11px] font-semibold">कुल खुद तलब (Net Pay)</div>
+                      <div className="text-base font-extrabold text-success mt-0.5">
                         {money(historyTotals.net)}
                       </div>
-                      <div className="text-[10px] text-emerald-600 mt-0.5">कर्मचारीलाई जाने</div>
+                      <div className="text-[10px] text-success mt-0.5">कर्मचारीलाई जाने</div>
                     </div>
                   </div>
 
@@ -2726,16 +2726,16 @@ function MembersPage() {
                                 <div className="text-[10px] text-muted-foreground">{row.designation}</div>
                               </td>
                               <td className="px-3 py-2.5 text-right font-mono">{money(row.basic_salary)}</td>
-                              <td className="px-3 py-2.5 text-right text-emerald-700 font-mono">
+                              <td className="px-3 py-2.5 text-right text-success font-mono">
                                 {money((row.allowance || 0) + (row.other_allowance || 0))}
                               </td>
                               <td className="px-3 py-2.5 text-right font-bold text-foreground font-mono">
                                 {money(row.gross_salary)}
                               </td>
-                              <td className="px-3 py-2.5 text-right text-rose-600 font-mono">
+                              <td className="px-3 py-2.5 text-right text-destructive font-mono">
                                 - {money(row.tax)}
                               </td>
-                              <td className="px-3 py-2.5 text-right text-rose-600 font-mono">
+                              <td className="px-3 py-2.5 text-right text-destructive font-mono">
                                 - {money(row.advance_adjusted)}
                               </td>
                               <td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">
@@ -2745,10 +2745,10 @@ function MembersPage() {
                                 <span
                                   className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                     row.payment_status === "paid"
-                                      ? "bg-emerald-500/15 text-emerald-700"
+                                      ? "bg-success/15 text-success"
                                       : row.payment_status === "booked" || row.is_booked
-                                        ? "bg-amber-500/15 text-amber-700"
-                                        : "bg-sky-500/15 text-sky-700"
+                                        ? "bg-warning/15 text-warning"
+                                        : "bg-info/15 text-info"
                                   }`}
                                 >
                                   {row.payment_status === "paid"
@@ -2787,7 +2787,7 @@ function MembersPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-1.5 text-[11px] text-emerald-700 hover:bg-emerald-50"
+                                    className="h-7 px-1.5 text-[11px] text-success hover:bg-success/10"
                                     onClick={() => handleOpenEmpLedger(row.employee_id)}
                                     title="यस कर्मचारीको लेजर हेर्नुहोस्"
                                   >
@@ -2834,9 +2834,9 @@ function MembersPage() {
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                           currentLedgerEmp.status === "active"
-                            ? "bg-emerald-500/10 text-emerald-700"
+                            ? "bg-success/10 text-success"
                             : currentLedgerEmp.status === "on_leave"
-                              ? "bg-amber-500/10 text-amber-700"
+                              ? "bg-warning/10 text-warning"
                               : "bg-muted text-muted-foreground"
                         }`}
                       >
@@ -2894,7 +2894,7 @@ function MembersPage() {
                               वर्तमान शेष:{" "}
                               <span
                                 className={`font-extrabold ${
-                                  lastEntry.runType === "cr" ? "text-blue-700" : "text-rose-600"
+                                  lastEntry.runType === "cr" ? "text-info" : "text-destructive"
                                 }`}
                               >
                                 {money(lastEntry.running)} {lastEntry.runType.toUpperCase()}
@@ -2908,8 +2908,8 @@ function MembersPage() {
                               <th className="px-3 py-2.5">मिति</th>
                               <th className="px-3 py-2.5">विवरण (Particulars)</th>
                               <th className="px-3 py-2.5">सन्दर्भ</th>
-                              <th className="px-3 py-2.5 text-right text-rose-600">Dr (नाघ्ने)</th>
-                              <th className="px-3 py-2.5 text-right text-blue-700">Cr (चढ्ने)</th>
+                              <th className="px-3 py-2.5 text-right text-destructive">Dr (नाघ्ने)</th>
+                              <th className="px-3 py-2.5 text-right text-info">Cr (चढ्ने)</th>
                               <th className="px-3 py-2.5 text-right">शेष (Balance)</th>
                             </tr>
                           </thead>
@@ -2929,7 +2929,7 @@ function MembersPage() {
                                   row.source === "opening"
                                     ? "bg-muted/30 font-semibold"
                                     : row.source === "salary_booked"
-                                      ? "hover:bg-blue-500/5"
+                                      ? "hover:bg-info/5"
                                       : "hover:bg-muted/15"
                                 }
                               >
@@ -2940,9 +2940,9 @@ function MembersPage() {
                                   <span
                                     className={
                                       row.source === "salary_paid" || row.source === "advance"
-                                        ? "text-rose-700"
+                                        ? "text-destructive"
                                         : row.source === "salary_booked"
-                                          ? "text-blue-700 font-semibold"
+                                          ? "text-info font-semibold"
                                           : "text-foreground"
                                     }
                                   >
@@ -2963,17 +2963,17 @@ function MembersPage() {
                                     <span className="text-muted-foreground">—</span>
                                   )}
                                 </td>
-                                <td className="px-3 py-2.5 text-right font-mono text-rose-600 font-semibold">
+                                <td className="px-3 py-2.5 text-right font-mono text-destructive font-semibold">
                                   {row.dr > 0 ? money(row.dr) : ""}
                                 </td>
-                                <td className="px-3 py-2.5 text-right font-mono text-blue-700 font-semibold">
+                                <td className="px-3 py-2.5 text-right font-mono text-info font-semibold">
                                   {row.cr > 0 ? money(row.cr) : ""}
                                 </td>
                                 <td className="px-3 py-2.5 text-right font-mono font-bold whitespace-nowrap">
                                   {money(row.running)}{" "}
                                   <span
                                     className={`text-[10px] font-extrabold ${
-                                      row.runType === "cr" ? "text-blue-700" : "text-rose-600"
+                                      row.runType === "cr" ? "text-info" : "text-destructive"
                                     }`}
                                   >
                                     {row.runType.toUpperCase()}
@@ -2987,17 +2987,17 @@ function MembersPage() {
                               <td colSpan={3} className="px-3 py-2.5">
                                 जम्मा (Total)
                               </td>
-                              <td className="px-3 py-2.5 text-right font-mono text-rose-600">
+                              <td className="px-3 py-2.5 text-right font-mono text-destructive">
                                 {money(totalDr)}
                               </td>
-                              <td className="px-3 py-2.5 text-right font-mono text-blue-700">
+                              <td className="px-3 py-2.5 text-right font-mono text-info">
                                 {money(totalCr)}
                               </td>
                               <td className="px-3 py-2.5 text-right font-mono whitespace-nowrap">
                                 {money(closing?.running ?? 0)}{" "}
                                 <span
                                   className={`text-[10px] font-extrabold ${
-                                    closing?.runType === "cr" ? "text-blue-700" : "text-rose-600"
+                                    closing?.runType === "cr" ? "text-info" : "text-destructive"
                                   }`}
                                 >
                                   {(closing?.runType ?? "cr").toUpperCase()}
@@ -3047,7 +3047,7 @@ function MembersPage() {
                       </div>
                       <div>
                         <div className="text-muted-foreground text-[11px]">अन्य भत्ता (Other Allowance)</div>
-                        <div className="font-bold text-emerald-700">{money(currentLedgerEmp.other_allowance || 0)}</div>
+                        <div className="font-bold text-success">{money(currentLedgerEmp.other_allowance || 0)}</div>
                       </div>
                       <div>
                         <div className="text-muted-foreground text-[11px]">उमेर / योग्यता</div>
@@ -3074,25 +3074,25 @@ function MembersPage() {
                             हिसाबको प्रवाह (Accounting Flow)
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <div className="flex flex-col items-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
-                              <span className="text-[10px] text-emerald-700 font-semibold">कुल तलब (Gross)</span>
-                              <span className="text-base font-extrabold text-emerald-700">{money(currentEmpLedgerSummary.totalGross)}</span>
+                            <div className="flex flex-col items-center rounded-lg bg-success/10 border border-success/20 px-3 py-2">
+                              <span className="text-[10px] text-success font-semibold">कुल तलब (Gross)</span>
+                              <span className="text-base font-extrabold text-success">{money(currentEmpLedgerSummary.totalGross)}</span>
                               <span className="text-[9px] text-muted-foreground">{currentEmpPayrolls.length} महिना</span>
                             </div>
                             <span className="text-muted-foreground font-bold text-lg">−</span>
-                            <div className="flex flex-col items-center rounded-lg bg-rose-500/10 border border-rose-500/20 px-3 py-2">
-                              <span className="text-[10px] text-rose-600 font-semibold">TDS / SST कर</span>
-                              <span className="text-base font-extrabold text-rose-600">{money(currentEmpLedgerSummary.totalTax)}</span>
+                            <div className="flex flex-col items-center rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
+                              <span className="text-[10px] text-destructive font-semibold">TDS / SST कर</span>
+                              <span className="text-base font-extrabold text-destructive">{money(currentEmpLedgerSummary.totalTax)}</span>
                             </div>
                             <span className="text-muted-foreground font-bold text-lg">=</span>
-                            <div className="flex flex-col items-center rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2">
-                              <span className="text-[10px] text-blue-700 font-semibold">खुद भुक्तान योग्य</span>
-                              <span className="text-base font-extrabold text-blue-700">{money(netPayable)}</span>
+                            <div className="flex flex-col items-center rounded-lg bg-info/10 border border-info/20 px-3 py-2">
+                              <span className="text-[10px] text-info font-semibold">खुद भुक्तान योग्य</span>
+                              <span className="text-base font-extrabold text-info">{money(netPayable)}</span>
                             </div>
                             <span className="text-muted-foreground font-bold text-lg">−</span>
-                            <div className="flex flex-col items-center rounded-lg bg-orange-500/10 border border-orange-500/20 px-3 py-2">
-                              <span className="text-[10px] text-orange-700 font-semibold">पेश्की कट्टी</span>
-                              <span className="text-base font-extrabold text-orange-700">{money(totalAdvanceInPayroll)}</span>
+                            <div className="flex flex-col items-center rounded-lg bg-warning/10 border border-warning/20 px-3 py-2">
+                              <span className="text-[10px] text-warning font-semibold">पेश्की कट्टी</span>
+                              <span className="text-base font-extrabold text-warning">{money(totalAdvanceInPayroll)}</span>
                             </div>
                             <span className="text-muted-foreground font-bold text-lg">=</span>
                             <div className="flex flex-col items-center rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
@@ -3104,28 +3104,28 @@ function MembersPage() {
 
                         {/* KPI cards */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <div className="rounded-xl border bg-emerald-500/10 border-emerald-500/20 p-3.5 shadow-xs">
-                            <div className="text-[11px] text-emerald-700 font-semibold">भुक्तानी भइसकेको (Paid)</div>
-                            <div className="text-lg font-extrabold text-emerald-700 mt-1">{money(currentEmpLedgerSummary.totalPaid)}</div>
-                            <div className="text-[10px] text-emerald-600 font-bold mt-0.5">भौचर जारी भएको</div>
+                          <div className="rounded-xl border bg-success/10 border-success/20 p-3.5 shadow-xs">
+                            <div className="text-[11px] text-success font-semibold">भुक्तानी भइसकेको (Paid)</div>
+                            <div className="text-lg font-extrabold text-success mt-1">{money(currentEmpLedgerSummary.totalPaid)}</div>
+                            <div className="text-[10px] text-success font-bold mt-0.5">भौचर जारी भएको</div>
                           </div>
-                          <div className="rounded-xl border bg-amber-500/10 border-amber-500/20 p-3.5 shadow-xs">
-                            <div className="text-[11px] text-amber-800 font-semibold">बाँकी भुक्तानी (Pending)</div>
-                            <div className="text-lg font-extrabold text-amber-700 mt-1">{money(currentEmpLedgerSummary.totalPending)}</div>
-                            <div className="text-[10px] text-amber-700 mt-0.5">
+                          <div className="rounded-xl border bg-warning/10 border-warning/20 p-3.5 shadow-xs">
+                            <div className="text-[11px] text-warning font-semibold">बाँकी भुक्तानी (Pending)</div>
+                            <div className="text-lg font-extrabold text-warning mt-1">{money(currentEmpLedgerSummary.totalPending)}</div>
+                            <div className="text-[10px] text-warning mt-0.5">
                               {currentEmpPayrolls.filter((r) => r.payment_status !== "paid").length} महिना बाँकी
                             </div>
                           </div>
-                          <div className="rounded-xl border bg-orange-500/10 border-orange-500/20 p-3.5 shadow-xs">
-                            <div className="text-[11px] text-orange-700 font-semibold">पेश्की दिइएको (Advance Paid)</div>
-                            <div className="text-lg font-extrabold text-orange-700 mt-1">{money(totalAdvanceFromRP)}</div>
-                            <div className="text-[10px] text-orange-600 mt-0.5">{empAdvanceTxns.length} पटक</div>
+                          <div className="rounded-xl border bg-warning/10 border-warning/20 p-3.5 shadow-xs">
+                            <div className="text-[11px] text-warning font-semibold">पेश्की दिइएको (Advance Paid)</div>
+                            <div className="text-lg font-extrabold text-warning mt-1">{money(totalAdvanceFromRP)}</div>
+                            <div className="text-[10px] text-warning mt-0.5">{empAdvanceTxns.length} पटक</div>
                           </div>
-                          <div className={`rounded-xl border p-3.5 shadow-xs ${outstandingAdvance > 0 ? "bg-red-500/10 border-red-500/20" : "bg-muted/30 border-muted"}`}>
-                            <div className={`text-[11px] font-semibold ${outstandingAdvance > 0 ? "text-red-700" : "text-muted-foreground"}`}>
+                          <div className={`rounded-xl border p-3.5 shadow-xs ${outstandingAdvance > 0 ? "bg-destructive/10 border-destructive/20" : "bg-muted/30 border-muted"}`}>
+                            <div className={`text-[11px] font-semibold ${outstandingAdvance > 0 ? "text-destructive" : "text-muted-foreground"}`}>
                               अनसमायोजित पेश्की
                             </div>
-                            <div className={`text-lg font-extrabold mt-1 ${outstandingAdvance > 0 ? "text-red-700" : "text-muted-foreground"}`}>
+                            <div className={`text-lg font-extrabold mt-1 ${outstandingAdvance > 0 ? "text-destructive" : "text-muted-foreground"}`}>
                               {money(outstandingAdvance)}
                             </div>
                             <div className="text-[10px] text-muted-foreground mt-0.5">तलबबाट काट्न बाँकी</div>
@@ -3134,10 +3134,10 @@ function MembersPage() {
 
                         {/* Advance payments from RP module */}
                         {empAdvanceTxns.length > 0 && (
-                          <div className="rounded-xl border bg-orange-500/5 shadow-xs overflow-hidden">
-                            <div className="px-4 py-3 border-b bg-orange-500/10 flex items-center gap-2">
-                              <DollarSign className="size-3.5 text-orange-600" />
-                              <span className="text-xs font-bold text-orange-800">
+                          <div className="rounded-xl border bg-warning/5 shadow-xs overflow-hidden">
+                            <div className="px-4 py-3 border-b bg-warning/10 flex items-center gap-2">
+                              <DollarSign className="size-3.5 text-warning" />
+                              <span className="text-xs font-bold text-warning">
                                 पेश्की भुक्तानी विवरण — प्राप्ति/भुक्तानी मड्युलबाट (Advance from Receipts & Payments)
                               </span>
                             </div>
@@ -3148,25 +3148,25 @@ function MembersPage() {
                                     <th className="px-3 py-2 text-left">मिति</th>
                                     <th className="px-3 py-2 text-left">भौचर नं.</th>
                                     <th className="px-3 py-2 text-left">विवरण</th>
-                                    <th className="px-3 py-2 text-right text-orange-700 font-bold">पेश्की रकम</th>
+                                    <th className="px-3 py-2 text-right text-warning font-bold">पेश्की रकम</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                   {empAdvanceTxns.map((t, i) => (
-                                    <tr key={t.id || i} className="hover:bg-orange-500/5">
+                                    <tr key={t.id || i} className="hover:bg-warning/5">
                                       <td className="px-3 py-2 font-mono text-[11px]">{t.txn_date}</td>
                                       <td className="px-3 py-2">
                                         <span className="font-mono font-bold text-[11px] text-foreground bg-muted px-1.5 py-0.5 rounded border">{t.ref_no}</span>
                                       </td>
                                       <td className="px-3 py-2 text-muted-foreground">{t.remarks || "पेश्की भुक्तानी"}</td>
-                                      <td className="px-3 py-2 text-right font-bold font-mono text-orange-700">{money(t.amount)}</td>
+                                      <td className="px-3 py-2 text-right font-bold font-mono text-warning">{money(t.amount)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
-                                <tfoot className="border-t-2 bg-orange-500/10 font-bold">
+                                <tfoot className="border-t-2 bg-warning/10 font-bold">
                                   <tr>
-                                    <td colSpan={3} className="px-3 py-2 text-orange-800">जम्मा पेश्की ({empAdvanceTxns.length} पटक)</td>
-                                    <td className="px-3 py-2 text-right text-orange-700">{money(totalAdvanceFromRP)}</td>
+                                    <td colSpan={3} className="px-3 py-2 text-warning">जम्मा पेश्की ({empAdvanceTxns.length} पटक)</td>
+                                    <td className="px-3 py-2 text-right text-warning">{money(totalAdvanceFromRP)}</td>
                                   </tr>
                                 </tfoot>
                               </table>
@@ -3185,9 +3185,9 @@ function MembersPage() {
                                 <th className="px-3 py-3 text-right">आधारभूत</th>
                                 <th className="px-3 py-3 text-right">भत्ताहरू</th>
                                 <th className="px-3 py-3 text-right">Gross</th>
-                                <th className="px-3 py-3 text-right text-rose-600">− TDS</th>
-                                <th className="px-3 py-3 text-right text-blue-700">खुद भुक्तान योग्य</th>
-                                <th className="px-3 py-3 text-right text-orange-600">− पेश्की</th>
+                                <th className="px-3 py-3 text-right text-destructive">− TDS</th>
+                                <th className="px-3 py-3 text-right text-info">खुद भुक्तान योग्य</th>
+                                <th className="px-3 py-3 text-right text-warning">− पेश्की</th>
                                 <th className="px-3 py-3 text-right font-extrabold text-primary">हातमा पाउने</th>
                                 <th className="px-3 py-3 text-center">स्थिति</th>
                                 <th className="px-3 py-3 text-center">भौचर / मिति</th>
@@ -3214,19 +3214,19 @@ function MembersPage() {
                                         उपस्थित: {row.days_worked}d | ट्रिप: {row.trips}
                                       </td>
                                       <td className="px-3 py-2.5 text-right font-mono">{money(row.basic_salary)}</td>
-                                      <td className="px-3 py-2.5 text-right text-emerald-700 font-mono">
+                                      <td className="px-3 py-2.5 text-right text-success font-mono">
                                         {money((row.allowance || 0) + (row.other_allowance || 0))}
                                       </td>
                                       <td className="px-3 py-2.5 text-right font-bold text-foreground font-mono">
                                         {money(row.gross_salary)}
                                       </td>
-                                      <td className="px-3 py-2.5 text-right text-rose-600 font-mono">
+                                      <td className="px-3 py-2.5 text-right text-destructive font-mono">
                                         − {money(row.tax || 0)}
                                       </td>
-                                      <td className="px-3 py-2.5 text-right font-bold text-blue-700 font-mono">
+                                      <td className="px-3 py-2.5 text-right font-bold text-info font-mono">
                                         {money(netPayableRow)}
                                       </td>
-                                      <td className="px-3 py-2.5 text-right text-orange-600 font-mono">
+                                      <td className="px-3 py-2.5 text-right text-warning font-mono">
                                         − {money(row.advance_adjusted || 0)}
                                       </td>
                                       <td className="px-3 py-2.5 text-right font-mono font-extrabold text-primary">
@@ -3235,10 +3235,10 @@ function MembersPage() {
                                       <td className="px-3 py-2.5 text-center">
                                         <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                           row.payment_status === "paid"
-                                            ? "bg-emerald-500/15 text-emerald-700"
+                                            ? "bg-success/15 text-success"
                                             : row.payment_status === "booked" || row.is_booked
-                                              ? "bg-amber-500/15 text-amber-700"
-                                              : "bg-sky-500/15 text-sky-700"
+                                              ? "bg-warning/15 text-warning"
+                                              : "bg-info/15 text-info"
                                         }`}>
                                           {row.payment_status === "paid" ? "भुक्तानी भयो"
                                             : row.payment_status === "booked" || row.is_booked ? "बुक गरिएको"
@@ -3282,13 +3282,13 @@ function MembersPage() {
                                   <td className="px-3 py-3 text-right">
                                     {money(currentEmpPayrolls.reduce((s, r) => s + (r.basic_salary || 0), 0))}
                                   </td>
-                                  <td className="px-3 py-3 text-right text-emerald-700">
+                                  <td className="px-3 py-3 text-right text-success">
                                     {money(currentEmpPayrolls.reduce((s, r) => s + (r.allowance || 0) + (r.other_allowance || 0), 0))}
                                   </td>
                                   <td className="px-3 py-3 text-right">{money(currentEmpLedgerSummary.totalGross)}</td>
-                                  <td className="px-3 py-3 text-right text-rose-600">− {money(currentEmpLedgerSummary.totalTax)}</td>
-                                  <td className="px-3 py-3 text-right text-blue-700">{money(netPayable)}</td>
-                                  <td className="px-3 py-3 text-right text-orange-600">− {money(currentEmpLedgerSummary.totalAdvance)}</td>
+                                  <td className="px-3 py-3 text-right text-destructive">− {money(currentEmpLedgerSummary.totalTax)}</td>
+                                  <td className="px-3 py-3 text-right text-info">{money(netPayable)}</td>
+                                  <td className="px-3 py-3 text-right text-warning">− {money(currentEmpLedgerSummary.totalAdvance)}</td>
                                   <td className="px-3 py-3 text-right text-primary text-sm font-extrabold">
                                     {money(currentEmpLedgerSummary.totalNetEarned)}
                                   </td>
@@ -3704,7 +3704,7 @@ function MembersPage() {
                 >
                   रद्द गर्नुहोस्
                 </Button>
-                <Button type="submit" size="sm" className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Button type="submit" size="sm" className="font-bold bg-success hover:bg-success/90 text-success-foreground">
                   {editingEmp ? "सुरक्षित गर्नुहोस्" : "कर्मचारी दर्ता गर्नुहोस्"}
                 </Button>
               </div>
@@ -3732,7 +3732,7 @@ function MembersPage() {
           <div className="relative w-full max-w-md rounded-xl border bg-card p-5 shadow-2xl text-foreground">
             <div className="flex items-center justify-between border-b pb-3">
               <div className="font-bold text-sm flex items-center gap-2">
-                <CreditCard className="size-4 text-emerald-600" />
+                <CreditCard className="size-4 text-success" />
                 <span>
                   {payModal.isAll
                     ? "सबै कर्मचारीहरूको तलब भुक्तानी (Pay All)"
@@ -3750,11 +3750,11 @@ function MembersPage() {
             </div>
 
             <div className="mt-4 space-y-3.5 text-xs">
-              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
+              <div className="rounded-lg bg-success/10 border border-success/20 p-3">
                 <div className="text-muted-foreground text-[11px]">
                   कुल भुक्तानी हुने खुद रकम (Total Net Pay)
                 </div>
-                <div className="text-xl font-extrabold text-emerald-700 mt-0.5">
+                <div className="text-xl font-extrabold text-success mt-0.5">
                   {money(
                     payModal.isAll
                       ? payrollRows
@@ -3787,7 +3787,7 @@ function MembersPage() {
                   className="mt-1"
                 />
                 {accountsList.length === 0 && (
-                  <p className="mt-1 text-[11px] text-rose-600">
+                  <p className="mt-1 text-[11px] text-destructive">
                     खाता फेला परेन। कृपया पहिले 'नगद/बैंक' खण्डमा खाता थप्नुहोस्।
                   </p>
                 )}
@@ -3837,7 +3837,7 @@ function MembersPage() {
                 size="sm"
                 onClick={handleConfirmPayment}
                 disabled={isProcessingPayment || !payModal.account_id}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+                className="bg-success hover:bg-success/90 text-success-foreground text-xs font-bold"
               >
                 {isProcessingPayment ? "भुक्तानी हुँदैछ…" : "भुक्तानी पुष्टि गर्नुहोस्"}
               </Button>

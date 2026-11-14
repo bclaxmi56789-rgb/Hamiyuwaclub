@@ -497,7 +497,7 @@ function RPPage() {
         </p>
       )}
       {okMsg && (
-        <p className="mb-3 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+        <p className="mb-3 rounded border border-success/30 bg-success/10 px-3 py-2 text-xs font-semibold text-success">
           {okMsg}
         </p>
       )}
@@ -510,7 +510,7 @@ function RPPage() {
             <section className="rounded-xl border bg-card p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 font-bold text-foreground">
-                  <Banknote className="size-4 text-amber-600" /> खुद्रा नगद (Petty Cash)
+                  <Banknote className="size-4 text-warning" /> खुद्रा नगद (Petty Cash)
                 </h2>
                 <Button type="button" size="sm" onClick={() => openAccModal("cash")}>
                   <Plus className="mr-1 size-3" /> थप्नुहोस्
@@ -541,7 +541,7 @@ function RPPage() {
                             "text-sm font-extrabold tabular-nums " +
                             ((balanceById[a.id] || 0) < 0
                               ? "text-destructive"
-                              : "text-emerald-700 dark:text-emerald-400")
+                              : "text-success")
                           }
                         >
                           रु. {money(balanceById[a.id] || 0)}
@@ -575,7 +575,7 @@ function RPPage() {
             <section className="rounded-xl border bg-card p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 font-bold text-foreground">
-                  <Landmark className="size-4 text-sky-600" /> बैंक खाता (Bank)
+                  <Landmark className="size-4 text-info" /> बैंक खाता (Bank)
                 </h2>
                 <Button type="button" size="sm" onClick={() => openAccModal("bank")}>
                   <Plus className="mr-1 size-3" /> थप्नुहोस्
@@ -615,7 +615,7 @@ function RPPage() {
                           "text-sm font-extrabold tabular-nums " +
                           ((balanceById[a.id] || 0) < 0
                             ? "text-destructive"
-                            : "text-emerald-700 dark:text-emerald-400")
+                            : "text-success")
                         }
                       >
                         रु. {money(balanceById[a.id] || 0)}
@@ -658,9 +658,9 @@ function RPPage() {
         <section className="mb-5 rounded-xl border-2 border-primary/25 bg-primary/5 p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="flex items-center gap-1.5 font-bold text-foreground">
-              {tab === "receipt" && <ReceiptText className="size-4 text-emerald-600" />}
-              {tab === "payment" && <Send className="size-4 text-amber-600" />}
-              {tab === "transfer" && <ArrowLeftRight className="size-4 text-sky-600" />}
+              {tab === "receipt" && <ReceiptText className="size-4 text-success" />}
+              {tab === "payment" && <Send className="size-4 text-warning" />}
+              {tab === "transfer" && <ArrowLeftRight className="size-4 text-info" />}
               {tab === "receipt" && "नयाँ रसिद (आम्दानी)"}
               {tab === "payment" && "भुक्तानी (खर्च जाने)"}
               {tab === "transfer" && "खाताबीच सार्नुहोस्"}
@@ -754,7 +754,7 @@ function RPPage() {
                       }}
                       className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
                         txnForm.party_type === "donation"
-                          ? "bg-emerald-600 text-white shadow-2xs font-extrabold"
+                          ? "bg-success text-success-foreground shadow-2xs font-extrabold"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -784,7 +784,7 @@ function RPPage() {
                 ) : (
                   <>
                     <div>
-                      <Label className="text-xs font-semibold text-emerald-800 dark:text-emerald-400">
+                      <Label className="text-xs font-semibold text-success">
                         कम्पनी वा दाताको नाम (Company / Donor Name) *
                       </Label>
                       <Input
@@ -798,7 +798,7 @@ function RPPage() {
                         }
                         list="donation-company-suggestions"
                         placeholder="जस्तै: सूर्य नेपाल / चौधरी ग्रुप / दाताको नाम"
-                        className="mt-1 h-9 text-xs font-semibold bg-background border-emerald-500/40"
+                        className="mt-1 h-9 text-xs font-semibold bg-background border-success/40"
                       />
                       <datalist id="donation-company-suggestions">
                         {vendors.map((v) => (
@@ -812,7 +812,7 @@ function RPPage() {
 
                     <div>
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold text-emerald-800 dark:text-emerald-400">
+                        <Label className="text-xs font-semibold text-success">
                           सम्बन्धित कार्यक्रम (Link to Programme) *
                         </Label>
                         <Link
@@ -846,7 +846,7 @@ function RPPage() {
                             label: `📌 ${ev.title} ${ev.locality ? `(${ev.locality})` : ""}`,
                           })),
                         ]}
-                        className="mt-1 border-emerald-500/40 text-xs font-semibold"
+                        className="mt-1 border-success/40 text-xs font-semibold"
                       />
                     </div>
                   </>
@@ -900,10 +900,10 @@ function RPPage() {
                 )}
 
                 {txnForm.party_type === "tax" && (
-                  <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs">
-                    <div className="font-bold text-amber-900 flex items-center justify-between">
+                  <div className="mt-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
+                    <div className="font-bold text-warning flex items-center justify-between">
                       <span>संचित TDS/SST विवरण (TDS/SST Payable)</span>
-                      <span className="text-[10px] rounded bg-amber-500/20 px-1.5 py-0.5 font-semibold text-amber-800">
+                      <span className="text-[10px] rounded bg-warning/20 px-1.5 py-0.5 font-semibold text-warning">
                         आन्तरिक राजस्व खाता
                       </span>
                     </div>
@@ -914,11 +914,11 @@ function RPPage() {
                       </div>
                       <div className="rounded bg-background/80 p-2 border">
                         <div className="text-[10px] text-muted-foreground">दाखिला भएको</div>
-                        <div className="font-bold text-emerald-700">{money(tds_sst.paid)}</div>
+                        <div className="font-bold text-success">{money(tds_sst.paid)}</div>
                       </div>
-                      <div className="rounded bg-background/80 p-2 border border-amber-500/40">
+                      <div className="rounded bg-background/80 p-2 border border-warning/40">
                         <div className="text-[10px] text-muted-foreground">बाँकी तिर्नुपर्ने</div>
-                        <div className="font-bold text-rose-600">{money(tds_sst.balance)}</div>
+                        <div className="font-bold text-destructive">{money(tds_sst.balance)}</div>
                       </div>
                     </div>
                     {tds_sst.balance > 0 && (
@@ -933,7 +933,7 @@ function RPPage() {
                             remarks: p.remarks || "TDS/SST कर दाखिला भुक्तानी",
                           }));
                         }}
-                        className="mt-2.5 w-full text-xs font-bold border-amber-600/40 text-amber-800 hover:bg-amber-100"
+                        className="mt-2.5 w-full text-xs font-bold border-warning/40 text-warning hover:bg-warning/10"
                       >
                         बाँकी रकम (रु. {tds_sst.balance.toLocaleString("en-IN")}) भर्नुहोस्
                       </Button>
@@ -973,7 +973,7 @@ function RPPage() {
                   )}
                 </div>
                 {transferKind && (
-                  <p className="mt-1 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+                  <p className="mt-1 text-[11px] font-semibold text-info">
                     {transferKind} transfer — {fromAcc?.name} → {toAcc?.name}
                   </p>
                 )}
@@ -1075,10 +1075,10 @@ function RPPage() {
                     className={
                       "w-16 shrink-0 font-bold " +
                       (t.txn_type === "receipt"
-                        ? "text-emerald-600 dark:text-emerald-400"
+                        ? "text-success"
                         : t.txn_type === "payment"
-                          ? "text-amber-600 dark:text-amber-400"
-                          : "text-sky-600 dark:text-sky-400")
+                          ? "text-warning"
+                          : "text-info")
                     }
                   >
                     {t.ref_no}
@@ -1097,12 +1097,12 @@ function RPPage() {
                           : ""}
                     </span>
                     {t.party_type === "donation" && (
-                      <span className="ml-1.5 inline-flex items-center rounded bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300">
+                      <span className="ml-1.5 inline-flex items-center rounded bg-success/15 border border-success/30 px-1.5 py-0.2 text-[10px] font-extrabold text-success">
                         🎁 दान / सहयोग
                       </span>
                     )}
                     {t.linked_event_title && (
-                      <span className="block text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      <span className="block text-[11px] font-semibold text-success">
                         📌 कार्यक्रम: {t.linked_event_title}
                       </span>
                     )}
@@ -1116,7 +1116,7 @@ function RPPage() {
                     className={
                       "shrink-0 font-extrabold tabular-nums " +
                       (t.txn_type === "receipt"
-                        ? "text-emerald-700 dark:text-emerald-400"
+                        ? "text-success"
                         : "text-foreground")
                     }
                   >

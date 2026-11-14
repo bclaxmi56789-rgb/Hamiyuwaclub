@@ -276,10 +276,10 @@ function Dashboard() {
   return (
     <WorkspacePage title="Dashboard">
       {/* Top Banner & Quick Action */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-5">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-gradient-to-r from-success/10 via-info/5 to-transparent p-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-success text-success-foreground shadow-xs">
               <Sparkles className="size-4" />
             </span>
             <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">
@@ -296,7 +296,7 @@ function Dashboard() {
           <Button
             asChild
             size="sm"
-            className="bg-emerald-600 font-bold hover:bg-emerald-700 text-white shadow-xs"
+            className="bg-success font-bold hover:bg-success/90 text-success-foreground shadow-xs"
           >
             <Link to="/">
               <Plus className="size-4" /> नयाँ रसिद काट्नुहोस्
@@ -315,30 +315,30 @@ function Dashboard() {
         {/* Total Income */}
         <Link
           to="/reports"
-          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-emerald-300 hover:shadow-md"
+          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-success/50 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-muted-foreground">कुल संकलन आम्दानी</span>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-success/15 text-success">
               <Wallet className="size-5" />
             </div>
           </div>
           <div className="mt-2 text-2xl font-black text-foreground">{money(total)}</div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold">
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-success font-semibold">
             <ArrowUpRight className="size-3.5" />
             <span>कुल {receipts.length} वटा रसिद जारी · विवरण हेर्नुहोस्</span>
           </div>
-          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-emerald-500/5 pointer-events-none" />
+          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-success/5 pointer-events-none" />
         </Link>
 
         {/* Total Expenses */}
         <Link
           to="/expenses"
-          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-rose-300 hover:shadow-md"
+          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-destructive/50 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-muted-foreground">कुल भुक्तानी खर्च</span>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-rose-500/15 text-rose-600">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
               <TrendingDown className="size-5" />
             </div>
           </div>
@@ -346,19 +346,19 @@ function Dashboard() {
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span>सञ्चालन तथा प्रशासनिक खर्च · खर्च हेर्नुहोस्</span>
           </div>
-          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-rose-500/5 pointer-events-none" />
+          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-destructive/5 pointer-events-none" />
         </Link>
 
         {/* Net Surplus / Deficit */}
         <Link
           to="/reports"
-          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-teal-300 hover:shadow-md"
+          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-info/50 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-muted-foreground">खुद बचत / घाटा (Net)</span>
             <div
               className={`flex size-9 items-center justify-center rounded-lg ${
-                netSurplus >= 0 ? "bg-teal-500/15 text-teal-600" : "bg-amber-500/15 text-amber-600"
+                netSurplus >= 0 ? "bg-info/15 text-info" : "bg-warning/15 text-warning"
               }`}
             >
               <TrendingUp className="size-5" />
@@ -367,8 +367,8 @@ function Dashboard() {
           <div
             className={`mt-2 text-2xl font-black ${
               netSurplus >= 0
-                ? "text-emerald-700 dark:text-emerald-400"
-                : "text-amber-700 dark:text-amber-400"
+                ? "text-success"
+                : "text-warning"
             }`}
           >
             {money(netSurplus)}
@@ -376,27 +376,27 @@ function Dashboard() {
           <div className="mt-2 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
             {netSurplus >= 0 ? "सकारात्मक कोष स्थिति (Surplus)" : "नकारात्मक अवस्था (Deficit)"}
           </div>
-          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-teal-500/5 pointer-events-none" />
+          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-info/5 pointer-events-none" />
         </Link>
 
         {/* Outstanding Dues */}
         <Link
           to="/members"
-          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-amber-300 hover:shadow-md"
+          className="group relative block overflow-hidden rounded-xl border bg-card p-5 shadow-xs transition-all hover:border-warning/50 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-muted-foreground">ग्राहक बाँकी बक्यौता</span>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-warning/15 text-warning">
               <AlertTriangle className="size-5" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-black text-amber-600 dark:text-amber-400">
+          <div className="mt-2 text-2xl font-black text-warning">
             {money(totalOutstandingDues)}
           </div>
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-300 font-semibold">
+          <div className="mt-2 flex items-center gap-1 text-[11px] text-warning font-semibold">
             <span>{overdueCustomerCount} जना ग्राहकको शुल्क बाँकी · ग्राहक हेर्नुहोस्</span>
           </div>
-          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-amber-500/5 pointer-events-none" />
+          <div className="absolute -bottom-6 -right-6 size-24 rounded-full bg-warning/5 pointer-events-none" />
         </Link>
       </div>
 
@@ -417,9 +417,9 @@ function Dashboard() {
 
         <Link
           to="/reports"
-          className="rounded-lg border bg-card/60 p-3 flex items-center gap-3 transition-all hover:border-indigo-300 hover:bg-card"
+          className="rounded-lg border bg-card/60 p-3 flex items-center gap-3 transition-all hover:border-primary/50 hover:bg-card"
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-indigo-500/10 text-indigo-600">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <Building2 className="size-4" />
           </div>
           <div>
@@ -432,9 +432,9 @@ function Dashboard() {
 
         <Link
           to="/reports"
-          className="rounded-lg border bg-card/60 p-3 flex items-center gap-3 transition-all hover:border-emerald-300 hover:bg-card"
+          className="rounded-lg border bg-card/60 p-3 flex items-center gap-3 transition-all hover:border-success/50 hover:bg-card"
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-success/10 text-success">
             <CheckCircle2 className="size-4" />
           </div>
           <div>
@@ -449,9 +449,9 @@ function Dashboard() {
 
         <Link
           to="/reports"
-          className="rounded-lg border bg-card/60 p-3 flex items-center gap-3 transition-all hover:border-cyan-300 hover:bg-card"
+          className="rounded-lg border bg-card/60 p-3 flex items-center gap-3 transition-all hover:border-info/50 hover:bg-card"
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-cyan-500/10 text-cyan-600">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-info/10 text-info">
             <Banknote className="size-4" />
           </div>
           <div>
@@ -468,7 +468,7 @@ function Dashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-extrabold text-foreground flex items-center gap-2">
-              <Wallet className="size-4 text-emerald-600" />
+              <Wallet className="size-4 text-success" />
               कुन संकलन? — माध्यम अनुसार वर्गीकरण
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -503,7 +503,7 @@ function Dashboard() {
                 type="button"
                 onClick={() => setModeFilter(active ? "" : m)}
                 className={`rounded-lg border px-3 py-2 text-left transition-all ${
-                  active ? "border-emerald-400 bg-emerald-500/10" : "bg-card/60 hover:bg-card"
+                  active ? "border-success/40 bg-success/10" : "bg-card/60 hover:bg-card"
                 }`}
               >
                 <div className="flex items-center gap-1.5">
@@ -520,7 +520,7 @@ function Dashboard() {
           })}
         </div>
         {modeFilter && (
-          <p className="mt-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+          <p className="mt-2 text-[11px] font-semibold text-success">
             फोकस: {modeFilter} — माथिका सबै तथ्याङ्क यही माध्यमको संकलनमा आधारित छन्
           </p>
         )}
@@ -531,7 +531,7 @@ function Dashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 mb-4">
           <div>
             <h3 className="text-sm font-extrabold text-foreground flex items-center gap-2">
-              <Landmark className="size-4 text-cyan-600" />
+              <Landmark className="size-4 text-info" />
               रसिद तथा भुक्तानी सारांश (Receipts &amp; Payments — नगद/बैंक)
             </h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -550,27 +550,27 @@ function Dashboard() {
             </div>
             <div className="text-lg font-black text-foreground">{money(rpSummary.opening)}</div>
           </div>
-          <div className="rounded-lg border bg-emerald-500/5 p-3">
-            <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+          <div className="rounded-lg border bg-success/5 p-3">
+            <div className="text-[11px] font-semibold text-success">
               कुल रसिद प्राप्ति (Receipts)
             </div>
-            <div className="text-lg font-black text-emerald-700 dark:text-emerald-400">
+            <div className="text-lg font-black text-success">
               {money(rpSummary.receiptsAmt)}
             </div>
           </div>
-          <div className="rounded-lg border bg-rose-500/5 p-3">
-            <div className="text-[11px] font-semibold text-rose-700 dark:text-rose-400">
+          <div className="rounded-lg border bg-destructive/5 p-3">
+            <div className="text-[11px] font-semibold text-destructive">
               कुल भुक्तानी (Payments)
             </div>
-            <div className="text-lg font-black text-rose-700 dark:text-rose-400">
+            <div className="text-lg font-black text-destructive">
               {money(rpSummary.paymentsAmt)}
             </div>
           </div>
-          <div className="rounded-lg border bg-cyan-500/5 p-3">
-            <div className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-400">
+          <div className="rounded-lg border bg-info/5 p-3">
+            <div className="text-[11px] font-semibold text-info">
               अन्तिम मौज्दात (Closing)
             </div>
-            <div className="text-lg font-black text-cyan-700 dark:text-cyan-400">
+            <div className="text-lg font-black text-info">
               {money(rpSummary.closing)}
             </div>
           </div>
@@ -596,10 +596,10 @@ function Dashboard() {
                     <span
                       className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                         t.txn_type === "receipt"
-                          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                          ? "bg-success/15 text-success"
                           : t.txn_type === "payment"
-                            ? "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-                            : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400"
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-info/15 text-info"
                       }`}
                     >
                       {t.txn_type === "receipt"
@@ -703,14 +703,14 @@ function Dashboard() {
           <div className="flex items-center justify-between border-b pb-3 mb-4">
             <div>
               <h3 className="text-sm font-extrabold text-foreground flex items-center gap-2">
-                <BarChart3 className="size-4 text-emerald-600" />
+                <BarChart3 className="size-4 text-success" />
                 मासिक आम्दानी तथा खर्च विश्लेषण (Monthly Cashflow)
               </h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 १२ महिनाको आम्दानी (रसिद संकलन) र खर्चको तुलनात्मक ग्राफ
               </p>
             </div>
-            <span className="text-[10px] rounded-md bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-700 dark:text-emerald-300">
+            <span className="text-[10px] rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
               वि.सं. {np(year)}
             </span>
           </div>
@@ -723,12 +723,12 @@ function Dashboard() {
               >
                 <defs>
                   <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="var(--color-success)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--color-success)" stopOpacity={0.0} />
                   </linearGradient>
                   <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="var(--color-destructive)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--color-destructive)" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
@@ -755,7 +755,7 @@ function Dashboard() {
                 <Area
                   type="monotone"
                   dataKey="income"
-                  stroke="#10b981"
+                  stroke="var(--color-success)"
                   strokeWidth={2.5}
                   fillOpacity={1}
                   fill="url(#incomeGrad)"
@@ -764,7 +764,7 @@ function Dashboard() {
                 <Area
                   type="monotone"
                   dataKey="expense"
-                  stroke="#f43f5e"
+                  stroke="var(--color-destructive)"
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#expenseGrad)"
@@ -775,11 +775,11 @@ function Dashboard() {
           </div>
           <div className="mt-3 flex items-center justify-center gap-6 text-xs font-bold text-muted-foreground">
             <div className="flex items-center gap-2">
-              <span className="size-2.5 rounded-full bg-emerald-500" />
+              <span className="size-2.5 rounded-full bg-success" />
               <span>आम्दानी (Income)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="size-2.5 rounded-full bg-rose-500" />
+              <span className="size-2.5 rounded-full bg-destructive" />
               <span>खर्च (Expense)</span>
             </div>
           </div>
@@ -860,7 +860,7 @@ function Dashboard() {
           <div className="flex items-center justify-between border-b pb-3 mb-4">
             <div>
               <h3 className="text-sm font-extrabold text-foreground flex items-center gap-2">
-                <Building2 className="size-4 text-emerald-600" />
+                <Building2 className="size-4 text-success" />
                 शीर्ष संकलन हुने टोलहरू (Top 5 Toles)
               </h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -902,7 +902,7 @@ function Dashboard() {
                       fontWeight: "bold",
                     }}
                   />
-                  <Bar dataKey="amount" fill="#10b981" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="amount" fill="var(--color-success)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -975,7 +975,7 @@ function Dashboard() {
 
       {/* Month-wise collection Pills */}
       <h2 className="mt-8 mb-3 text-sm font-extrabold text-foreground flex items-center gap-2">
-        <Calendar className="size-4 text-emerald-600" />
+        <Calendar className="size-4 text-success" />
         मासिक संकलन विवरण (Month-wise Breakdown)
       </h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
@@ -995,7 +995,7 @@ function Dashboard() {
       {/* Recent Receipts Table */}
       <div className="mt-8 flex items-center justify-between mb-3">
         <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
-          <ReceiptText className="size-4 text-emerald-600" />
+          <ReceiptText className="size-4 text-success" />
           पछिल्लो रसिदहरू (Recent Receipts)
         </h2>
         <Button variant="link" size="sm" asChild className="text-xs font-bold text-primary">
@@ -1028,7 +1028,7 @@ function Dashboard() {
                     {r.mode}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 whitespace-nowrap font-black text-right text-emerald-600 dark:text-emerald-400">
+                <td className="px-4 py-2.5 whitespace-nowrap font-black text-right text-success">
                   {money(r.total)}
                 </td>
               </tr>

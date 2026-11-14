@@ -125,7 +125,7 @@ export function RPTransactionVoucher({
         </div>
 
         {linkedProg && (
-          <div className="mt-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-900 dark:text-emerald-300">
+          <div className="mt-3 rounded-md border border-success/40 bg-success/10 px-3 py-1.5 text-xs text-success">
             <span className="font-semibold text-muted-foreground">सम्बन्धित कार्यक्रम (Linked Programme): </span>
             <span className="font-extrabold">{linkedProg}</span>
           </div>

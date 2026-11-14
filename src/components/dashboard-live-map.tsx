@@ -720,7 +720,7 @@ export function DashboardLiveMap({
       {/* ── Top Header & Tab Controls ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3">
         <div className="flex items-center gap-2">
-          <Radio className="size-4 text-emerald-600 animate-pulse" />
+          <Radio className="size-4 text-success animate-pulse" />
           <div>
             <h3 className="text-sm font-extrabold text-foreground flex items-center gap-2">
               नक्सा: ग्राहक पेसा/व्यवसाय तथा लाइभ चालक/संकलक
@@ -741,7 +741,7 @@ export function DashboardLiveMap({
                 const c = members.find((m) => m.role === "collector");
                 if (c && mapRef.current) mapRef.current.flyTo([c.lat, c.lng], 16, { duration: 1 });
               }}
-              className="flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-500/20 transition-colors cursor-pointer"
+              className="flex items-center gap-1 rounded-full bg-info/10 border border-info/20 px-2.5 py-0.5 text-[11px] font-bold text-info hover:bg-info/20 transition-colors cursor-pointer"
               title="संकलक भएको ठाउँमा नक्सा लैजानुहोस्"
             >
               🚚 {collectorCount} संकलक लाइभ
@@ -754,7 +754,7 @@ export function DashboardLiveMap({
                 const d = members.find((m) => m.role === "driver");
                 if (d && mapRef.current) mapRef.current.flyTo([d.lat, d.lng], 16, { duration: 1 });
               }}
-              className="flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/20 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 transition-colors cursor-pointer animate-pulse"
+              className="flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer animate-pulse"
               title="चालक भएको ठाउँमा नक्सा लैजानुहोस्"
             >
               🛻 {driverCount} चालक लाइभ
@@ -779,7 +779,7 @@ export function DashboardLiveMap({
               onClick={() => setActiveTab("driver")}
               className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors ${
                 activeTab === "driver"
-                  ? "bg-background text-violet-700 dark:text-violet-300 shadow-xs"
+                  ? "bg-background text-primary shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -790,7 +790,7 @@ export function DashboardLiveMap({
               onClick={() => setActiveTab("collector")}
               className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition-colors ${
                 activeTab === "collector"
-                  ? "bg-background text-blue-700 dark:text-blue-300 shadow-xs"
+                  ? "bg-background text-info shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -866,12 +866,12 @@ export function DashboardLiveMap({
         </div>
 
         <div className="flex items-center gap-3 text-xs font-bold">
-          <div className="flex items-center gap-1.5 text-emerald-600">
-            <span className="size-2 rounded-full bg-emerald-500" />
+          <div className="flex items-center gap-1.5 text-success">
+            <span className="size-2 rounded-full bg-success" />
             <span>सम्पन्न/पुगेको: {greenCount}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-red-600">
-            <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+          <div className="flex items-center gap-1.5 text-destructive">
+            <span className="size-2 rounded-full bg-destructive animate-pulse" />
             <span>बाँकी/नपुगेको: {pendingCount}</span>
           </div>
           <div className="text-muted-foreground">नक्सामा कुल: {filteredCustomers.length} जना</div>
@@ -879,16 +879,16 @@ export function DashboardLiveMap({
       </div>
 
       {/* ── Trip History Panel (saved per-employee trips) ── */}
-      <div className="border-b bg-violet-500/5 px-4 py-2">
+      <div className="border-b bg-primary/5 px-4 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setTripHistoryOpen((v) => !v)}
-            className="flex items-center gap-1.5 rounded-md border border-violet-500/40 bg-card px-2.5 py-1 text-xs font-bold text-violet-700 dark:text-violet-300 hover:bg-violet-500/10"
+            className="flex items-center gap-1.5 rounded-md border border-primary/40 bg-card px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/10"
           >
             🛻 ट्रिप इतिहास (Trip History) ({tripSessions.length})
             {tripTrailLoading && (
-              <span className="ml-1 inline-block size-2 animate-spin rounded-full border border-violet-500 border-t-transparent" />
+              <span className="ml-1 inline-block size-2 animate-spin rounded-full border border-primary border-t-transparent" />
             )}
             <span className="text-[10px]">{tripHistoryOpen ? "▲" : "▼"}</span>
           </button>
@@ -924,7 +924,7 @@ export function DashboardLiveMap({
           </button>
 
           {selectedTripId && (
-            <span className="text-[11px] font-bold text-red-600">
+            <span className="text-[11px] font-bold text-destructive">
               🔴 नक्सामा ट्रिप ट्रयाक देखाइँदैछ (सुरु 🚩 + रातो डट मार्ग)
             </span>
           )}
@@ -963,7 +963,7 @@ export function DashboardLiveMap({
                     {filtered.map((s) => (
                       <tr
                         key={s.id}
-                        className={`border-t ${selectedTripId === s.id ? "bg-violet-500/10" : "hover:bg-muted/40"}`}
+                        className={`border-t ${selectedTripId === s.id ? "bg-primary/10" : "hover:bg-muted/40"}`}
                       >
                         <td className="px-2.5 py-1.5 font-bold">
                           {s.employee_name || "—"}{" "}
@@ -975,16 +975,16 @@ export function DashboardLiveMap({
                         </td>
                         <td className="px-2.5 py-1.5">
                           {s.trip_type === "dumping" ? (
-                            <span className="rounded bg-amber-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            <span className="rounded bg-warning px-1.5 py-0.5 text-[10px] font-bold text-warning-foreground">
                               🗑️ मल फाल्ने
                             </span>
                           ) : (
-                            <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            <span className="rounded bg-info px-1.5 py-0.5 text-[10px] font-bold text-info-foreground">
                               🚚 संकलन
                             </span>
                           )}
                           {s.status === "active" && (
-                            <span className="ml-1 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">
+                            <span className="ml-1 rounded bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground animate-pulse">
                               लाइभ
                             </span>
                           )}
@@ -995,11 +995,11 @@ export function DashboardLiveMap({
                         <td className="px-2.5 py-1.5 whitespace-nowrap">
                           {s.status === "ended" ? (
                             <>
-                              <CheckCircle2 className="mr-0.5 inline size-3 text-emerald-600" />
+                              <CheckCircle2 className="mr-0.5 inline size-3 text-success" />
                               {tripDateTime(s.ended_at)}
                             </>
                           ) : (
-                            <span className="font-bold text-rose-600">
+                            <span className="font-bold text-destructive">
                               ⏳ चलिरहेको (अझै समाप्त भएन)
                             </span>
                           )}
@@ -1012,8 +1012,8 @@ export function DashboardLiveMap({
                             onClick={() => void showTripOnMap(s)}
                             className={`rounded px-2 py-0.5 text-[10px] font-bold ${
                               selectedTripId === s.id
-                                ? "bg-red-600 text-white"
-                                : "bg-violet-600 text-white hover:bg-violet-700"
+                                ? "bg-destructive text-destructive-foreground"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90"
                             }`}
                             title="सुरु बिन्दु (🚩) र रातो डट डट मार्ग नक्सामा देखाउनुहोस्"
                           >
@@ -1045,7 +1045,7 @@ export function DashboardLiveMap({
             className="absolute top-3 left-3 z-[800] rounded-full bg-card/95 backdrop-blur-md p-2 shadow-lg border border-border/80 text-foreground hover:bg-accent"
             title="नक्सा संकेत (Legend) देखाउनुहोस्"
           >
-            <MapPin className="size-4 text-emerald-600" />
+            <MapPin className="size-4 text-success" />
           </button>
         )}
         {legendOpenLeft && (
@@ -1059,18 +1059,18 @@ export function DashboardLiveMap({
               ✕
             </button>
             <div className="font-bold text-foreground mb-1 flex items-center gap-1">
-              <MapPin className="size-3.5 text-emerald-600" />
+              <MapPin className="size-3.5 text-success" />
               <span>नक्सा संकेत (Legend)</span>
             </div>
             <div className="space-y-1 text-muted-foreground text-[10px]">
               <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] font-bold">
+                <span className="size-3 rounded-full bg-success flex items-center justify-center text-success-foreground text-[8px] font-bold">
                   ✓
                 </span>
                 <span>हरियो: काम सम्पन्न वा सवारी पुग्यो</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="size-3 rounded-full bg-red-500" />
+                <span className="size-3 rounded-full bg-destructive" />
                 <span>रातो: बाँकी वा सवारी पुग्न बाँकी</span>
               </div>
               <div className="flex items-center gap-1.5 pt-1 border-t">
@@ -1162,7 +1162,7 @@ export function DashboardLiveMap({
               <div className="rounded-lg bg-muted/60 p-2">
                 <span className="block text-[10px] text-muted-foreground">मासिक ट्रिप स्थिति</span>
                 <span
-                  className={`font-bold ${selectedPerson.isTripComplete ? "text-emerald-600" : "text-amber-600"}`}
+                  className={`font-bold ${selectedPerson.isTripComplete ? "text-success" : "text-warning"}`}
                 >
                   {selectedPerson.isTripComplete
                     ? "✓ पूरा भयो"
@@ -1172,7 +1172,7 @@ export function DashboardLiveMap({
               <div className="rounded-lg bg-muted/60 p-2">
                 <span className="block text-[10px] text-muted-foreground">बक्यौता रकम</span>
                 <span
-                  className={`font-bold ${selectedPerson.isDuePaid ? "text-emerald-600" : "text-red-600"}`}
+                  className={`font-bold ${selectedPerson.isDuePaid ? "text-success" : "text-destructive"}`}
                 >
                   {selectedPerson.isDuePaid
                     ? "✓ चुक्ता"
@@ -1182,7 +1182,7 @@ export function DashboardLiveMap({
             </div>
 
             {selectedPerson.nearestWorkerDistance !== undefined && (
-              <div className="mt-2 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+              <div className="mt-2 text-[10px] font-semibold text-info">
                 📍 नजिकको संकलक/चालक दुरी: {formatDistance(selectedPerson.nearestWorkerDistance)}
               </div>
             )}
@@ -1193,7 +1193,7 @@ export function DashboardLiveMap({
       {/* ── Footer Info Strip ── */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-4 py-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="size-1.5 rounded-full bg-success animate-pulse" />
           GPS सक्रिय हुँदा स्वतः प्रत्यक्ष ट्र्याक भई नजिक पुग्दा वा कार्य सम्पन्न हुँदा हरियो (🟢)
           हुन्छ
         </span>

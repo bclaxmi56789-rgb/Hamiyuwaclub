@@ -878,12 +878,12 @@ function CollectionMapPage() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border bg-card p-3 shadow-xs">
         {/* Left: Quick Metrics */}
         <div className="flex flex-wrap items-center gap-2.5 text-xs">
-          <div className="flex items-center gap-1.5 rounded-lg bg-red-500/10 border border-red-500/20 px-2.5 py-1 text-red-700 dark:text-red-300 font-bold">
-            <span className="size-2 rounded-full bg-red-500 animate-pulse" />
+          <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 border border-destructive/20 px-2.5 py-1 text-destructive font-bold">
+            <span className="size-2 rounded-full bg-destructive animate-pulse" />
             <span>कुल बाँकी: {money(totalDuesAmount)}</span>
           </div>
           <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
-            <AlertTriangle className="size-3 text-amber-500" />
+            <AlertTriangle className="size-3 text-warning" />
             <span>{customersWithDueCount} ग्राहकको बक्यौता</span>
           </div>
           <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
@@ -930,7 +930,7 @@ function CollectionMapPage() {
             onClick={toggleLocationTracking}
             className={`gap-1.5 text-xs font-bold ${
               trackingLocation
-                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]"
+                ? "bg-info hover:bg-info/90 text-info-foreground shadow-md"
                 : "border-primary/40 text-primary hover:bg-primary/10"
             }`}
           >
@@ -954,7 +954,7 @@ function CollectionMapPage() {
                 setLocatingStatus("");
               }
             }}
-            className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-amber-500 bg-amber-50 text-amber-900 font-bold dark:bg-amber-950/50 dark:text-amber-200" : ""}`}
+            className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-warning/50 bg-warning/10 text-warning font-bold" : ""}`}
             title="नक्सामा जहाँ हुनुहुन्छ त्यहाँ क्लिक गरेर गाडी राख्न सक्नुहुन्छ"
           >
             <MousePointer className="size-3.5" />
@@ -967,7 +967,7 @@ function CollectionMapPage() {
               size="sm"
               variant="outline"
               onClick={centerOnDriver}
-              className="h-8 text-xs gap-1 text-blue-600 border-blue-400/50 hover:bg-blue-50"
+              className="h-8 text-xs gap-1 text-info border-info/50 hover:bg-info/10"
               title="गाडी भएको ठाउँमा जानुहोस्"
             >
               <Car className="size-3.5" /> म भएको ठाउँ
@@ -1010,23 +1010,23 @@ function CollectionMapPage() {
       </div>
 
       {locatingStatus && (
-        <div className="mb-2 flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/20 p-2 text-xs text-blue-700 dark:text-blue-300 font-medium">
-          <LocateFixed className="size-3.5 shrink-0 animate-spin text-blue-600" />
+        <div className="mb-2 flex items-center gap-2 rounded-lg bg-info/10 border border-info/20 p-2 text-xs text-info font-medium">
+          <LocateFixed className="size-3.5 shrink-0 animate-spin text-info" />
           <span>{locatingStatus}</span>
         </div>
       )}
 
       {locationError && (
-        <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-amber-500/10 border border-amber-500/30 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+        <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-warning/10 border border-warning/30 p-2.5 text-xs text-warning">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+            <AlertTriangle className="size-4 shrink-0 text-warning" />
             <span>{locationError}</span>
           </div>
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="h-6 px-2 text-[11px] font-bold border-amber-600/50 text-amber-900 hover:bg-amber-100"
+            className="h-6 px-2 text-[11px] font-bold border-warning/50 text-warning hover:bg-warning/10"
             onClick={() => {
               setSettingDriverMode(true);
               setLocationError("");
@@ -1087,7 +1087,7 @@ function CollectionMapPage() {
         {liveMembers.length > 0 && !hideBoxes && (
           <div className="absolute bottom-3 right-3 z-[1000] max-w-[220px] rounded-lg border border-border/80 bg-card/95 p-2.5 text-[11px] shadow-lg backdrop-blur-md">
             <div className="mb-1.5 flex items-center gap-1 font-bold text-foreground">
-              <Car className="size-3.5 text-blue-600" />
+              <Car className="size-3.5 text-info" />
               <span>लाइभ टोली ({liveMembers.length})</span>
             </div>
             <div className="space-y-1 text-muted-foreground">
@@ -1115,40 +1115,40 @@ function CollectionMapPage() {
         {!hideBoxes && (
         <div className="absolute top-3 left-3 z-[1000] rounded-lg bg-card/95 backdrop-blur-md p-2.5 shadow-lg border border-border/80 text-[11px] max-w-[210px]">
           <div className="font-bold text-foreground mb-1.5 flex items-center gap-1">
-            <span className="size-2 rounded-full bg-red-600" />
+            <span className="size-2 rounded-full bg-destructive" />
             <span>बक्यौता रकम अनुसार बबल (Dues)</span>
           </div>
           <div className="space-y-1 text-muted-foreground">
             <div className="flex items-center gap-2">
-              <span className="size-6 rounded-full bg-red-700 text-white font-mono text-[9px] font-bold flex items-center justify-center shrink-0">
+              <span className="size-6 rounded-full bg-destructive text-destructive-foreground font-mono text-[9px] font-bold flex items-center justify-center shrink-0">
                 15k
               </span>
               <span>धेरै बक्यौता (&gt; १० हजार)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="size-5 rounded-full bg-red-600 text-white font-mono text-[8px] font-bold flex items-center justify-center shrink-0">
+              <span className="size-5 rounded-full bg-destructive text-destructive-foreground font-mono text-[8px] font-bold flex items-center justify-center shrink-0">
                 5k
               </span>
               <span>मध्यम (५ - १० हजार)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="size-4 rounded-full bg-red-400 text-white font-mono text-[7px] font-bold flex items-center justify-center shrink-0">
+              <span className="size-4 rounded-full bg-destructive/60 text-destructive-foreground font-mono text-[7px] font-bold flex items-center justify-center shrink-0">
                 1k
               </span>
               <span>सामान्य (&lt; ५ हजार)</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="size-3 rounded-full bg-emerald-500 shrink-0" />
+              <span className="size-3 rounded-full bg-success shrink-0" />
               <span>चुक्ता / कुनै बाँकी छैन</span>
             </div>
           </div>
           <div className="mt-2 pt-2 border-t border-border/60 text-[10px] text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full border border-amber-500 bg-amber-100" />
+              <span className="size-2.5 rounded-full border border-warning bg-warning/20" />
               <span>पहेँलो किनारा: वडा/टोल क्षेत्र</span>
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="size-2.5 rounded-full border border-white bg-red-500" />
+              <span className="size-2.5 rounded-full border border-white bg-destructive" />
               <span>सेतो किनारा: निश्चित GPS पिन</span>
             </div>
           </div>
@@ -1157,7 +1157,7 @@ function CollectionMapPage() {
 
         {/* Setting Driver Mode Alert Banner on Map */}
         {settingDriverMode && (
-          <div className="absolute top-3 right-14 z-[1000] rounded-lg bg-amber-500 text-amber-950 font-bold text-xs px-3 py-1.5 shadow-xl animate-bounce flex items-center gap-1.5">
+          <div className="absolute top-3 right-14 z-[1000] rounded-lg bg-warning text-warning-foreground font-bold text-xs px-3 py-1.5 shadow-xl animate-bounce flex items-center gap-1.5">
             <MousePointer className="size-4" />
             <span>नक्सामा जहाँ गाडी छ त्यहाँ क्लिक गर्नुहोस्</span>
           </div>
@@ -1176,7 +1176,7 @@ function CollectionMapPage() {
                     कार्ड: {selectedCustomer.card}
                   </span>
                   {selectedCustomer.isApproximateArea && (
-                    <span className="rounded bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                    <span className="rounded bg-warning/10 border border-warning/30 px-1.5 py-0.5 text-[10px] font-bold text-warning">
                       वडा {selectedCustomer.ward} क्षेत्र
                     </span>
                   )}
@@ -1198,17 +1198,17 @@ function CollectionMapPage() {
 
             {/* Customer Due Highlight & Distance */}
             <div className="grid grid-cols-2 gap-2 mb-3">
-              <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-center">
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-2 text-center">
                 <span className="block text-[10px] text-muted-foreground">
                   बाँकी बक्यौता (Due Amount)
                 </span>
-                <span className="font-mono text-base font-extrabold text-red-600 dark:text-red-400">
+                <span className="font-mono text-base font-extrabold text-destructive">
                   {selectedCustomer.dueAmount > 0
                     ? money(selectedCustomer.dueAmount)
                     : "✓ कुनै छैन"}
                 </span>
                 {selectedCustomer.dueMonths.length > 0 && (
-                  <span className="block text-[10px] font-semibold text-red-600">
+                  <span className="block text-[10px] font-semibold text-destructive">
                     {selectedCustomer.dueMonths.length} महिना बाँकी ({selectedCustomer.overdueCount}{" "}
                     Overdue)
                   </span>
@@ -1224,7 +1224,7 @@ function CollectionMapPage() {
                 </span>
                 {selectedCustomer.distanceFromDriver !== undefined ? (
                   <div className="mt-1 pt-1 border-t border-border/60">
-                    <span className="block text-xs font-extrabold text-blue-600 dark:text-blue-400">
+                    <span className="block text-xs font-extrabold text-info">
                       📍 {formatDistance(selectedCustomer.distanceFromDriver)} टाढा
                     </span>
                     <span className="block text-[10px] text-muted-foreground">
@@ -1238,7 +1238,7 @@ function CollectionMapPage() {
                       setSettingDriverMode(true);
                       setLocatingStatus("👉 नक्सामा चालक/गाडी भएको ठाउँमा क्लिक गर्नुहोस्...");
                     }}
-                    className="mt-1 text-[10px] font-bold text-blue-600 hover:underline"
+                    className="mt-1 text-[10px] font-bold text-info hover:underline"
                   >
                     + गाडीको स्थान तोक्नुहोस्
                   </button>
@@ -1252,7 +1252,7 @@ function CollectionMapPage() {
               {selectedCustomer.phone && (
                 <Button asChild size="sm" variant="outline" className="h-9 gap-1 text-xs">
                   <a href={`tel:${selectedCustomer.phone}`}>
-                    <Phone className="size-3.5 text-emerald-600" />
+                    <Phone className="size-3.5 text-success" />
                     <span>फोन ({selectedCustomer.phone})</span>
                   </a>
                 </Button>
@@ -1267,7 +1267,7 @@ function CollectionMapPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => handleOpenDirections(selectedCustomer)}
-                className="h-9 gap-1 text-xs border-blue-400/40 text-blue-600 hover:bg-blue-50"
+                className="h-9 gap-1 text-xs border-info/40 text-info hover:bg-info/10"
                 title="Google Maps मा दिशा हेर्नुहोस्"
               >
                 <Navigation className="size-3.5" />
@@ -1368,12 +1368,12 @@ function CollectionMapPage() {
                                 <span>{c.name}</span>
                                 {!c.isApproximateArea ? (
                                   <span title="निश्चित GPS पिन">
-                                    <MapPin className="size-3 text-emerald-600" />
+                                    <MapPin className="size-3 text-success" />
                                   </span>
                                 ) : (
                                   <span
                                     title="वडा क्षेत्र अनुसार"
-                                    className="text-[10px] text-amber-600 font-normal"
+                                    className="text-[10px] text-warning font-normal"
                                   >
                                     (वडा {c.ward})
                                   </span>
@@ -1388,14 +1388,14 @@ function CollectionMapPage() {
                               <span
                                 className={`font-mono font-bold block ${
                                   c.dueAmount > 0
-                                    ? "text-red-600 dark:text-red-400"
-                                    : "text-emerald-600"
+                                    ? "text-destructive"
+                                    : "text-success"
                                 }`}
                               >
                                 {c.dueAmount > 0 ? money(c.dueAmount) : "चुक्ता"}
                               </span>
                               {c.distanceFromDriver !== undefined && (
-                                <span className="text-[10px] font-semibold text-blue-600">
+                                <span className="text-[10px] font-semibold text-info">
                                   {formatDistance(c.distanceFromDriver)}
                                 </span>
                               )}
