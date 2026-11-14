@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useWorkspace, WorkspacePage, money } from "@/components/workspace";
+import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
 import {
   useTeamLocationBroadcast,
@@ -898,19 +899,16 @@ function CollectionMapPage() {
         {/* Right: Driver Location & Map Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Ward filter dropdown */}
-          <select
-            aria-label="Filter ward"
-            className="h-8 rounded-md border bg-card px-2 text-xs font-bold text-foreground"
+          <SearchSelect
+            className="w-40"
             value={selectedWard}
-            onChange={(e) => setSelectedWard(e.target.value)}
-          >
-            <option value="all">सबै वडा (All Wards)</option>
-            {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-              <option key={w} value={w}>
-                वडा नं. {w}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setSelectedWard(v)}
+            placeholder="सबै वडा (All Wards)"
+            options={[
+              { value: "all", label: "सबै वडा (All Wards)" },
+              ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
+            ]}
+          />
 
           {/* Refresh Button */}
           <Button
@@ -1332,19 +1330,16 @@ function CollectionMapPage() {
                       <span>बाँकी बक्यौता मात्र</span>
                     </label>
 
-                    <select
-                      aria-label="Filter ward"
-                      className="rounded border bg-background px-2 py-1 text-xs"
+                    <SearchSelect
+                      className="w-32"
                       value={ward}
-                      onChange={(e) => setWard(e.target.value)}
-                    >
-                      <option value="">सबै वडा (All)</option>
-                      {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                        <option key={w} value={w}>
-                          वडा {w}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setWard(v)}
+                      placeholder="सबै वडा (All)"
+                      options={[
+                        { value: "", label: "सबै वडा (All)" },
+                        ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा ${i + 1}` })),
+                      ]}
+                    />
                   </div>
                 </div>
 

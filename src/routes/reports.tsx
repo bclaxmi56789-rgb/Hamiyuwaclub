@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useWorkspace, WorkspacePage, money, EmptyRows } from "@/components/workspace";
 import { SummaryTable } from "@/components/summary-table";
 import { BSDatePicker } from "@/components/bs-date-picker";
+import { SearchSelect } from "@/components/search-select";
 import {
   np,
   MODES,
@@ -103,19 +104,13 @@ function Reports() {
         </div>
         <label className="text-sm text-muted-foreground">
           Tole
-          <select
-            aria-label="Filter tole"
-            className="mt-1 block rounded-md border bg-background px-3 py-2 text-foreground"
+          <SearchSelect
+            className="mt-1 block text-foreground"
             value={tole}
-            onChange={(e) => setTole(e.target.value)}
-          >
-            <option value="">All toles</option>
-            {toles.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setTole(v)}
+            placeholder="All toles"
+            options={toles.map((t) => ({ value: t, label: t }))}
+          />
         </label>
         {(from || to || tole) && (
           <button

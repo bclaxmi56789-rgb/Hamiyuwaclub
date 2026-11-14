@@ -11,12 +11,14 @@ import {
   inBSRange,
   todayBS,
   remainingDuesForPerson,
+  indexPaidReceiptsByCustomer,
   getCustomerTotalRate,
   type ExpenseRecord,
   type RPTransaction,
   type RPAccount,
 } from "@/lib/receipt-rules";
 import { BSDatePicker } from "@/components/bs-date-picker";
+import { SearchSelect } from "@/components/search-select";
 import { useState, useMemo } from "react";
 import {
   Plus,
@@ -95,7 +97,8 @@ function Dashboard() {
     queryKey: ["expenses", userId],
     queryFn: () => fetchExpensesFn({ data: {} }),
     enabled: Boolean(signedIn && userId),
-    refetchOnMount: "always",
+    staleTime: 60_000,
+    refetchOnMount: false,
   });
 
   // Receipts & Payments (cash/bank book) summary data
@@ -104,7 +107,8 @@ function Dashboard() {
     queryKey: ["rp_data", userId],
     queryFn: () => fetchRpDataFn(),
     enabled: Boolean(signedIn && userId),
-    refetchOnMount: "always",
+    staleTime: 60_000,
+    refetchOnMount: false,
   });
   const rpTransactions: RPTransaction[] = useMemo(
     () => (rpQuery.data as { transactions?: RPTransaction[] } | undefined)?.transactions ?? [],
@@ -186,10 +190,11 @@ function Dashboard() {
     };
   }, [rpAccounts, rpTransactions, from, to]);
 
-  // Dues & Aging computation across all customers
+  // Dues & Aging computation across all customers (O(N) with pre-indexed receipts)
   const { totalOutstandingDues, overdueCustomerCount, totalExpectedMonthly } = useMemo(() => {
     const today = todayBS();
     const allR = query.data?.receipts ?? [];
+    const paidIndex = indexPaidReceiptsByCustomer(allR);
     let duesSum = 0;
     let overdueCount = 0;
     let monthlyExpected = 0;
@@ -205,6 +210,7 @@ function Dashboard() {
         p.card,
         rate,
         today,
+        paidIndex,
       );
       if (res.total > 0) {
         duesSum += res.total;
@@ -665,19 +671,13 @@ function Dashboard() {
         </div>
         <label className="text-xs font-semibold text-muted-foreground">
           <span className="block mb-1">टोल छनोट</span>
-          <select
-            aria-label="Filter tole"
-            className="h-9 block rounded-md border bg-background px-3 text-xs font-bold text-foreground min-w-[140px]"
+          <SearchSelect
+            className="block min-w-[140px] text-xs font-bold text-foreground"
             value={tole}
-            onChange={(e) => setTole(e.target.value)}
-          >
-            <option value="">सबै टोलहरू</option>
-            {toles.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setTole(v)}
+            placeholder="सबै टोलहरू"
+            options={toles.map((t) => ({ value: t, label: t }))}
+          />
         </label>
         {(from || to || tole) && (
           <Button

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useAppState, SignInPanel } from "@/components/app-shell";
 import { BSDatePicker } from "@/components/bs-date-picker";
+import { SearchSelect } from "@/components/search-select";
 import { ReceiptVoucher } from "@/components/receipt-voucher";
 import { getReceiptData, lookupCustomerByCard, saveReceipt } from "@/lib/receipts.functions";
 import { getRpAccounts } from "@/lib/workspace.functions";
@@ -511,23 +512,21 @@ function Index() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-muted-foreground">वडा (Ward):</span>
-              <select
-                aria-label="Select ward"
+              <SearchSelect
+                id="select-ward"
                 value={currentWard}
-                onChange={(e) => {
-                  setWard(e.target.value);
-                  setP({ card: "", name: "", ward: e.target.value, tole: "", phone: "" });
+                onChange={(w) => {
+                  setWard(w);
+                  setP({ card: "", name: "", ward: w, tole: "", phone: "" });
                   setSel({});
                   setMode("");
                 }}
-                className="rounded-md border bg-card px-2.5 py-1 text-xs font-bold text-foreground focus:ring-1 focus:ring-primary outline-none"
-              >
-                {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                  <option key={w} value={w}>
-                    वडा नं. {w}
-                  </option>
-                ))}
-              </select>
+                options={Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
+                  value: w,
+                  label: `वडा नं. ${w}`,
+                }))}
+                className="text-xs font-bold"
+              />
             </div>
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm" className="h-8 text-xs">
@@ -973,20 +972,17 @@ function Index() {
           {mode && (
             <div className="mt-3">
               <h2 className="font-bold">कुन खाता (नगद/बैंक) *</h2>
-              <select
-                aria-label="Cash or bank account"
-                className="mt-2 h-10 w-full max-w-md rounded-md border bg-card px-3 font-semibold text-ink"
+              <SearchSelect
+                id="cash-bank-account"
+                className="mt-2 max-w-md font-semibold text-ink"
                 value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-              >
-                <option value="">छान्नुहोस्…</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.account_type === "cash" ? "नगद (Cash)" : "बैंक (Bank)"} — {a.name}
-                    {a.account_number ? ` (${a.account_number})` : ""}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setAccountId(v)}
+                placeholder="छान्नुहोस्…"
+                options={accounts.map((a) => ({
+                  value: a.id,
+                  label: `${a.account_type === "cash" ? "नगद (Cash)" : "बैंक (Bank)"} — ${a.name}${a.account_number ? ` (${a.account_number})` : ""}`,
+                }))}
+              />
               {accounts.length === 0 && (
                 <p className="mt-1 text-xs font-semibold text-destructive">
                   कुनै नगद/बैंक खाता छैन — रसिद सुरक्षित गर्नुअघि Receipts & Payments → नगद तथा बैंक

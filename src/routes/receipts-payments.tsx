@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import { RPTransactionVoucher } from "@/components/rp-transaction-voucher";
+import { SearchSelect } from "@/components/search-select";
 import {
   Wallet,
   Plus,
@@ -429,21 +430,18 @@ function RPPage() {
     filterType?: "cash" | "bank",
     placeholder = "खाता छान्नुहोस्…",
   ) => (
-    <select
+    <SearchSelect
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
-    >
-      <option value="">{placeholder}</option>
-      {accounts
+      onChange={onChange}
+      placeholder={placeholder}
+      options={accounts
         .filter((a) => (filterType ? a.account_type === filterType : true))
-        .map((a) => (
-          <option key={a.id} value={a.id || ""}>
-            {a.name}
-            {a.account_type === "bank" && a.account_number ? ` · A/C ${a.account_number}` : ""}
-          </option>
-        ))}
-    </select>
+        .map((a) => ({
+          value: a.id || "",
+          label: `${a.name}${a.account_type === "bank" && a.account_number ? ` · A/C ${a.account_number}` : ""}`,
+        }))}
+      className="text-xs font-semibold"
+    />
   );
 
   const tabs: { id: Tab; label: string; icon: typeof Wallet }[] = [
@@ -768,25 +766,20 @@ function RPPage() {
                 {txnForm.party_type !== "donation" ? (
                   <div>
                     <Label className="text-xs font-semibold">जना (ग्राहक) *</Label>
-                    <select
+                    <SearchSelect
                       value={txnForm.party_id}
-                      onChange={(e) => {
-                        const sel = customers.find((c) => c.id === e.target.value);
+                      onChange={(v) => {
+                        const sel = customers.find((c) => c.id === v);
                         setTxnForm((p) => ({
                           ...p,
-                          party_id: e.target.value,
+                          party_id: v,
                           party_name: sel?.name || "",
                         }));
                       }}
-                      className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
-                    >
-                      <option value="">ग्राहक छान्नुहोस्…</option>
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id || ""}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={customers.map((c) => ({ value: c.id || "", label: c.name }))}
+                      placeholder="ग्राहक छान्नुहोस्…"
+                      className="mt-1 text-xs font-semibold"
+                    />
                   </div>
                 ) : (
                   <>
@@ -830,10 +823,9 @@ function RPPage() {
                           + कार्यक्रमहरू
                         </Link>
                       </div>
-                      <select
+                      <SearchSelect
                         value={txnForm.linked_event_id || ""}
-                        onChange={(e) => {
-                          const evId = e.target.value;
+                        onChange={(evId) => {
                           const ev = events.find((x) => x.id === evId);
                           const evTitle =
                             evId === "general"
@@ -846,16 +838,16 @@ function RPPage() {
                             party_id: evId,
                           }));
                         }}
-                        className="mt-1 h-9 w-full rounded-md border border-emerald-500/40 bg-background px-3 text-xs font-semibold"
-                      >
-                        <option value="">— कार्यक्रम छान्नुहोस् —</option>
-                        <option value="general">🏛️ साधारण / संस्थागत कोष (General Club Fund)</option>
-                        {events.map((ev) => (
-                          <option key={ev.id} value={ev.id || ""}>
-                            📌 {ev.title} {ev.locality ? `(${ev.locality})` : ""}
-                          </option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: "", label: "— कार्यक्रम छान्नुहोस् —" },
+                          { value: "general", label: "🏛️ साधारण / संस्थागत कोष (General Club Fund)" },
+                          ...events.map((ev) => ({
+                            value: ev.id || "",
+                            label: `📌 ${ev.title} ${ev.locality ? `(${ev.locality})` : ""}`,
+                          })),
+                        ]}
+                        className="mt-1 border-emerald-500/40 text-xs font-semibold"
+                      />
                     </div>
                   </>
                 )}
@@ -886,30 +878,25 @@ function RPPage() {
                 </select>
 
                 {txnForm.party_type && txnForm.party_type !== "tax" && (
-                  <select
+                  <SearchSelect
                     value={txnForm.party_id}
-                    onChange={(e) => {
+                    onChange={(v) => {
                       const list = txnForm.party_type === "vendor" ? vendors : employees;
-                      const sel = list.find((x) => x.id === e.target.value);
+                      const sel = list.find((x) => x.id === v);
                       setTxnForm((p) => ({
                         ...p,
-                        party_id: e.target.value,
+                        party_id: v,
                         party_name: sel?.name || "",
                       }));
                     }}
-                    className="mt-1.5 h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
-                  >
-                    <option value="">
-                      {txnForm.party_type === "vendor"
+                    options={partyOptions.map((p) => ({ value: p.id || "", label: p.name }))}
+                    placeholder={
+                      txnForm.party_type === "vendor"
                         ? "विक्रेता छान्नुहोस्…"
-                        : "कर्मचारी छान्नुहोस्…"}
-                    </option>
-                    {partyOptions.map((p) => (
-                      <option key={p.id} value={p.id || ""}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                        : "कर्मचारी छान्नुहोस्…"
+                    }
+                    className="mt-1.5 text-xs font-semibold"
+                  />
                 )}
 
                 {txnForm.party_type === "tax" && (

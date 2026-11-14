@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchSelect } from "@/components/search-select";
 import { Badge } from "@/components/ui/badge";
 import { useAppConfig } from "@/lib/app-config";
 import {
@@ -1996,29 +1997,27 @@ function EventsPage() {
                     <Label className="text-[11px] text-muted-foreground">
                       कर्मचारी वा सदस्यबाट छिटो छान्नुहोस्:
                     </Label>
-                    <select
-                      onChange={(e) => {
-                        handleSelectFromPreset(e.target.value);
-                        e.target.value = "";
+                    <SearchSelect
+                      value=""
+                      onChange={(v) => {
+                        handleSelectFromPreset(v);
                       }}
-                      className="mt-1 h-8 w-full rounded border bg-background px-2 text-[11px]"
-                    >
-                      <option value="">-- छान्नुहोस् --</option>
-                      <optgroup label="कर्मचारीहरू (Employees)">
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={`emp:${emp.id}`}>
-                            {emp.name} ({emp.designation})
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="क्लब सदस्यहरू (Members)">
-                        {members.map((mem) => (
-                          <option key={mem.id} value={`mem:${mem.id}`}>
-                            {mem.name} ({mem.designation})
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
+                      options={[
+                        ...employees.map((emp) => ({
+                          value: `emp:${emp.id}`,
+                          label: `${emp.name} (${emp.designation})`,
+                          group: "कर्मचारीहरू (Employees)",
+                        })),
+                        ...members.map((mem) => ({
+                          value: `mem:${mem.id}`,
+                          label: `${mem.name} (${mem.designation})`,
+                          group: "क्लब सदस्यहरू (Members)",
+                        })),
+                      ]}
+                      placeholder="-- छान्नुहोस् --"
+                      emptyLabel="-- छान्नुहोस् --"
+                      className="mt-1"
+                    />
                   </div>
 
                   <div>

@@ -38,6 +38,7 @@ import {
   type TripPoint,
 } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
+import { SearchSelect } from "@/components/search-select";
 import {
   LocateFixed,
   Radio,
@@ -798,19 +799,16 @@ export function DashboardLiveMap({
           </div>
 
           {/* Ward Filter */}
-          <select
-            aria-label="Filter ward"
-            className="h-8 rounded-md border bg-background px-2 text-xs font-bold text-foreground"
+          <SearchSelect
+            className="w-40"
             value={wardFilter}
-            onChange={(e) => setWardFilter(e.target.value)}
-          >
-            <option value="all">सबै वडा (All Wards)</option>
-            {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-              <option key={w} value={w}>
-                वडा नं. {w}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setWardFilter(v)}
+            placeholder="सबै वडा (All Wards)"
+            options={[
+              { value: "all", label: "सबै वडा (All Wards)" },
+              ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
+            ]}
+          />
 
           {/* Status Filter */}
           <select
@@ -899,19 +897,16 @@ export function DashboardLiveMap({
             const employees = Array.from(new Set(tripSessions.map((s) => s.employee_name || "—")));
             return (
               employees.length > 1 && (
-                <select
-                  aria-label="Filter trips by employee"
-                  className="h-7 rounded-md border bg-background px-2 text-xs font-bold"
+                <SearchSelect
+                  className="w-40"
                   value={tripEmployeeFilter}
-                  onChange={(e) => setTripEmployeeFilter(e.target.value)}
-                >
-                  <option value="all">सबै कर्मचारी (All Employees)</option>
-                  {employees.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setTripEmployeeFilter(v)}
+                  placeholder="सबै कर्मचारी (All Employees)"
+                  options={[
+                    { value: "all", label: "सबै कर्मचारी (All Employees)" },
+                    ...employees.map((name) => ({ value: name, label: name })),
+                  ]}
+                />
               )
             );
           })()}

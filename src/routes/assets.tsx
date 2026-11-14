@@ -24,6 +24,7 @@ import {
   Trash2,
   UserCheck,
 } from "lucide-react";
+import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -1425,18 +1426,16 @@ function AssetsPage() {
                   ))}
                 </select>
 
-                <select
+                <SearchSelect
                   value={stockFilterWard}
-                  onChange={(e) => setStockFilterWard(e.target.value)}
-                  className={`${inputCls} w-auto`}
-                >
-                  <option value="all">सबै वडा</option>
-                  {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                    <option key={w} value={w}>
-                      वडा {w}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setStockFilterWard(v || "all")}
+                  options={Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
+                    value: w,
+                    label: `वडा ${w}`,
+                  }))}
+                  emptyLabel="सबै वडा"
+                  className="w-40"
+                />
 
                 <select
                   value={stockFilterStatus}
@@ -1769,17 +1768,15 @@ function AssetsPage() {
                   <label className="block text-[11px] font-bold text-muted-foreground mb-1">
                     वडा नं. (Ward) *
                   </label>
-                  <select
+                  <SearchSelect
                     value={newBatchWard}
-                    onChange={(e) => setNewBatchWard(e.target.value)}
-                    className={inputCls}
-                  >
-                    {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                      <option key={w} value={w}>
-                        वडा नं. {w}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setNewBatchWard}
+                    options={Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
+                      value: w,
+                      label: `वडा नं. ${w}`,
+                    }))}
+                    emptyLabel="— वडा छान्नुहोस् —"
+                  />
                 </div>
               </div>
 
@@ -1943,41 +1940,38 @@ function AssetsPage() {
                   <label className="block text-[11px] font-bold text-muted-foreground mb-1">
                     थेली बुझ्ने कर्मचारी (Employee Name) *
                   </label>
-                  <select
+                  <SearchSelect
                     value={issueEmployeeId}
-                    onChange={(e) => setIssueEmployeeId(e.target.value)}
-                    className={inputCls}
-                  >
-                    <option value="">— कर्मचारी छान्नुहोस् —</option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name} ({e.designation})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setIssueEmployeeId}
+                    options={employees.map((e) => ({
+                      value: e.id ?? "",
+                      label: `${e.name} (${e.designation})`,
+                    }))}
+                    emptyLabel="— कर्मचारी छान्नुहोस् —"
+                    allowClear
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-muted-foreground mb-1">
                     जिम्मेवार सुपरभाइजर (Supervisor)
                   </label>
-                  <select
+                  <SearchSelect
                     value={issueSupervisorName}
-                    onChange={(e) => setIssueSupervisorName(e.target.value)}
-                    className={inputCls}
-                  >
-                    <option value="">— सुपरभाइजर छान्नुहोस् —</option>
-                    {members.map((m) => (
-                      <option key={m.id} value={m.name}>
-                        {m.name} ({m.designation})
-                      </option>
-                    ))}
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.name}>
-                        {e.name} ({e.designation})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setIssueSupervisorName}
+                    options={[
+                      ...members.map((m) => ({
+                        value: m.name,
+                        label: `${m.name} (${m.designation})`,
+                      })),
+                      ...employees.map((e) => ({
+                        value: e.name,
+                        label: `${e.name} (${e.designation})`,
+                      })),
+                    ]}
+                    emptyLabel="— सुपरभाइजर छान्नुहोस् —"
+                    allowClear
+                  />
                 </div>
               </div>
 
@@ -1998,18 +1992,15 @@ function AssetsPage() {
                   <label className="block text-[11px] font-bold text-muted-foreground mb-1">
                     वडा नं. (Ward)
                   </label>
-                  <select
+                  <SearchSelect
                     value={issueWard}
-                    onChange={(e) => setIssueWard(e.target.value)}
-                    className={inputCls}
-                  >
-                    <option value="all">सबै वडा (All Wards)</option>
-                    {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                      <option key={w} value={w}>
-                        वडा नं. {w}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setIssueWard(v || "all")}
+                    options={Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
+                      value: w,
+                      label: `वडा नं. ${w}`,
+                    }))}
+                    emptyLabel="सबै वडा (All Wards)"
+                  />
                 </div>
 
                 <div>
@@ -2409,31 +2400,27 @@ function AssetsPage() {
                   />
                 </div>
 
-                <select
+                <SearchSelect
                   value={dailyLogEmpFilter}
-                  onChange={(e) => setDailyLogEmpFilter(e.target.value)}
-                  className={`${inputCls} w-auto`}
-                >
-                  <option value="all">सबै कर्मचारी (All Employees)</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.designation})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setDailyLogEmpFilter(v || "all")}
+                  options={employees.map((emp) => ({
+                    value: emp.id ?? "",
+                    label: `${emp.name} (${emp.designation})`,
+                  }))}
+                  emptyLabel="सबै कर्मचारी (All Employees)"
+                  className="w-44"
+                />
 
-                <select
+                <SearchSelect
                   value={dailyLogWardFilter}
-                  onChange={(e) => setDailyLogWardFilter(e.target.value)}
-                  className={`${inputCls} w-auto`}
-                >
-                  <option value="all">सबै वडा</option>
-                  {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                    <option key={w} value={w}>
-                      वडा {w}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setDailyLogWardFilter(v || "all")}
+                  options={Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
+                    value: w,
+                    label: `वडा ${w}`,
+                  }))}
+                  emptyLabel="सबै वडा"
+                  className="w-40"
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -2881,24 +2868,22 @@ function AssetsPage() {
                     key={i}
                     className="grid grid-cols-[1fr_auto_7.5rem] items-center gap-1.5"
                   >
-                    <select
+                    <SearchSelect
                       value={row.account_id}
-                      onChange={(e) =>
+                      onChange={(v) =>
                         setConvertAllocations((prev) =>
                           prev.map((r, idx) =>
-                            idx === i ? { ...r, account_id: e.target.value } : r,
+                            idx === i ? { ...r, account_id: v } : r,
                           ),
                         )
                       }
-                      className="h-9 w-full rounded-md border bg-background px-2.5 text-sm font-semibold text-foreground focus:outline-none focus:border-primary shadow-2xs"
-                    >
-                      <option value="">— नगद / बैंक खाता छान्नुहोस् —</option>
-                      {effectiveRpAccounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.account_type === "bank" ? "🏦 बैंक" : "💵 नगद"} — {a.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={effectiveRpAccounts.map((a) => ({
+                        value: a.id,
+                        label: `${a.account_type === "bank" ? "🏦 बैंक" : "💵 नगद"} — ${a.name}`,
+                      }))}
+                      emptyLabel="— नगद / बैंक खाता छान्नुहोस् —"
+                      allowClear
+                    />
                     <input
                       type="number"
                       value={row.amount}

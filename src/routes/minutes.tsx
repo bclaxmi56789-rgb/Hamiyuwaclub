@@ -23,6 +23,7 @@ import {
 } from "@/lib/receipt-rules";
 import { Button } from "@/components/ui/button";
 import { BSDatePicker } from "@/components/bs-date-picker";
+import { SearchSelect } from "@/components/search-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -689,18 +690,18 @@ function MinutesPage() {
                   <Label className="text-xs font-extrabold text-foreground">
                     सम्बन्धित कार्यक्रम / निकाय (Linked Programme)
                   </Label>
-                  <select
+                  <SearchSelect
                     value={form.event_id}
-                    onChange={(e) => setForm((prev) => ({ ...prev, event_id: e.target.value }))}
-                    className="mt-1.5 h-10 w-full rounded-xl border bg-background px-3 text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
-                  >
-                    <option value="">— सम्बन्ध नराख्ने (सामान्य सभा / कार्यसमिति बैठक) —</option>
-                    {events.map((ev) => (
-                      <option key={ev.id} value={ev.id || ""}>
-                        {ev.title} {ev.locality ? `(${ev.locality})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((prev) => ({ ...prev, event_id: v }))}
+                    options={events.map((ev) => ({
+                      value: ev.id || "",
+                      label: `${ev.title} ${ev.locality ? `(${ev.locality})` : ""}`,
+                    }))}
+                    placeholder="— सम्बन्ध नराख्ने (सामान्य सभा / कार्यसमिति बैठक) —"
+                    emptyLabel="— सम्बन्ध नराख्ने (सामान्य सभा / कार्यसमिति बैठक) —"
+                    allowClear
+                    className="mt-1.5"
+                  />
                 </div>
                 <div>
                   <Label className="text-xs font-extrabold text-foreground">
@@ -903,25 +904,23 @@ function MinutesPage() {
                       <UserCheck className="size-4 text-primary" />
                       सल्लाहकारहरू (Advisors)
                     </span>
-                    <select
+                    <SearchSelect
                       aria-label="Add advisor from members"
                       value=""
-                      onChange={(e) => {
-                        const mem = members.find((m2) => m2.id === e.target.value);
+                      onChange={(v) => {
+                        const mem = members.find((m2) => m2.id === v);
                         if (mem) toggledAttendee(mem.name, "advisor", mem.designation);
-                        e.target.value = "";
                       }}
-                      className="h-8 max-w-[240px] rounded-lg border bg-background px-2 text-xs font-medium"
-                    >
-                      <option value="">सदस्यबाट सल्लाहकार छान्नुहोस्…</option>
-                      {members
+                      options={members
                         .filter((mem) => !isSelected(mem.name, "advisor"))
-                        .map((mem) => (
-                          <option key={mem.id} value={mem.id || ""}>
-                            {mem.name} {mem.designation ? `(${mem.designation})` : ""}
-                          </option>
-                        ))}
-                    </select>
+                        .map((mem) => ({
+                          value: mem.id || "",
+                          label: `${mem.name} ${mem.designation ? `(${mem.designation})` : ""}`,
+                        }))}
+                      placeholder="सदस्यबाट सल्लाहकार छान्नुहोस्…"
+                      emptyLabel="सदस्यबाट सल्लाहकार छान्नुहोस्…"
+                      className="max-w-[240px]"
+                    />
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {form.attendees

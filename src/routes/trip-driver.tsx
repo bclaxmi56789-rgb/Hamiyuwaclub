@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useWorkspace, WorkspacePage } from "@/components/workspace";
+import { SearchSelect } from "@/components/search-select";
 import {
   logTrip,
   deleteTrip,
@@ -1087,19 +1088,16 @@ function TripDriverPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Ward filter dropdown */}
-          <select
-            aria-label="Filter ward"
-            className="h-8 rounded-md border bg-card px-2.5 text-xs font-bold text-foreground"
+          <SearchSelect
+            className="w-40"
             value={selectedWard}
-            onChange={(e) => setSelectedWard(e.target.value)}
-          >
-            <option value="all">सबै वडा (All Wards)</option>
-            {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-              <option key={w} value={w}>
-                वडा नं. {w}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setSelectedWard(v)}
+            placeholder="सबै वडा (All Wards)"
+            options={[
+              { value: "all", label: "सबै वडा (All Wards)" },
+              ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
+            ]}
+          />
 
           {/* Refresh Button */}
           <Button

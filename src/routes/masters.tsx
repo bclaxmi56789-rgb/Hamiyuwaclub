@@ -12,6 +12,7 @@ import {
   getLocalityPhoto,
 } from "@/lib/workspace.functions";
 import { BUSINESS_NATURES, natureEmoji } from "@/lib/nature";
+import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
 import {
   Search,
@@ -42,6 +43,7 @@ import {
   getDueMonths,
   mergeOpeningDues,
   remainingDuesForPerson,
+  indexPaidReceiptsByCustomer,
   MONTHS,
   FISCAL_YEARS,
   fiscalLabel,
@@ -422,9 +424,10 @@ function Masters() {
       return text.includes(term);
     }) ?? [];
 
-  // Remaining dues per customer (receipt months already paid are removed)
+  // Remaining dues per customer (O(N) with pre-indexed paid receipts)
   const peopleDues = useMemo(() => {
     const today = todayBS();
+    const paidIndex = indexPaidReceiptsByCustomer(allReceipts);
     const map = new Map<string, { months: DueMonth[]; total: number }>();
     (query.data?.people ?? []).forEach((p) => {
       map.set(
@@ -437,6 +440,7 @@ function Masters() {
           p.card,
           getCustomerTotalRate(p, plans),
           today,
+          paidIndex,
         ),
       );
     });
@@ -837,19 +841,18 @@ function Masters() {
           {/* Ward filter dropdown */}
           <div className="flex items-center gap-1.5 bg-card border rounded-md px-2 py-1.5 text-xs">
             <span className="font-semibold text-muted-foreground">वडा (Ward):</span>
-            <select
-              aria-label="Filter by ward"
+            <SearchSelect
               value={selectedWard}
-              onChange={(e) => setSelectedWard(e.target.value)}
-              className="bg-transparent font-bold text-foreground focus:outline-none cursor-pointer"
-            >
-              <option value="all">सबै वडा (All Wards)</option>
-              {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                <option key={w} value={w}>
-                  वडा नं. {w}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setSelectedWard(value)}
+              className="w-auto"
+              options={[
+                { value: "all", label: "सबै वडा (All Wards)" },
+                ...Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
+                  value: w,
+                  label: `वडा ${w}`,
+                })),
+              ]}
+            />
           </div>
 
           <div className="relative max-w-md flex-1">
@@ -1185,18 +1188,16 @@ function Masters() {
                     <label className="block text-xs font-semibold text-muted-foreground">
                       वडा नं. (Ward) *
                     </label>
-                    <select
-                      aria-label="Ward"
-                      className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                    <SearchSelect
+                      className="mt-1"
                       value={form.ward}
-                      onChange={(e) => setForm({ ...form, ward: e.target.value })}
-                    >
-                      {Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => (
-                        <option key={w} value={w}>
-                          Ward {w}
-                        </option>
-                      ))}
-                    </select>
+                      allowClear
+                      onChange={(value) => setForm({ ...form, ward: value })}
+                      options={Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
+                        value: w,
+                        label: `वडा ${w}`,
+                      }))}
+                    />
                   </div>
 
                   <div>
@@ -1366,17 +1367,25 @@ function Masters() {
                   {/* Add Another Plan Dropdown */}
                   {!isCreatingPlan && (
                     <div className="flex items-center gap-2 pt-1">
-                      <select
-                        aria-label="Add additional plan"
+                      <SearchSelect
                         className={
-                          "flex-1 rounded border px-2.5 py-1.5 text-xs " +
+                          "flex-1 " +
                           ((form.plans?.length || 0) === 0
-                            ? "border-amber-400 bg-amber-50/60 font-semibold text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-amber-300"
-                            : "bg-card text-foreground")
+                            ? "[&_button]:border-amber-400 [&_button]:bg-amber-50/60 [&_button]:font-semibold [&_button]:text-amber-800 dark:[&_button]:border-amber-500/40 dark:[&_button]:bg-amber-950/20 dark:[&_button]:text-amber-300"
+                            : "")
                         }
                         value=""
-                        onChange={(e) => {
-                          const val = e.target.value;
+                        placeholder={
+                          (form.plans?.length || 0) === 0
+                            ? "कृपया योजना छान्नुहोस् (Please Select a Plan)…"
+                            : "+ अर्को योजना थप्नुहोस् (Add Another Plan from Master)..."
+                        }
+                        emptyLabel={
+                          (form.plans?.length || 0) === 0
+                            ? "कृपया योजना छान्नुहोस् (Please Select a Plan)…"
+                            : "+ अर्को योजना थप्नुहोस् (Add Another Plan from Master)..."
+                        }
+                        onChange={(val) => {
                           if (!val) return;
                           if (val === "__add_new__") {
                             setIsCreatingPlan(true);
@@ -1385,24 +1394,19 @@ function Masters() {
                             if (matched) addPlanToCustomer(matched);
                           }
                         }}
-                      >
-                        <option value="">
-                          {(form.plans?.length || 0) === 0
-                            ? "कृपया योजना छान्नुहोस् (Please Select a Plan)…"
-                            : "+ अर्को योजना थप्नुहोस् (Add Another Plan from Master)..."}
-                        </option>
-                        {plans
-                          .filter((p) => p.is_active !== false)
-                          .map((sp) => (
-                            <option key={sp.id} value={sp.id}>
-                              + {sp.name} — रु. {sp.chargeable_amount.toLocaleString("en-IN")} /{" "}
-                              {sp.uom || "महिना"} ({sp.trips ?? sp.no_of_trips ?? 1} ट्रिप)
-                            </option>
-                          ))}
-                        <option value="__add_new__">
-                          + नयाँ योजना दर्ता गर्ने (Add New Plan in Master)...
-                        </option>
-                      </select>
+                        options={[
+                          ...plans
+                            .filter((p) => p.is_active !== false)
+                            .map((sp) => ({
+                              value: sp.id,
+                              label: `+ ${sp.name} — रु. ${sp.chargeable_amount.toLocaleString("en-IN")} / ${sp.uom || "महिना"} (${sp.trips ?? sp.no_of_trips ?? 1} ट्रिप)`,
+                            })),
+                          {
+                            value: "__add_new__",
+                            label: "+ नयाँ योजना दर्ता गर्ने (Add New Plan in Master)...",
+                          },
+                        ]}
+                      />
                     </div>
                   )}
 
@@ -2176,12 +2180,11 @@ function Masters() {
                         (वैकल्पिक — ग्राहक मास्टरबाट छान्नुहोस् / Optional — from People Master)
                       </span>
                     </label>
-                    <select
+                    <SearchSelect
                       id="ghardhani-ref"
-                      className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
+                      className="mt-1"
                       value={form.ghardhani_ref || ""}
-                      onChange={(e) => {
-                        const ref = e.target.value;
+                      onChange={(ref) => {
                         if (!ref) {
                           setForm((prev) => ({ ...prev, ghardhani_ref: "", ghardhani_name: "" }));
                           return;
@@ -2196,17 +2199,14 @@ function Masters() {
                           ghardhani_name: ghardhani?.name || prev.ghardhani_name || "",
                         }));
                       }}
-                    >
-                      <option value="">— छान्नुहोस् (Select from People Master) —</option>
-                      {(query.data?.people ?? [])
+                      options={(query.data?.people ?? [])
                         .slice()
                         .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")))
-                        .map((p) => (
-                          <option key={`${p.ward}-${p.card}`} value={`${p.ward}:${p.card}`}>
-                            {p.name} — वडा {p.ward}, कार्ड नं. {p.card}
-                          </option>
-                        ))}
-                    </select>
+                        .map((p) => ({
+                          value: `${p.ward}:${p.card}`,
+                          label: `${p.name} — वडा ${p.ward}, कार्ड नं. ${p.card}`,
+                        }))}
+                    />
                     {form.ghardhani_name && (
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         घरधनी: {form.ghardhani_name}

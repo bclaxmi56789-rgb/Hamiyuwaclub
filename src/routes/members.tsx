@@ -32,6 +32,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchSelect } from "@/components/search-select";
 import { PaySlipVoucher } from "@/components/pay-slip-voucher";
 import {
   UserCheck,
@@ -2815,17 +2816,18 @@ function MembersPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <div>
                     <Label className="text-xs text-muted-foreground font-semibold">कर्मचारी छान्नुहोस् (Select Employee)</Label>
-                    <select
+                    <SearchSelect
                       value={currentLedgerEmp?.id || ""}
-                      onChange={(e) => setSelectedLedgerEmpId(e.target.value)}
-                      className="mt-1 h-9 rounded-md border bg-background px-3 text-xs font-bold min-w-[220px]"
-                    >
-                      {empList.map((em) => (
-                        <option key={em.id} value={em.id}>
-                          {em.name} ({em.designation})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setSelectedLedgerEmpId(v)}
+                      options={empList.map((em) => ({
+                        value: em.id ?? "",
+                        label: `${em.name} (${em.designation})`,
+                      }))}
+                      placeholder="कर्मचारी छान्नुहोस्…"
+                      emptyLabel="— कुनै छैन (None) —"
+                      allowClear
+                      className="mt-1 min-w-[220px]"
+                    />
                   </div>
                   {currentLedgerEmp && (
                     <div className="pt-5">
@@ -3773,18 +3775,17 @@ function MembersPage() {
 
               <div>
                 <Label className="text-xs font-semibold">भुक्तानी गरिने खाता (Cash/Bank Account) *</Label>
-                <select
+                <SearchSelect
                   value={payModal.account_id}
-                  onChange={(e) => setPayModal((p) => ({ ...p, account_id: e.target.value }))}
-                  className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs font-semibold"
-                >
-                  <option value="">खाता छान्नुहोस्…</option>
-                  {accountsList.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} ({acc.account_type === "cash" ? "नगद खाता" : "बैंक खाता"})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setPayModal((p) => ({ ...p, account_id: v }))}
+                  options={accountsList.map((acc) => ({
+                    value: acc.id,
+                    label: `${acc.name} (${acc.account_type === "cash" ? "नगद खाता" : "बैंक खाता"})`,
+                  }))}
+                  placeholder="खाता छान्नुहोस्…"
+                  emptyLabel="— कुनै छैन (None) —"
+                  className="mt-1"
+                />
                 {accountsList.length === 0 && (
                   <p className="mt-1 text-[11px] text-rose-600">
                     खाता फेला परेन। कृपया पहिले 'नगद/बैंक' खण्डमा खाता थप्नुहोस्।
