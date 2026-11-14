@@ -89,118 +89,7 @@ export const Route = createFileRoute("/assets")({
 const inputCls =
   "w-full rounded-md border bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary shadow-2xs";
 
-/* ── Seed sample stock if brand new ──────────────────────────── */
-export const DEFAULT_THELI_BATCHES: TheliStockBatch[] = [
-  {
-    id: "tsb-default-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    start_from: "GT-0001",
-    end_to: "GT-0250",
-    vouchers_per_theli: 50,
-    total_vouchers: 250,
-    total_theli: 5,
-    remarks: "आ.व. २०८१/८२ वडा नं. ४ पहिलो लट थेली स्टक",
-    created_at: new Date().toISOString(),
-  },
-];
-
-export const DEFAULT_THELI_ITEMS: TheliStockItem[] = [
-  {
-    id: "th-def-1",
-    batch_id: "tsb-default-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 1,
-    range_from: "GT-0001",
-    range_to: "GT-0050",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-def-2",
-    batch_id: "tsb-default-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 2,
-    range_from: "GT-0051",
-    range_to: "GT-0100",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-def-3",
-    batch_id: "tsb-default-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 3,
-    range_from: "GT-0101",
-    range_to: "GT-0150",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-def-4",
-    batch_id: "tsb-default-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 4,
-    range_from: "GT-0151",
-    range_to: "GT-0200",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-  {
-    id: "th-def-5",
-    batch_id: "tsb-default-1",
-    municipality: "वीरेन्द्रनगर नगरपालिका",
-    ward: "4",
-    fiscal_year: "2081/82",
-    theli_no: 5,
-    range_from: "GT-0201",
-    range_to: "GT-0250",
-    total_vouchers: 50,
-    status: "available",
-    is_remaining_open: false,
-    booked_vouchers_count: 0,
-    remaining_vouchers_count: 50,
-    amount_booked: 0,
-    amount_obtained: 0,
-    balance: 0,
-  },
-];
-
-const SEED_BATCHES: TheliStockBatch[] = DEFAULT_THELI_BATCHES;
-const SEED_ITEMS: TheliStockItem[] = DEFAULT_THELI_ITEMS;
+// Seed constants removed — user registers their own theli stock via the form.
 
 /* ── Legacy row helper ───────────────────────────────────────── */
 function TheliRangeRows({
@@ -239,7 +128,7 @@ function TheliRangeRows({
               </span>
               <input
                 className={inputCls}
-                placeholder="देखि GT-001"
+                placeholder="देखि (सुरु)"
                 value={r.from}
                 onChange={(e) =>
                   setRows(rows.map((old, j) => (j === i ? { ...old, from: e.target.value } : old)))
@@ -248,7 +137,7 @@ function TheliRangeRows({
               <span className="text-muted-foreground">–</span>
               <input
                 className={inputCls}
-                placeholder="सम्म GT-050"
+                placeholder="सम्म (अन्तिम)"
                 value={r.to}
                 onChange={(e) =>
                   setRows(rows.map((old, j) => (j === i ? { ...old, to: e.target.value } : old)))
@@ -448,7 +337,7 @@ function AssetsPage() {
   };
 
   // State — start empty; Supabase data replaces once query resolves.
-  // Never fall back to SEED_BATCHES/SEED_ITEMS so demo data doesn't mask real DB state.
+  // User fills their own theli stock via the form.
   const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>([]);
   const [stockItems, setStockItems] = useState<TheliStockItem[]>([]);
 
@@ -565,76 +454,6 @@ function AssetsPage() {
     }
   };
 
-  const handleLoadDefaultTheliStock = async () => {
-    setNotice(null);
-    try {
-      const res = await saveStockBatchFn({
-        data: {
-          municipality: "वीरेन्द्रनगर नगरपालिका",
-          ward: ward && ward !== "all" ? ward : "4",
-          fiscal_year: year || "2081/82",
-          start_from: "GT-0001",
-          end_to: "GT-0250",
-          vouchers_per_theli: 50,
-          remarks: "आ.व. २०८१/८२ पहिलो लट थेली स्टक (GT-0001 देखि GT-0250)",
-        },
-      });
-
-      const updatedBatches = [res.batch, ...stockBatches.filter((b) => b.id !== res.batch.id)];
-      const updatedItems = [...res.items, ...stockItems];
-
-      setStockBatches(updatedBatches);
-      setStockItems(updatedItems);
-      try {
-        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(updatedBatches));
-        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
-      } catch {}
-
-      setNotice({
-        type: "success",
-        text: "नमुना थेली स्टक सफलतापूर्वक लोड भयो! (GT-0001 देखि GT-0250 सम्मका ५ वटा थेलीहरू स्टकमा थपिए)",
-      });
-      refreshAll();
-    } catch (e: any) {
-      // Local fallback
-      const batchId = `tsb-default-${Date.now()}`;
-      const newBatch: TheliStockBatch = {
-        id: batchId,
-        municipality: "वीरेन्द्रनगर नगरपालिका",
-        ward: ward && ward !== "all" ? ward : "4",
-        fiscal_year: year || "2081/82",
-        start_from: "GT-0001",
-        end_to: "GT-0250",
-        vouchers_per_theli: 50,
-        total_vouchers: 250,
-        total_theli: 5,
-        remarks: "आ.व. २०८१/८२ पहिलो लट थेली स्टक",
-        created_at: new Date().toISOString(),
-      };
-      const genItems = generateTheliRanges({
-        id: batchId,
-        municipality: "वीरेन्द्रनगर नगरपालिका",
-        ward: ward && ward !== "all" ? ward : "4",
-        fiscal_year: year || "2081/82",
-        start_from: "GT-0001",
-        end_to: "GT-0250",
-        vouchers_per_theli: 50,
-      });
-
-      const updatedBatches = [newBatch, ...stockBatches];
-      const updatedItems = [...genItems, ...stockItems];
-      setStockBatches(updatedBatches);
-      setStockItems(updatedItems);
-      try {
-        localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(updatedBatches));
-        localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(updatedItems));
-      } catch {}
-      setNotice({
-        type: "success",
-        text: "नमुना थेली स्टक लोड भयो!",
-      });
-    }
-  };
 
   const handleDeleteStockItem = async (itemId: string) => {
     if (!window.confirm("के तपाईं यो थेली दायरा स्टकबाट मेटाउन निश्चित हुनुहुन्छ?")) return;
@@ -684,8 +503,8 @@ function AssetsPage() {
   const [newBatchMunicipality, setNewBatchMunicipality] = useState("");
   const [newBatchWard, setNewBatchWard] = useState(ward || "4");
   const [newBatchFY, setNewBatchFY] = useState(year || "2081/82");
-  const [newBatchStart, setNewBatchStart] = useState("GT-0001");
-  const [newBatchEnd, setNewBatchEnd] = useState("GT-1000");
+  const [newBatchStart, setNewBatchStart] = useState("");
+  const [newBatchEnd, setNewBatchEnd] = useState("");
   const [newBatchPerTheli, setNewBatchPerTheli] = useState<number>(50);
   const [newBatchRemarks, setNewBatchRemarks] = useState("");
   const [savingBatch, setSavingBatch] = useState(false);
@@ -981,6 +800,7 @@ function AssetsPage() {
           action_on_remaining: reportActionRemaining,
           log_date: reportDate,
           remarks: reportRemarks,
+          fallback_item: reportingItem,
         },
       });
 
@@ -1597,7 +1417,7 @@ function AssetsPage() {
                               कुनै थेली स्टक रेकर्ड फेला परेन (No Theli Records)
                             </h4>
                             <p className="text-xs text-muted-foreground">
-                              तपाईं नयाँ छापिएको थेली स्टक दर्ता गर्न सक्नुहुन्छ वा पूर्वनिर्धारित नमुना थेली तुरुन्त लोड गर्न सक्नुहुन्छ।
+                              कृपया नयाँ छापिएको थेली स्टक दर्ता गर्नुहोस्।
                             </p>
                             <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                               <Button
@@ -1607,15 +1427,6 @@ function AssetsPage() {
                               >
                                 <Plus className="size-3.5 mr-1" />
                                 <span>नयाँ थेली स्टक दर्ता गर्नुहोस्</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleLoadDefaultTheliStock}
-                                className="font-bold text-xs border-primary/30 text-primary hover:bg-primary/10"
-                              >
-                                <Sparkles className="size-3.5 mr-1" />
-                                <span>नमुना थेली स्टक लोड गर्नुहोस् (GT-0001 देखि GT-0250)</span>
                               </Button>
                             </div>
                           </div>
@@ -1923,7 +1734,7 @@ function AssetsPage() {
                     value={newBatchStart}
                     onChange={(e) => setNewBatchStart(e.target.value)}
                     className={`${inputCls} font-mono font-bold`}
-                    placeholder="उदा: GT-0001"
+                    placeholder="उदा: 0001 वा A-001"
                   />
                 </div>
 
@@ -1936,7 +1747,7 @@ function AssetsPage() {
                     value={newBatchEnd}
                     onChange={(e) => setNewBatchEnd(e.target.value)}
                     className={`${inputCls} font-mono font-bold`}
-                    placeholder="उदा: GT-1000"
+                    placeholder="उदा: 0500 वा A-500"
                   />
                 </div>
               </div>
@@ -2891,7 +2702,7 @@ function AssetsPage() {
               <input
                 type="text"
                 value={convertLastVoucher}
-                placeholder={convertTarget?.range_to || "GT-XXXX"}
+                placeholder={convertTarget?.range_to || "रसिद नं."}
                 onChange={(e) => setConvertLastVoucher(e.target.value)}
                 className={inputCls}
               />

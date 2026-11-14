@@ -3265,6 +3265,7 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
       action_on_remaining: z.enum(["return", "keep_issued"]).default("return"),
       log_date: z.string().trim().min(1),
       remarks: z.string().trim().optional().default(""),
+      fallback_item: z.any().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -3280,18 +3281,12 @@ export const reportTheliStockClosing = createServerFn({ method: "POST" })
       if (!res.error && res.data) currentItem = res.data as TheliStockItem;
     } catch {}
 
+    if (!currentItem && data.fallback_item) {
+      currentItem = data.fallback_item as TheliStockItem;
+    }
+
     if (!currentItem) {
-      // Stub fallback
-      currentItem = {
-        id: data.item_id,
-        municipality: "वीरेन्द्रनगर",
-        ward: "4",
-        fiscal_year: "2081/82",
-        range_from: "GT-001",
-        range_to: "GT-050",
-        total_vouchers: 50,
-        status: "issued",
-      };
+      throw new Error(`Theli stock item ${data.item_id} not found.`);
     }
 
     const calc = calculateTheliBooking(
