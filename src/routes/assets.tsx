@@ -231,6 +231,14 @@ function AssetsPage() {
     account_type: "cash" | "bank";
   }> = rpAccountsQuery.data || [];
 
+  const effectiveRpAccounts = useMemo(() => {
+    if (rpAccounts.length > 0) return rpAccounts;
+    return [
+      { id: "cash-main", name: "मुख्य नगद खाता (Main Cash)", account_type: "cash" as const },
+      { id: "bank-main", name: "बैंक खाता (Main Bank)", account_type: "bank" as const },
+    ];
+  }, [rpAccounts]);
+
   // Effective booked/payment amount
   const convertEffectiveAmount = useMemo(() => {
     if (!convertTarget) return 0;
@@ -249,8 +257,9 @@ function AssetsPage() {
     const initialAmt = Number(item.amount_booked) > 0 ? Number(item.amount_booked) : 0;
     setConvertCustomAmount(initialAmt);
     setConvertLastVoucher(item.last_voucher_booked || item.range_to || "");
-    setConvertAllocations([{ account_id: "", amount: initialAmt }]);
-    setConvertDate(item.issued_date || (todayBS ? todayBS() : ""));
+    const defaultAccId = effectiveRpAccounts[0]?.id || "cash-main";
+    setConvertAllocations([{ account_id: defaultAccId, amount: initialAmt }]);
+    setConvertDate(item.issued_date || (todayBS ? todayBS() : "2083/07/15"));
   };
 
   const handleConfirmConvertToReceipt = async () => {
@@ -271,8 +280,8 @@ function AssetsPage() {
       await convertBalanceFn({
         data: {
           item_id: convertTarget.id,
-          ward: convertTarget.ward,
-          fiscal_year: convertTarget.fiscal_year,
+          ward: convertTarget.ward && convertTarget.ward !== "all" ? convertTarget.ward : "4",
+          fiscal_year: convertTarget.fiscal_year || "2081/82",
           theli_no: convertTarget.theli_no || 0,
           range_from: convertTarget.range_from || "",
           range_to: convertTarget.range_to || "",
@@ -280,12 +289,12 @@ function AssetsPage() {
           issued_to_name: convertTarget.issued_to_name || "",
           municipality: convertTarget.municipality || "",
           amount: booked,
-          date: convertDate,
+          date: convertDate || (todayBS ? todayBS() : "2083/07/15"),
           allocations: convertAllocations.map((a) => {
-            const account = rpAccounts.find((x) => x.id === a.account_id);
+            const account = effectiveRpAccounts.find((x) => x.id === a.account_id);
             return {
-              account_id: a.account_id,
-              account_name: account?.name || "",
+              account_id: a.account_id || effectiveRpAccounts[0].id,
+              account_name: account?.name || "नगद खाता",
               mode: account?.account_type === "bank" ? "बैंक (Bank)" : "नगद (Cash)",
               amount: Number(a.amount) || 0,
             };
@@ -338,42 +347,49 @@ function AssetsPage() {
 
   // State — start empty; Supabase data replaces once query resolves.
   // User fills their own theli stock via the form.
-  const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>([]);
-  const [stockItems, setStockItems] = useState<TheliStockItem[]>([]);
+  const [stockBatches, setStockBatches] = useState<TheliStockBatch[]>(() => {
+    try {
+      const s = localStorage.getItem(hamiCacheKey("hami_theli_stock_batches"));
+      if (s) return JSON.parse(s);
+    } catch {}
+    return [];
+  });
+  const [stockItems, setStockItems] = useState<TheliStockItem[]>(() => {
+    try {
+      const s = localStorage.getItem(hamiCacheKey("hami_theli_stock_items"));
+      if (s) return JSON.parse(s);
+    } catch {}
+    return [];
+  });
 
-  const [dailyLogs, setDailyLogs] = useState<TheliLog[]>([]);
+  const [dailyLogs, setDailyLogs] = useState<TheliLog[]>(() => {
+    try {
+      const s = localStorage.getItem(hamiCacheKey("hami_theli_daily_logs"));
+      if (s) return JSON.parse(s);
+    } catch {}
+    return [];
+  });
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
-  // On mount: wipe stale seed/localStorage data so it cannot crash useMemos before
-  // the Supabase query resolves. The useEffect below will refill from server truth.
-  useEffect(() => {
-    try {
-      localStorage.removeItem(hamiCacheKey("hami_theli_stock_batches"));
-      localStorage.removeItem(hamiCacheKey("hami_theli_stock_items"));
-      localStorage.removeItem(hamiCacheKey("hami_theli_daily_logs"));
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Sync server data — ALWAYS replace with authoritative DB data once query resolves.
-  // This prevents seed/stale localStorage data from masking what Supabase actually has.
+  // Sync server data safely with local state
   useEffect(() => {
     if (theliStockQuery.data) {
       const bList = theliStockQuery.data.batches || [];
       const iList = theliStockQuery.data.items || [];
       const lList = theliStockQuery.data.logs || [];
 
-      // Always overwrite state with server truth (even if empty arrays — that's the real answer)
-      setStockBatches(bList);
-      try { localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList)); } catch {}
+      if (bList.length > 0 || iList.length > 0 || lList.length > 0) {
+        setStockBatches(bList);
+        try { localStorage.setItem(hamiCacheKey("hami_theli_stock_batches"), JSON.stringify(bList)); } catch {}
 
-      setStockItems(iList);
-      try { localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList)); } catch {}
+        setStockItems(iList);
+        try { localStorage.setItem(hamiCacheKey("hami_theli_stock_items"), JSON.stringify(iList)); } catch {}
 
-      setDailyLogs(lList);
-      try { localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList)); } catch {}
+        setDailyLogs(lList);
+        try { localStorage.setItem(hamiCacheKey("hami_theli_daily_logs"), JSON.stringify(lList)); } catch {}
+      }
 
       if (theliStockQuery.data.employees) {
         setEmployees(theliStockQuery.data.employees);
@@ -905,15 +921,40 @@ function AssetsPage() {
      EMPLOYEES GROUPED BOXES
      ───────────────────────────────────────────────────────────── */
   const employeeTheliCards = useMemo(() => {
-    return employees.map((emp) => {
+    // Collect all employee identities from employee master + issued stock items
+    const empMap = new Map<string, { id: string; name: string; designation: string }>();
+    for (const e of employees) {
+      empMap.set(e.id, { id: e.id, name: e.name, designation: e.designation || "कर्मचारी" });
+    }
+    for (const it of stockItems) {
+      if (it.issued_to_id && !empMap.has(it.issued_to_id)) {
+        empMap.set(it.issued_to_id, {
+          id: it.issued_to_id,
+          name: it.issued_to_name || it.issued_to_id,
+          designation: "कर्मचारी",
+        });
+      } else if (it.issued_to_name && !Array.from(empMap.values()).some((e) => e.name === it.issued_to_name)) {
+        empMap.set(it.issued_to_name, {
+          id: it.issued_to_id || it.issued_to_name,
+          name: it.issued_to_name,
+          designation: "कर्मचारी",
+        });
+      }
+    }
+
+    return Array.from(empMap.values()).map((emp) => {
       const issued = stockItems.filter(
-        (it) => it.issued_to_id === emp.id && (it.status === "issued" || it.status === "partially_booked"),
+        (it) =>
+          (it.issued_to_id === emp.id || it.issued_to_name === emp.name) &&
+          (it.status === "issued" || it.status === "partially_booked"),
       );
-      const allEmpItems = stockItems.filter((it) => it.issued_to_id === emp.id);
+      const allEmpItems = stockItems.filter(
+        (it) => it.issued_to_id === emp.id || it.issued_to_name === emp.name,
+      );
 
       // Latest carried balance
       const empLogs = dailyLogs
-        .filter((l) => l.employee_id === emp.id)
+        .filter((l) => l.employee_id === emp.id || l.employee_name === emp.name)
         .sort((a, b) => (b.log_date ?? "").localeCompare(a.log_date ?? ""));
       const carryBalance = empLogs[0] ? theliTotals(empLogs[0]).balance : 0;
 
@@ -2153,14 +2194,27 @@ function AssetsPage() {
                               </div>
                             )}
 
-                            <Button
-                              size="sm"
-                              className="w-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white mt-1 h-7 flex items-center justify-center gap-1"
-                              onClick={() => handleOpenReportModal(it)}
-                            >
-                              <PenLine className="size-3" />
-                              <span>दैनिक थेली रिपोर्टिङ भर्नुहोस्</span>
-                            </Button>
+                            <div className="grid grid-cols-2 gap-1.5 mt-1">
+                              <Button
+                                size="sm"
+                                className="text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-7 flex items-center justify-center gap-1"
+                                onClick={() => handleOpenReportModal(it)}
+                              >
+                                <PenLine className="size-3" />
+                                <span>रिपोर्टिङ</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={converting}
+                                className="text-[11px] font-bold text-emerald-700 border-emerald-600/40 hover:bg-emerald-500/10 h-7 flex items-center justify-center gap-1"
+                                onClick={() => openConvertDialog(it)}
+                                title="संकलित रकम भुक्तानी दाखिला / रसिद रूपान्तरण"
+                              >
+                                <HandCoins className="size-3" />
+                                <span>भुक्तानी / दाखिला</span>
+                              </Button>
+                            </div>
                           </div>
                         ))
                       )}
@@ -2729,7 +2783,7 @@ function AssetsPage() {
                       className="h-9 w-full rounded-md border bg-background px-2.5 text-sm font-semibold text-foreground focus:outline-none focus:border-primary shadow-2xs"
                     >
                       <option value="">— नगद / बैंक खाता छान्नुहोस् —</option>
-                      {rpAccounts.map((a) => (
+                      {effectiveRpAccounts.map((a) => (
                         <option key={a.id} value={a.id}>
                           {a.account_type === "bank" ? "🏦 बैंक" : "💵 नगद"} — {a.name}
                         </option>

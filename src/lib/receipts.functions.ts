@@ -195,7 +195,7 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       item_id: z.string().trim().min(1),
-      ward: z.string().regex(/^[1-9]\d?$/),
+      ward: z.string().trim().min(1),
       fiscal_year: z.string().trim().min(1),
       theli_no: z.number().int().optional().default(0),
       range_from: z.string().trim().default(""),
@@ -204,7 +204,7 @@ export const convertTheliBalanceToReceipt = createServerFn({ method: "POST" })
       issued_to_name: z.string().trim().default(""),
       municipality: z.string().trim().default(""),
       amount: z.number().positive("रकम शून्य वा कम हुन सक्दैन"),
-      date: z.string().regex(/^\d{4}\/\d{2}\/\d{2}$/, "मिति आवश्यक छ"),
+      date: z.string().trim().min(1, "मिति आवश्यक छ"),
       /** Split of the amount into cash/bank accounts */
       allocations: z
         .array(

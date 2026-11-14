@@ -3154,10 +3154,11 @@ export const saveTheliStockBatch = createServerFn({ method: "POST" })
       const itemRes = await context.supabase.from("theli_stock_items").upsert(itemsToSave);
       if (itemRes.error) {
         console.warn("theli_stock_items upsert notice:", itemRes.error.message);
-        // If foreign key constraint failed because theli_stock_batches wasn't found, retry without batch_id
-        if (itemRes.error.message.includes("batch_id") || itemRes.error.message.includes("foreign key")) {
-          const itemsWithoutBatchFk = itemsToSave.map((it) => ({ ...it, batch_id: null }));
-          await context.supabase.from("theli_stock_items").upsert(itemsWithoutBatchFk);
+        // Retry without batch_id in case foreign key failed
+        const itemsWithoutBatchFk = itemsToSave.map((it) => ({ ...it, batch_id: null }));
+        const retryRes = await context.supabase.from("theli_stock_items").upsert(itemsWithoutBatchFk);
+        if (retryRes.error) {
+          console.warn("theli_stock_items retry without batch_id also failed:", retryRes.error.message);
         }
       }
     } catch (e: any) {

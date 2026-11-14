@@ -1590,7 +1590,7 @@ export function sortTheliAvailableRanges(items: TheliStockItem[]): TheliStockIte
     const bNum = theliSerialNumber(b.range_from);
     if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
 
-    return a.range_from.localeCompare(b.range_from);
+    return (a.range_from ?? "").localeCompare(b.range_from ?? "");
   });
 }
 
