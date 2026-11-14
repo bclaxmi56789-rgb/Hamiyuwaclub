@@ -50,6 +50,7 @@ import {
   resolveCustomerLocation,
 } from "@/lib/geo";
 import { natureEmoji } from "@/lib/nature";
+import { CustomerPhotoButton } from "@/components/customer-photo-button";
 
 export const Route = createFileRoute("/collection-map")({
   ssr: false,
@@ -1258,6 +1259,9 @@ function CollectionMapPage() {
                   </a>
                 </Button>
               )}
+
+              {/* Customer Photo (fullscreen viewer) */}
+              <CustomerPhotoButton value={selectedCustomer.locality_photo} />
 
               {/* Google Maps Turn-by-Turn Driving Navigation */}
               <Button

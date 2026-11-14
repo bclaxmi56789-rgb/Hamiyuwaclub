@@ -59,6 +59,7 @@ import {
   resolveCustomerLocation,
 } from "@/lib/geo";
 import { natureEmoji } from "@/lib/nature";
+import { CustomerPhotoButton } from "@/components/customer-photo-button";
 
 export const Route = createFileRoute("/trip-driver")({
   ssr: false,
@@ -1461,6 +1462,9 @@ function TripDriverPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-2 pt-1 border-t">
+              {/* Customer Photo (fullscreen viewer) */}
+              <CustomerPhotoButton value={selectedCustomer.locality_photo} />
+
               {selectedCustomer.phone && (
                 <a
                   href={`tel:${selectedCustomer.phone}`}
