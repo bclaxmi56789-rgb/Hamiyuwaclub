@@ -1,27 +1,22 @@
 /**
- * DigitalCard — printable & on-screen digital membership card with embedded QR code.
+ * DigitalCard — on-screen member card (details + QR + barcode only, no ledger)
+ * with size-flexible printing (A4 card, ID sticker, 58mm Sunmi V2 thermal)
+ * and a printable member receipt.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { X, Printer, CreditCard } from "lucide-react";
+import { X, Printer, CreditCard, ReceiptText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   np,
   MONTHS,
   type Person,
   type Receipt,
-  type CustomerPlanSubscription,
 } from "@/lib/receipt-rules";
+import { useAppConfig } from "@/lib/app-config";
 
 /* ─────────────────────────────────── types ─────────────────────────────── */
-interface PlanStat {
-  sub: CustomerPlanSubscription;
-  totalCharge: number;
-  totalReceived: number;
-  overdueAmount: number;
-  overdueMonths: number;
-  enrollDate: string;
-}
+type PrintSize = "a4" | "sticker" | "thermal58";
 
 interface DigitalCardProps {
   person: Person;
@@ -29,17 +24,9 @@ interface DigitalCardProps {
   onClose: () => void;
 }
 
-/* ─────────────────────────── helper utilities ───────────────────────────── */
-function monthsBetweenBS(fromDate: string, toDate: string): number {
-  const norm = (d: string) => d.replace(/[०-९]/g, (c) => String("०१२३४५६७८९".indexOf(c)));
-  const parse = (d: string) => {
-    const parts = norm(d).split("/").map(Number);
-    return { y: parts[0] ?? 0, m: parts[1] ?? 1 };
-  };
-  const a = parse(fromDate);
-  const b = parse(toDate);
-  return Math.max(0, (b.y - a.y) * 12 + (b.m - a.m));
-}
+/* ─────────────────── helpers ───────────────────────────────────────────── */
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 function todayBSStr(): string {
   try {
@@ -50,53 +37,167 @@ function todayBSStr(): string {
       day: "2-digit",
     }).formatToParts(new Date());
     const p = (n: string) => Number(parts.find((x) => x.type === n)?.value);
-    // dynamic import to avoid SSR issues
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const NepaliDate = require("nepali-date-converter").default;
     return NepaliDate.fromAD(new Date(p("year"), p("month") - 1, p("day"))).format("YYYY/MM/DD", "en");
   } catch {
-    return "2081/07/13";
+    return "";
   }
+}
+
+async function qrDataUrl(person: Person, size = 260): Promise<string> {
+  const QRCode = await import("qrcode");
+  const qrData = JSON.stringify({
+    card: person.card,
+    name: person.name,
+    ward: person.ward,
+    tole: person.tole,
+    phone: person.phone,
+    plans: (person.plans ?? []).map((p) => p.name).join(", ") || person.plan || "",
+    joined: person.joining_date || "",
+  });
+  return QRCode.toDataURL(qrData, {
+    width: size,
+    margin: 1,
+    color: { dark: "#000000", light: "#ffffff" },
+    errorCorrectionLevel: "M" as const,
+  });
+}
+
+async function barcodeSvg(card: string, opts?: { width?: number; height?: number }) {
+  const JsBarcode = (await import("jsbarcode")).default;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  JsBarcode(svg, card, {
+    format: "CODE128",
+    width: opts?.width ?? 1.6,
+    height: opts?.height ?? 42,
+    displayValue: false,
+    margin: 0,
+    background: "#ffffff",
+    lineColor: "#000000",
+  });
+  return svg.outerHTML;
+}
+
+/* vector scaling: CODE128 barcode stays crisp at any print size */
+const SIZE_CSS: Record<PrintSize, string> = {
+  a4: `
+    @page { size: A4; margin: 10mm; }
+    body { width: 190mm; font-size: 14px; }
+    .qr { width: 34mm; height: 34mm; }
+    .bc { width: 70mm; height: 18mm; }
+    .head { font-size: 22px; padding: 6mm; }
+    .row { padding: 2.5mm 4mm; font-size: 14px; }
+    .lbl { font-size: 11px; }
+  `,
+  sticker: `
+    @page { size: 100mm 60mm; margin: 3mm; }
+    body { width: 94mm; font-size: 9px; }
+    .qr { width: 20mm; height: 20mm; }
+    .bc { width: 44mm; height: 10mm; }
+    .head { font-size: 12px; padding: 2mm 3mm; }
+    .row { padding: 0.6mm 3mm; font-size: 8.5px; }
+    .lbl { font-size: 7px; }
+  `,
+  thermal58: `
+    @page { size: 58mm auto; margin: 2mm; }
+    body { width: 54mm; font-size: 10px; }
+    .qr { width: 26mm; height: 26mm; }
+    .bc { width: 48mm; height: 10mm; }
+    .head { font-size: 12px; padding: 2mm 1mm; }
+    .row { padding: 0.4mm 1mm; font-size: 9.5px; }
+    .lbl { font-size: 7.5px; }
+  `,
+};
+
+const PRINT_STYLE = (size: PrintSize, receipt: boolean) => `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    margin: 0 auto;
+    background: #fff;
+    color: #000;
+    font-family: 'Noto Sans', 'Segoe UI', Arial, sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .qr { display: block; image-rendering: pixelated; }
+  .bc { display: block; }
+  .card { border: 2px solid #000; border-radius: 3mm; overflow: hidden; }
+  .head { background: #1d4ed8; color: #fff; }
+  .head .name { font-weight: 800; }
+  .head .sub { opacity: .85; }
+  .rows { padding: 2mm 0; }
+  .row { display: flex; justify-content: space-between; gap: 2mm; }
+  .row + .row { border-top: 1px dashed #cbd5e1; }
+  .lbl { color: #64748b; flex-shrink: 0; }
+  .val { font-weight: 700; text-align: right; word-break: break-word; }
+  .center { text-align: center; }
+  .mono { font-family: ui-monospace, monospace; }
+  .foot { border-top: 1px solid #000; padding: 1.5mm; text-align: center; font-size: 0.75em; }
+  .sec-title { font-weight: 800; letter-spacing: .08em; border-bottom: 1px solid #000; padding: 1mm 0; margin-top: 2mm; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #000; padding: 1mm 1.5mm; text-align: left; vertical-align: top; }
+  th { background: #e2e8f0; font-weight: 700; }
+  .num { text-align: right; }
+  .sign { display: flex; justify-content: space-between; margin-top: 8mm; gap: 10mm; }
+  .sign div { flex: 1; border-top: 1px solid #000; padding-top: 1mm; text-align: center; font-size: .85em; }
+  .qrbox { display: flex; flex-direction: column; align-items: center; gap: 1mm; margin: 2mm 0; }
+  .slogan { text-align: center; font-size: .8em; margin-top: 2mm; font-style: italic; }
+  ${SIZE_CSS[size]}
+  ${receipt ? `.card { border-radius: 1mm; } .head { background: #fff; color: #000; border-bottom: 2px solid #000; }` : ""}
+`;
+
+/* ─────────────────── HTML builders (pure strings, printable anywhere) ──── */
+function detailsRows(person: Person): string {
+  const rows: [string, string][] = [];
+  rows.push(["कार्ड नं.", person.card]);
+  if (person.phone) rows.push(["सम्पर्क", person.phone]);
+  if (person.email) rows.push(["इमेल", person.email]);
+  if (person.municipality || person.district)
+    rows.push(["स्थान", [person.municipality, person.district].filter(Boolean).join(", ")]);
+  if (person.ward) rows.push(["वडा", String(person.ward)]);
+  if (person.tole) rows.push(["टोल", person.tole]);
+  if (person.place_detail) rows.push(["घर/तल्ला", person.place_detail]);
+  if (person.full_address) rows.push(["ठेगाना", person.full_address]);
+  if (person.ghardhani_name) rows.push(["घरधनी", person.ghardhani_name]);
+  if (person.nature) rows.push(["व्यवसाय", person.nature]);
+  if (person.pan) rows.push(["PAN", person.pan]);
+  if (person.joining_date) rows.push(["दर्ता मिति", np(person.joining_date)]);
+  const planNames =
+    (person.plans ?? []).map((sp) => (sp.quantity && sp.quantity > 1 ? `${sp.name} (${sp.quantity}×)` : sp.name)).join(", ") ||
+    person.plan;
+  if (planNames) rows.push(["योजना", planNames]);
+  return rows
+    .map(
+      ([l, v]) =>
+        `<div class="row"><span class="lbl">${escapeHtml(l)}</span><span class="val">${escapeHtml(v)}</span></div>`
+    )
+    .join("");
+}
+
+function headHtml(person: Person, receipt: boolean): string {
+  if (receipt)
+    return `<div class="head center">
+      <div class="name">सदस्य रसिद · MEMBER RECEIPT</div>
+      <div class="sub">${escapeHtml([person.municipality, person.ward ? `वडा ${person.ward}` : ""].filter(Boolean).join(", "))}</div>
+    </div>`;
+  return `<div class="head">
+    <div class="name">${escapeHtml(person.name)}</div>
+    <div class="sub mono">Card # ${escapeHtml(person.card)}${person.phone ? " • " + escapeHtml(person.phone) : ""}</div>
+  </div>`;
 }
 
 /* ─────────────────── Main Component ─────────────────────────────────────── */
 export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<HTMLCanvasElement>(null);
   const barcodeRef = useRef<SVGSVGElement>(null);
   const [qrReady, setQrReady] = useState(false);
+  const [printSize, setPrintSize] = useState<PrintSize>("a4");
+  const config = useAppConfig();
+  const today = todayBSStr();
 
   const personReceipts = receipts.filter(
     (r) => r.card === person.card && r.ward === person.ward
   );
   const totalReceived = personReceipts.reduce((s, r) => s + (r.total || 0), 0);
-  const today = todayBSStr();
-
-  const planStats: PlanStat[] = (person.plans && person.plans.length > 0
-    ? person.plans
-    : []
-  ).map((sub) => {
-    const qty = sub.quantity || 1;
-    const monthlyCharge = (sub.chargeable_amount || 0) * qty;
-    const enrollDate = person.joining_date || today;
-    const monthsActive = Math.max(1, monthsBetweenBS(enrollDate, today));
-    const totalCharge = monthlyCharge * monthsActive;
-
-    const plansTotalMonthly = (person.plans ?? []).reduce(
-      (s, p) => s + (p.chargeable_amount || 0) * (p.quantity || 1),
-      0
-    );
-    const planRatio = plansTotalMonthly > 0 ? monthlyCharge / plansTotalMonthly : 1;
-    const planReceived = totalReceived * planRatio;
-    const overdueAmount = Math.max(0, totalCharge - planReceived);
-    const overdueMonths = monthlyCharge > 0 ? Math.floor(overdueAmount / monthlyCharge) : 0;
-
-    return { sub, totalCharge, totalReceived: planReceived, overdueAmount, overdueMonths, enrollDate };
-  });
-
-  const openingDuesTotal = (person.opening_dues ?? []).reduce((s, od) => s + (Number(od.amount) || 0), 0);
-  const grandTotalCharge = planStats.reduce((s, p) => s + p.totalCharge, 0) + openingDuesTotal;
-  const grandOverdueAmount = Math.max(0, grandTotalCharge - totalReceived);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,17 +210,15 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
           card: person.card,
           name: person.name,
           ward: person.ward,
+          tole: person.tole,
           phone: person.phone,
           plans: (person.plans ?? []).map((p) => p.name).join(", ") || person.plan || "",
           joined: person.joining_date || "",
-          totalCharge: grandTotalCharge,
-          totalReceived,
-          overdue: grandOverdueAmount,
         });
         await QRCode.toCanvas(canvas, qrData, {
-          width: 130,
+          width: 260,
           margin: 1,
-          color: { dark: "#1e293b", light: "#ffffff" },
+          color: { dark: "#000000", light: "#ffffff" },
           errorCorrectionLevel: "M" as const,
         });
         if (!cancelled) setQrReady(true);
@@ -129,7 +228,7 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
     };
     gen();
     return () => { cancelled = true; };
-  }, [person, grandTotalCharge, totalReceived, grandOverdueAmount]);
+  }, [person]);
 
   useEffect(() => {
     const gen = async () => {
@@ -139,13 +238,12 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
         if (!svg || !person.card) return;
         JsBarcode(svg, person.card, {
           format: "CODE128",
-          width: 1.4,
-          height: 36,
-          displayValue: true,
-          fontSize: 10,
-          margin: 4,
+          width: 1.6,
+          height: 42,
+          displayValue: false,
+          margin: 0,
           background: "transparent",
-          lineColor: "#1e293b",
+          lineColor: "#000000",
         });
       } catch (e) {
         console.error("Barcode generation failed", e);
@@ -154,39 +252,98 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
     gen();
   }, [person.card]);
 
-  const handlePrint = () => {
-    const content = cardRef.current;
-    if (!content) return;
-    const w = window.open("", "_blank", "width=900,height=700");
+  /* build print document: QR as high-res PNG data URL (crisp at any size),
+     barcode as vector SVG (scales infinitely) */
+  const openPrintWindow = async (kind: "card" | "receipt") => {
+    const size: PrintSize = printSize;
+    let qr = "";
+    let bc = "";
+    try {
+      [qr, bc] = await Promise.all([qrDataUrl(person, 600), barcodeSvg(person.card)]);
+    } catch (e) {
+      console.error("print asset generation failed", e);
+    }
+
+    const receiptBody =
+      kind === "receipt"
+        ? `<div class="sec-title">योजना तथा दर · PLANS & RATES</div>
+        <table><thead><tr><th>योजना</th><th class="num">दर (रु.)</th><th class="num">परिमाण</th></tr></thead><tbody>
+        ${(person.plans ?? person.plan
+            ? (person.plans ?? [{ name: person.plan || "—", chargeable_amount: 0, quantity: 1 }])
+            : []
+          )
+            .map(
+              (p) =>
+                `<tr><td>${escapeHtml(p.name)}</td><td class="num">${(p.chargeable_amount || 0).toLocaleString("en-IN")}</td><td class="num">${p.quantity || 1}</td></tr>`
+            )
+            .join("")}
+        </tbody></table>
+        <div class="sec-title">भुक्तानी विवरण · PAYMENTS</div>
+        ${
+          personReceipts.length > 0
+            ? `<table><thead><tr><th>र.नं.</th><th>मिति</th><th>महिना</th><th>माध्यम</th><th class="num">रकम</th></tr></thead><tbody>
+          ${personReceipts
+            .map(
+              (r) =>
+                `<tr><td>${r.no}</td><td>${np(r.date)}</td><td>${r.months.map((m) => MONTHS[m.m]).join(", ")}</td><td>${escapeHtml(r.mode)}</td><td class="num">${r.total.toLocaleString("en-IN")}</td></tr>`
+            )
+            .join("")}
+          <tr><td colspan="4" class="num"><b>कुल भुक्तानी</b></td><td class="num"><b>${totalReceived.toLocaleString("en-IN")}</b></td></tr>
+          </tbody></table>`
+            : `<div style="padding:1mm 0">कुनै भुक्तानी रेकर्ड छैन।</div>`
+        }
+        <div class="sign"><div>बुझाउनेको सही</div><div>बुझिलिनेको सही</div></div>`
+        : "";
+
+    const html = `<html><head><meta charset="utf-8"><title>${kind === "card" ? "Member Card" : "Member Receipt"} – ${escapeHtml(person.name)}</title>
+      <style>${PRINT_STYLE(size, kind === "receipt")}</style></head><body>
+      <div class="${kind === "card" ? "card" : ""}">
+        ${headHtml(person, kind === "receipt")}
+        <div class="rows">
+          ${size === "a4" || size === "thermal58" ? `<div class="center" style="margin-bottom:1mm"><b>${escapeHtml(person.name)}</b>${kind === "receipt" ? ` <span class="mono">(${escapeHtml(person.card)})</span>` : ""}</div>` : ""}
+          ${detailsRows(person)}
+          ${receiptBody}
+          <div class="qrbox">
+            ${qr ? `<img class="qr" src="${qr}" alt="QR" />` : ""}
+            ${bc ? `<div class="bc">${bc}</div><div class="mono" style="font-size:.85em">${escapeHtml(person.card)}</div>` : ""}
+            <div style="font-size:.7em;opacity:.7">QR स्क्यान / बारकोड</div>
+          </div>
+        </div>
+        <div class="foot">${escapeHtml(config.entity_name || "")} • ${np(today) || ""} • ${kind === "card" ? "Sangstha — Member Card" : "Member Receipt"}</div>
+      </div>
+      <script>setTimeout(function(){ window.print(); }, 500);<\/script>
+      </body></html>`;
+
+    const w = window.open("", "_blank", "width=480,height=720");
     if (!w) return;
-    w.document.write(`
-      <html><head><title>Digital Card – ${person.name}</title>
-      <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; background: #f1f5f9; display: flex; justify-content: center; padding: 24px; font-family: 'Segoe UI', sans-serif; }
-        .no-print { display: none !important; }
-        @media print { body { padding: 0; } }
-      </style></head><body>
-      ${content.outerHTML}
-      <script>setTimeout(function(){ window.print(); window.close(); }, 600);<\/script>
-      </body></html>
-    `);
+    w.document.write(html);
     w.document.close();
   };
-
-  const getMonthName = (m: number) => MONTHS[m] ?? String(m);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-3 backdrop-blur-sm overflow-y-auto">
       <div className="my-4 w-full max-w-2xl">
         {/* Toolbar */}
-        <div className="mb-3 flex items-center justify-between no-print">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 no-print">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <CreditCard className="size-4" /> डिजिटल परिचय पत्र (Digital Member Card)
           </h2>
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={handlePrint} className="gap-1.5 text-xs">
-              <Printer className="size-3.5" /> प्रिन्ट (Print)
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={printSize}
+              onChange={(e) => setPrintSize(e.target.value as PrintSize)}
+              className="h-8 rounded-md border border-white/20 bg-white/10 px-2 text-xs font-semibold text-white"
+              title="प्रिन्ट साइज छान्नुहोस्"
+            >
+              <option value="a4" className="text-black">A4 कार्ड</option>
+              <option value="sticker" className="text-black">सानो स्टिकर (100×60mm)</option>
+              <option value="thermal58" className="text-black">थर्मल 58mm (Sunmi V2)</option>
+            </select>
+            <Button size="sm" variant="secondary" onClick={() => openPrintWindow("card")} className="gap-1.5 text-xs">
+              <Printer className="size-3.5" /> कार्ड प्रिन्ट
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => openPrintWindow("receipt")} className="gap-1.5 text-xs">
+              <ReceiptText className="size-3.5" /> रसिद प्रिन्ट
             </Button>
             <button
               onClick={onClose}
@@ -197,9 +354,8 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
           </div>
         </div>
 
-        {/* Card body */}
+        {/* Card body — details + QR only, no ledger */}
         <div
-          ref={cardRef}
           style={{ fontFamily: "'Noto Sans', 'Segoe UI', Arial, sans-serif" }}
           className="rounded-2xl shadow-2xl overflow-hidden"
         >
@@ -241,9 +397,9 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
                 <div className="rounded-xl bg-white p-1.5 shadow-lg">
                   <canvas
                     ref={qrRef}
-                    width={130}
-                    height={130}
-                    style={{ display: "block" }}
+                    width={260}
+                    height={260}
+                    style={{ display: "block", width: 130, height: 130 }}
                     className={qrReady ? "" : "opacity-20"}
                   />
                 </div>
@@ -252,107 +408,39 @@ export function DigitalCard({ person, receipts, onClose }: DigitalCardProps) {
             </div>
           </div>
 
-          {/* Body */}
-          <div className="bg-white px-5 py-4 space-y-4">
-            {/* Summary stats */}
-            <div className="grid grid-cols-3 gap-2">
+          {/* Body — details only */}
+          <div className="bg-white px-5 py-4">
+            <div className="divide-y divide-dashed divide-slate-200">
               {[
-                { label: "कुल दायित्व", sub: "Total Charge", val: grandTotalCharge, cls: "bg-blue-50 border-blue-100 text-blue-700" },
-                { label: "कुल भुक्तान", sub: "Received", val: totalReceived, cls: "bg-emerald-50 border-emerald-100 text-emerald-700" },
-                { label: "बाँकी रकम", sub: "Overdue", val: grandOverdueAmount, cls: grandOverdueAmount > 0 ? "bg-red-50 border-red-100 text-red-700" : "bg-gray-50 border-gray-100 text-gray-400" },
-              ].map((s) => (
-                <div key={s.label} className={`rounded-xl border p-2.5 text-center ${s.cls}`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{s.label}</p>
-                  <p className="mt-0.5 text-lg font-extrabold">रु. {s.val.toLocaleString("en-IN")}</p>
-                  <p className="text-[10px] opacity-60">{s.sub}</p>
-                </div>
-              ))}
+                ["कार्ड नं.", person.card],
+                person.email && ["इमेल", person.email],
+                person.district && ["जिल्ला", person.district],
+                person.ward && ["वडा", `वडा ${person.ward}`],
+                person.tole && ["टोल", person.tole],
+                person.place_detail && ["घर/तल्ला", person.place_detail],
+                person.full_address && ["ठेगाना", person.full_address],
+                person.ghardhani_name && ["घरधनी", person.ghardhani_name],
+                person.nature && ["व्यवसाय", person.nature],
+                person.pan && ["PAN", person.pan],
+                person.joining_date && ["दर्ता मिति", np(person.joining_date)],
+                ((person.plans?.length ?? 0) > 0 || person.plan) && [
+                  "योजना",
+                  (person.plans ?? [])
+                    .map((sp) => (sp.quantity && sp.quantity > 1 ? `${sp.name} (${sp.quantity}×)` : sp.name))
+                    .join(", ") || person.plan,
+                ],
+              ]
+                .filter((r): r is [string, string] => Boolean(r))
+                .map(([label, value]) => (
+                  <div key={label} className="flex items-baseline justify-between gap-3 py-1.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</span>
+                    <span className="text-sm font-semibold text-slate-700 text-right break-words">{value}</span>
+                  </div>
+                ))}
             </div>
 
-            {/* Plan detail table */}
-            {planStats.length > 0 && (
-              <div>
-                <h3 className="mb-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                  योजना विवरण · Plan-wise Details
-                </h3>
-                <div className="rounded-xl overflow-hidden border border-slate-100">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500">
-                        <th className="px-3 py-2 text-left font-semibold">योजना</th>
-                        <th className="px-3 py-2 text-left font-semibold">दर्ता</th>
-                        <th className="px-3 py-2 text-right font-semibold">दायित्व</th>
-                        <th className="px-3 py-2 text-right font-semibold">भुक्तान</th>
-                        <th className="px-3 py-2 text-right font-semibold">बाँकी</th>
-                        <th className="px-3 py-2 text-right font-semibold">महिना</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {planStats.map((ps, idx) => {
-                        const qty = ps.sub.quantity || 1;
-                        return (
-                          <tr key={idx} className="border-t border-slate-100 hover:bg-slate-50">
-                            <td className="px-3 py-2">
-                              <div className="font-semibold text-slate-700">{ps.sub.name}</div>
-                              <div className="text-[10px] text-slate-400">
-                                रु. {((ps.sub.chargeable_amount || 0) * qty).toLocaleString("en-IN")}
-                                /{ps.sub.uom || "महिना"}
-                                {(ps.sub.trips || ps.sub.no_of_trips) ? (
-                                  <span className="ml-1 text-slate-500 font-semibold">({ps.sub.trips ?? ps.sub.no_of_trips} ट्रिप)</span>
-                                ) : null}
-                                {qty > 1 && <span className="ml-1 text-blue-500 font-bold">×{qty}</span>}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 font-mono text-slate-500 text-[11px]">
-                              {np(ps.enrollDate)}
-                            </td>
-                            <td className="px-3 py-2 text-right font-semibold text-slate-700">
-                              {ps.totalCharge.toLocaleString("en-IN")}
-                            </td>
-                            <td className="px-3 py-2 text-right font-semibold text-emerald-600">
-                              {Math.round(ps.totalReceived).toLocaleString("en-IN")}
-                            </td>
-                            <td className={`px-3 py-2 text-right font-bold ${ps.overdueAmount > 0 ? "text-red-600" : "text-slate-300"}`}>
-                              {ps.overdueAmount > 0 ? ps.overdueAmount.toLocaleString("en-IN") : "—"}
-                            </td>
-                            <td className={`px-3 py-2 text-right font-bold ${ps.overdueMonths > 0 ? "text-red-500" : "text-emerald-500"}`}>
-                              {ps.overdueMonths > 0 ? `${ps.overdueMonths}` : "✓"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Recent receipts */}
-            {personReceipts.length > 0 && (
-              <div>
-                <h3 className="mb-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                  पछिल्ला भुक्तान · Recent Payments
-                </h3>
-                <div className="space-y-1">
-                  {personReceipts.slice(0, 5).map((r, idx) => (
-                    <div key={idx} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-[11px]">
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <span className="font-mono">#{r.no}</span>
-                        <span className="font-mono">{np(r.date)}</span>
-                        <span className="rounded bg-slate-200 px-1.5 py-0.5 font-medium">{r.mode}</span>
-                        <span className="text-slate-400 truncate max-w-[120px]">
-                          {r.months.map((m) => getMonthName(m.m)).join(", ")}
-                        </span>
-                      </div>
-                      <span className="font-bold text-emerald-600">रु. {r.total.toLocaleString("en-IN")}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Barcode */}
-            <div className="flex flex-col items-center justify-center border-t border-dashed border-slate-200 pt-3">
+            <div className="flex flex-col items-center justify-center border-t border-dashed border-slate-200 pt-3 mt-3">
               <svg ref={barcodeRef} className="max-w-full" />
               <p className="mt-0.5 text-[10px] text-slate-400 font-mono">
                 {person.card}
