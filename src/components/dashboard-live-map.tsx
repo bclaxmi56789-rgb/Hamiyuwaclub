@@ -772,11 +772,11 @@ export function DashboardLiveMap({
     <div
       ref={mapWrapperRef}
       className={`rounded-xl border bg-card shadow-xs overflow-hidden transition-all ${
-        isFullscreen ? "fixed inset-0 z-50 rounded-none border-none h-screen w-screen" : ""
+        isFullscreen ? "fixed inset-0 z-50 flex flex-col rounded-none border-none h-screen w-screen" : ""
       }`}
     >
       {/* ── Top Header & Tab Controls ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3">
+      <div className={`flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-3 ${isFullscreen ? "shrink-0" : ""}`}>
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-success animate-pulse" />
           <div>
@@ -929,7 +929,7 @@ export function DashboardLiveMap({
       </div>
 
       {/* ── Search & Metrics Strip ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2 text-xs">
+      <div className={`flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2 text-xs ${isFullscreen ? "shrink-0" : ""}`}>
         <div className="flex items-center gap-2 flex-1 max-w-sm">
           <div className="relative w-full">
             <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
@@ -957,7 +957,7 @@ export function DashboardLiveMap({
       </div>
 
       {/* ── Trip History Panel (saved per-employee trips) ── */}
-      <div className="border-b bg-primary/5 px-4 py-2">
+      <div className={`border-b bg-primary/5 px-4 py-2 ${isFullscreen ? "shrink-0" : ""}`}>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -1110,8 +1110,8 @@ export function DashboardLiveMap({
 
       {/* ── Leaflet Map Area ── */}
       <div
-        className="leaflet-map-wrapper relative w-full"
-        style={{ height: isFullscreen ? "calc(100vh - 90px)" : 420 }}
+        className={`leaflet-map-wrapper relative w-full ${isFullscreen ? "min-h-0 flex-1" : ""}`}
+        style={{ height: isFullscreen ? "auto" : 420 }}
       >
         <div ref={mapContainerRef} className="h-full w-full bg-muted" />
 
