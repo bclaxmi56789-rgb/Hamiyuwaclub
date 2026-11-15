@@ -412,6 +412,24 @@ function Dashboard() {
         </div>
       )}
 
+      {/* ─── LIVE TEAM & CUSTOMER LOCATION MAP (ON TOP OF DASHBOARD) ─── */}
+      {signedIn && userId && (
+        <div className="mb-6">
+          <DashboardLiveMap
+            userId={userId}
+            userName={myName || `व्यवस्थापक-${userId.slice(0, 6)}`}
+            people={query.data?.people ?? []}
+            trips={query.data?.trips ?? []}
+            receipts={query.data?.receipts ?? []}
+            plans={plans}
+            selectedWard={ward || undefined}
+            currentYear={year}
+            currentMonth={Number(todayBS().split("/")[1] || 1) - 1}
+            onRefresh={() => query.refetch()}
+          />
+        </div>
+      )}
+
       {/* ─── PRIMARY KPI INFOGRAPHIC CARDS ─── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Income */}
@@ -805,24 +823,6 @@ function Dashboard() {
               </p>
             )}
           </div>
-        </div>
-      )}
-
-      {/* ─── LIVE TEAM & CUSTOMER LOCATION MAP ─── */}
-      {signedIn && userId && (
-        <div className="mt-6">
-          <DashboardLiveMap
-            userId={userId}
-            userName={myName || `व्यवस्थापक-${userId.slice(0, 6)}`}
-            people={query.data?.people ?? []}
-            trips={query.data?.trips ?? []}
-            receipts={query.data?.receipts ?? []}
-            plans={plans}
-            selectedWard={ward || undefined}
-            currentYear={year}
-            currentMonth={Number(todayBS().split("/")[1] || 1) - 1}
-            onRefresh={() => query.refetch()}
-          />
         </div>
       )}
 
