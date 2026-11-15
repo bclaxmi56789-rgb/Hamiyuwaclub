@@ -1132,7 +1132,7 @@ function CollectionMapPage() {
         />
 
         {/* Map view controls: navigate, hide boxes, fullscreen */}
-        <div className="absolute top-3 right-3 z-[1001] flex flex-col gap-1.5">
+        <div className="absolute top-3 right-3 z-[1001] flex flex-col items-end gap-1.5">
           {selectedCustomer && (
             <button
               type="button"
@@ -1155,7 +1155,7 @@ function CollectionMapPage() {
           <select
             value={mapStyle}
             onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
-            className="rounded-full bg-card px-2 py-1.5 text-[11px] text-foreground shadow-lg border hover:bg-accent cursor-pointer focus:outline-none"
+            className="max-w-[170px] truncate rounded-full bg-card px-2 py-1.5 text-[11px] text-foreground shadow-lg border hover:bg-accent cursor-pointer focus:outline-none"
             title="नक्सा प्रकार छान्नुहोस् (Select map style)"
           >
             {MAP_STYLE_GROUPS.map((group) => (
