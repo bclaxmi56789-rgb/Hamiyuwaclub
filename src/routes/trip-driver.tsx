@@ -449,6 +449,7 @@ function TripDriverPage() {
 
     markersLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+    setMapReady((v) => (v ? v + 1 : 1));
 
     // Keep tiles correctly sized when layout changes (sidebar, fullscreen)
     resizeObserver = new ResizeObserver(() => {
@@ -484,7 +485,7 @@ function TripDriverPage() {
       trailLineRef.current = null;
       driverMarkerRef.current = null;
       teamMemberMarkersRef.current.clear();
-      setMapReady((v) => v + 1);
+      setMapReady(0);
     };
   }, [query.isPending, mapFull]);
 

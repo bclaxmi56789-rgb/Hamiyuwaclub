@@ -368,6 +368,7 @@ function CollectionMapPage() {
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
     mapRef.current = map;
+    setMapReady((v) => (v ? v + 1 : 1));
 
     // Keep tiles correctly sized when layout changes (sidebar, fullscreen)
     resizeObserver = new ResizeObserver(() => {
@@ -405,7 +406,7 @@ function CollectionMapPage() {
       driverMarkerRef.current = null;
       routeLineRef.current = null;
       teamMemberMarkersRef.current.clear();
-      setMapReady((v) => v + 1);
+      setMapReady(0);
     };
   }, [query.isPending, mapFull]);
 
