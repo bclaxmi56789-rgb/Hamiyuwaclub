@@ -36,7 +36,7 @@ export interface MapStyleConfig {
   isRetina?: boolean;
 }
 
-export const DEFAULT_MAP_STYLE: MapStyleKey = "liberty";
+export const DEFAULT_MAP_STYLE: MapStyleKey = "osm";
 
 export const MAP_STYLES: Record<MapStyleKey, MapStyleConfig> = {
   osm: {
@@ -93,7 +93,7 @@ export const MAP_STYLE_GROUPS: Array<{
 }> = [
   {
     label: "🗺️ सडक नक्सा",
-    keys: ["liberty", "osm", "voyager", "dark"],
+    keys: ["osm", "voyager", "liberty", "dark"],
   },
   {
     label: "🛰️ स्याटेलाइट",

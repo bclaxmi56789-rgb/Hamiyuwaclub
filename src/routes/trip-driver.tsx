@@ -502,13 +502,25 @@ function TripDriverPage() {
 
     if (cfg.type === "vector") {
       try {
-        tileLayerRef.current = maplibreGL({ style: cfg.url }).addTo(map);
+        const glLayer = maplibreGL({ style: cfg.url }).addTo(map);
+        tileLayerRef.current = glLayer;
+
+        const maplibreMap = (glLayer as any).getMaplibreMap?.();
+        if (maplibreMap) {
+          maplibreMap.on("error", () => {
+            console.warn("MapLibre runtime error, switching to raster OSM fallback");
+            try { map.removeLayer(glLayer); } catch {}
+            tileLayerRef.current = L.tileLayer(MAP_STYLES.osm.url, {
+              subdomains: MAP_STYLES.osm.subdomains,
+              maxZoom: MAP_STYLES.osm.maxZoom,
+            }).addTo(map);
+          });
+        }
       } catch (err) {
         console.warn("MapLibre vector tiles failed, using raster fallback:", err);
-        tileLayerRef.current = L.tileLayer(MAP_STYLES.voyager.url, {
-          subdomains: MAP_STYLES.voyager.subdomains,
-          maxZoom: MAP_STYLES.voyager.maxZoom,
-          detectRetina: true,
+        tileLayerRef.current = L.tileLayer(MAP_STYLES.osm.url, {
+          subdomains: MAP_STYLES.osm.subdomains,
+          maxZoom: MAP_STYLES.osm.maxZoom,
         }).addTo(map);
       }
     } else if (cfg.type === "hybrid") {

@@ -174,29 +174,35 @@ export function DashboardLiveMap({
   const tripTrailLayerRef = useRef<L.LayerGroup | null>(null);
   const lastKnownLayerRef = useRef<L.LayerGroup | null>(null);
 
-  // Poll saved trip sessions every 30s so the LIVE badge and list stay fresh,
+  // Poll saved trip sessions every 8s so the LIVE badge and list stay fresh,
   // and show a "last known position" pin for any unfinished trip whose driver
   // dropped off the live presence channel (phone locked / app switched).
   const getLatestTravelledTripPointsFn = useServerFn(getLatestTravelledTripPoints);
   const [lastKnownPoints, setLastKnownPoints] = useState<Record<string, TripPoint | null>>({});
+
+  const pollTripData = useCallback(async () => {
+    if (document.hidden) return;
+    try {
+      const data = await getTripSessionsFn({ data: {} });
+      setTripSessions(data.sessions);
+      setTripSessionsLoaded(true);
+      const latest = await getLatestTravelledTripPointsFn();
+      setLastKnownPoints(latest);
+    } catch {
+      // migration 0039 not applied yet — nothing to show
+    }
+  }, [getTripSessionsFn, getLatestTravelledTripPointsFn]);
+
   useEffect(() => {
-    const poll = async () => {
-      if (document.hidden) return;
-      try {
-        const data = await getTripSessionsFn({ data: {} });
-        setTripSessions(data.sessions);
-        setTripSessionsLoaded(true);
-        const latest = await getLatestTravelledTripPointsFn();
-        setLastKnownPoints(latest);
-      } catch {
-        // migration 0039 not applied yet — nothing to show
-      }
-    };
-    void poll();
-    const t = setInterval(poll, 30000);
+    void pollTripData();
+    const t = setInterval(pollTripData, 8000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [pollTripData, userId]);
+
+  const handleRefresh = async () => {
+    if (onRefresh) onRefresh();
+    await pollTripData();
+  };
 
   // Draw last-known-position pins for live trips not currently on presence
   useEffect(() => {
@@ -523,12 +529,24 @@ export function DashboardLiveMap({
           style: cfg.url,
         }).addTo(map);
         tileLayerRef.current = glLayer;
+
+        // Auto fallback to raster OSM if MapLibre fails in production / deployed browser
+        const maplibreMap = (glLayer as any).getMaplibreMap?.();
+        if (maplibreMap) {
+          maplibreMap.on("error", () => {
+            console.warn("MapLibre runtime error, switching to raster OSM fallback");
+            try { map.removeLayer(glLayer); } catch {}
+            tileLayerRef.current = L.tileLayer(MAP_STYLES.osm.url, {
+              subdomains: MAP_STYLES.osm.subdomains,
+              maxZoom: MAP_STYLES.osm.maxZoom,
+            }).addTo(map);
+          });
+        }
       } catch (err) {
         console.warn("OpenFreeMap vector tile initialization failed, using raster fallback:", err);
-        const fallback = L.tileLayer(MAP_STYLES.voyager.url, {
-          subdomains: MAP_STYLES.voyager.subdomains,
-          maxZoom: MAP_STYLES.voyager.maxZoom,
-          detectRetina: true,
+        const fallback = L.tileLayer(MAP_STYLES.osm.url, {
+          subdomains: MAP_STYLES.osm.subdomains,
+          maxZoom: MAP_STYLES.osm.maxZoom,
         }).addTo(map);
         tileLayerRef.current = fallback;
       }
@@ -906,7 +924,7 @@ export function DashboardLiveMap({
               type="button"
               variant="outline"
               size="sm"
-              onClick={onRefresh}
+              onClick={handleRefresh}
               className="h-8 px-2.5 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
               title="नक्सा तथा ग्राहक विवरण ताजा गर्नुहोस् (Refresh)"
             >

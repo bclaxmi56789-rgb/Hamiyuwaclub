@@ -36,16 +36,16 @@ export function useWorkspace() {
       return await fetchData();
     },
     enabled: app.ready && app.signedIn,
-    staleTime: 60_000,
+    staleTime: 5_000,
     gcTime: 10 * 60_000,
-    refetchOnMount: false,
+    refetchOnMount: true,
     retry: (count, err) => {
       const msg = String((err as Error)?.message || "");
       if (/Unauthorized/i.test(msg) && count < 3) return true;
       return count < 2;
     },
     retryDelay: 1200,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 
   // A first fetch that *succeeds* with an entirely empty workspace right after
