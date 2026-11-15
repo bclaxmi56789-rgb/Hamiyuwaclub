@@ -308,7 +308,7 @@ export function LocationMap({
         // Move the pin live so the user can verify each improvement
         applyCoordsOnly(lat, lng, acc);
         if (mapRef.current) {
-          mapRef.current.flyTo([lat, lng], acc <= GPS_TARGET_ACCURACY + 2 ? 19 : 17, {
+          mapRef.current.flyTo([lat, lng], acc <= GPS_TARGET_ACCURACY + 2 ? 19 : 18.5, {
             duration: 0.8,
           });
         }
@@ -328,11 +328,13 @@ export function LocationMap({
 
     if (!mapRef.current) {
       const initialCenter: [number, number] = hasCoords ? [latitude, longitude] : DEFAULT_CENTER;
-      const initialZoom = hasCoords ? 16 : 14;
+      const initialZoom = hasCoords ? 18.5 : 14;
 
       const map = L.map(containerRef.current, {
         center: initialCenter,
         zoom: initialZoom,
+        zoomSnap: 0.5,
+        maxZoom: 19,
         attributionControl: false,
       });
 
@@ -387,9 +389,9 @@ export function LocationMap({
       if (!alreadyCenteredHere) {
         lastCenteredRef.current = lastCenterRefKey;
         if (readOnly) {
-          map.setView(pos, Math.max(map.getZoom(), 18), { animate: true });
+          map.setView(pos, Math.max(map.getZoom(), 18.5), { animate: true });
         } else {
-          map.setView(pos, map.getZoom());
+          map.setView(pos, Math.max(map.getZoom(), 18));
         }
       }
 
@@ -524,7 +526,7 @@ export function LocationMap({
       applyCoordsWithGeocode(lat, lng, acc);
 
       if (mapRef.current) {
-        mapRef.current.flyTo([lat, lng], 17, { duration: 1.2 });
+        mapRef.current.flyTo([lat, lng], 18.5, { duration: 1.2 });
       }
 
       // Keep refining with the GPS watch — every meter counts for house/room level
