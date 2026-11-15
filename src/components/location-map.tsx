@@ -194,8 +194,8 @@ export function LocationMap({
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const geocodeCoordsRef = useRef<{ lat: number; lng: number; acc: number | null } | null>(null);
 
-  // Required accuracy ceiling for a captured location (±5 m)
-  const GPS_TARGET_ACCURACY = 5;
+  // Required accuracy ceiling for a captured location (±2 m)
+  const GPS_TARGET_ACCURACY = 2;
 
   const hasCoords =
     typeof latitude === "number" &&
@@ -267,7 +267,7 @@ export function LocationMap({
       }, 1500);
     };
 
-    // Bail out of refinement after 35 s max — the current best fix stands.
+    // Bail out of refinement after 20 s max — the current best fix stands.
     refineTimerRef.current = setTimeout(() => {
       const best = geocodeCoordsRef.current;
       watchIdRef.current = null;
@@ -282,7 +282,7 @@ export function LocationMap({
         }
         void applyCoordsWithGeocode(best.lat, best.lng, best.acc);
       }
-    }, 35000);
+    }, 20000);
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
