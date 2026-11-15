@@ -36,9 +36,9 @@ export function useWorkspace() {
       return await fetchData();
     },
     enabled: app.ready && app.signedIn,
-    staleTime: 5_000,
+    staleTime: 0,
     gcTime: 10 * 60_000,
-    refetchOnMount: true,
+    refetchOnMount: "always",
     retry: (count, err) => {
       const msg = String((err as Error)?.message || "");
       if (/Unauthorized/i.test(msg) && count < 3) return true;

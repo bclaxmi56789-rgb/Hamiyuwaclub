@@ -22,7 +22,7 @@ import {
 } from "@/lib/receipt-rules";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import { SearchSelect } from "@/components/search-select";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Plus,
   Users,
@@ -40,6 +40,7 @@ import {
   Building2,
   Calendar,
   Landmark,
+  RotateCw,
 } from "lucide-react";
 import { DashboardAIChatbot } from "@/components/dashboard-ai-chatbot";
 import { DashboardLiveMap } from "@/components/dashboard-live-map";
@@ -100,8 +101,9 @@ function Dashboard() {
     queryKey: ["expenses", userId],
     queryFn: () => fetchExpensesFn({ data: {} }),
     enabled: Boolean(signedIn && userId),
-    staleTime: 60_000,
-    refetchOnMount: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Receipts & Payments (cash/bank book) summary data
@@ -110,8 +112,9 @@ function Dashboard() {
     queryKey: ["rp_data", userId],
     queryFn: () => fetchRpDataFn(),
     enabled: Boolean(signedIn && userId),
-    staleTime: 60_000,
-    refetchOnMount: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
   const rpTransactions: RPTransaction[] = useMemo(
     () => (rpQuery.data as { transactions?: RPTransaction[] } | undefined)?.transactions ?? [],
@@ -124,16 +127,18 @@ function Dashboard() {
     queryKey: ["events_data", userId],
     queryFn: () => fetchEventsFn(),
     enabled: Boolean(signedIn && userId),
-    staleTime: 60_000,
-    refetchOnMount: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
   const fetchMinutesFn = useServerFn(getMinutesData);
   const minutesQuery = useQuery({
     queryKey: ["minutes_data", userId],
     queryFn: () => fetchMinutesFn(),
     enabled: Boolean(signedIn && userId),
-    staleTime: 60_000,
-    refetchOnMount: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
   const clubEvents: ClubEvent[] = useMemo(() => eventsQuery.data?.events ?? [], [eventsQuery.data]);
   const minutesList: EventMinutes[] = useMemo(
@@ -200,6 +205,22 @@ function Dashboard() {
   // fiscal year — point the user at the years that do have receipts.
   const yearMismatch =
     yearReceipts.length === 0 && availableYears.length > 0 && !availableYears.includes(year);
+
+  // Auto-select the active fiscal year if current selection has no records
+  // or is unset, so the dashboard displays live records immediately on load.
+  useEffect(() => {
+    if (availableYears.length > 0 && (!year || !availableYears.includes(year) || yearReceipts.length === 0)) {
+      setYear(availableYears[0]);
+    }
+  }, [availableYears, year, yearReceipts.length, setYear]);
+
+  const handleRefresh = useCallback(() => {
+    void query.refetch();
+    void expensesQuery.refetch();
+    void rpQuery.refetch();
+    void eventsQuery.refetch();
+    void minutesQuery.refetch();
+  }, [query, expensesQuery, rpQuery, eventsQuery, minutesQuery]);
 
   const toles = useMemo(
     () => [...new Set(yearReceipts.map((r) => r.tole).filter(Boolean))].sort(),
@@ -368,6 +389,17 @@ function Dashboard() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={query.isFetching}
+            className="font-semibold"
+            title="ड्यासबोर्ड ताजा गर्नुहोस् (Refresh Dashboard)"
+          >
+            <RotateCw className={`size-4 ${query.isFetching ? "animate-spin" : ""}`} /> ताजा गर्नुहोस्
+          </Button>
           <Button
             asChild
             size="sm"

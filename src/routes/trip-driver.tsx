@@ -37,8 +37,6 @@ import {
   MousePointer,
   Plus,
   X,
-  Maximize2,
-  Minimize2,
   EyeOff,
   Eye,
   RotateCw,
@@ -1402,14 +1400,6 @@ function TripDriverPage() {
               </optgroup>
             ))}
           </select>
-          <button
-            type="button"
-            title={mapFull ? "फुल स्क्रिन बन्द (Exit full screen)" : "फुल स्क्रिन (Full screen)"}
-            onClick={toggleMapFullscreen}
-            className="rounded-full bg-card p-2 text-foreground shadow-lg border hover:bg-accent"
-          >
-            {mapFull ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-          </button>
         </div>
 
         {/* Trip legend */}
