@@ -487,7 +487,20 @@ function TripDriverPage() {
       teamMemberMarkersRef.current.clear();
       setMapReady(0);
     };
-  }, [query.isPending, mapFull]);
+  }, [query.isPending]);
+
+  // Keep tiles and viewport properly sized across fullscreen transitions
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const timers = [
+      setTimeout(() => map.invalidateSize({ animate: false }), 50),
+      setTimeout(() => map.invalidateSize({ animate: false }), 150),
+      setTimeout(() => map.invalidateSize({ animate: false }), 300),
+      setTimeout(() => map.invalidateSize({ animate: false }), 600),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [mapFull]);
 
   // Tile layer switching (OpenFreeMap vector / ESRI satellite / CartoDB raster)
   useEffect(() => {

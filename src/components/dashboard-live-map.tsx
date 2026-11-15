@@ -756,6 +756,28 @@ export function DashboardLiveMap({
   useTeamLocationSubscribe(userId ?? null, setMembers);
 
   // Fullscreen toggle handler
+  // Keep map size and tiles updated across fullscreen changes
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(document.fullscreenElement);
+      setIsFullscreen(isFs);
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const timers = [
+      setTimeout(() => map.invalidateSize({ animate: false }), 50),
+      setTimeout(() => map.invalidateSize({ animate: false }), 150),
+      setTimeout(() => map.invalidateSize({ animate: false }), 300),
+      setTimeout(() => map.invalidateSize({ animate: false }), 600),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [isFullscreen]);
+
   const toggleFullscreen = () => {
     const el = mapWrapperRef.current;
     if (!el) return;
@@ -1129,7 +1151,7 @@ export function DashboardLiveMap({
       {/* ── Leaflet Map Area ── */}
       <div
         className={`leaflet-map-wrapper relative w-full ${isFullscreen ? "min-h-0 flex-1" : ""}`}
-        style={{ height: isFullscreen ? "auto" : 420 }}
+        style={{ height: isFullscreen ? "100%" : 420 }}
       >
         <div ref={mapContainerRef} className="h-full w-full bg-muted" />
 
