@@ -17,6 +17,8 @@ import {
   type ExpenseRecord,
   type RPTransaction,
   type RPAccount,
+  type ClubEvent,
+  type EventMinutes,
 } from "@/lib/receipt-rules";
 import { BSDatePicker } from "@/components/bs-date-picker";
 import { SearchSelect } from "@/components/search-select";
@@ -44,7 +46,7 @@ import { DashboardLiveMap } from "@/components/dashboard-live-map";
 import { SummaryTable } from "@/components/summary-table";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { getExpensesData, getRpData } from "@/lib/workspace.functions";
+import { getExpensesData, getRpData, getEventsData, getMinutesData } from "@/lib/workspace.functions";
 import {
   ResponsiveContainer,
   BarChart,
@@ -115,6 +117,61 @@ function Dashboard() {
     () => (rpQuery.data as { transactions?: RPTransaction[] } | undefined)?.transactions ?? [],
     [rpQuery.data],
   );
+
+  // Recent programmes (events) and meeting minutes with agenda
+  const fetchEventsFn = useServerFn(getEventsData);
+  const eventsQuery = useQuery({
+    queryKey: ["events_data", userId],
+    queryFn: () => fetchEventsFn(),
+    enabled: Boolean(signedIn && userId),
+    staleTime: 60_000,
+    refetchOnMount: false,
+  });
+  const fetchMinutesFn = useServerFn(getMinutesData);
+  const minutesQuery = useQuery({
+    queryKey: ["minutes_data", userId],
+    queryFn: () => fetchMinutesFn(),
+    enabled: Boolean(signedIn && userId),
+    staleTime: 60_000,
+    refetchOnMount: false,
+  });
+  const clubEvents: ClubEvent[] = useMemo(() => eventsQuery.data?.events ?? [], [eventsQuery.data]);
+  const minutesList: EventMinutes[] = useMemo(
+    () => minutesQuery.data?.minutes ?? [],
+    [minutesQuery.data],
+  );
+  const recentMinutes = useMemo(
+    () => [...minutesList].sort((a, b) => (b.meeting_date > a.meeting_date ? 1 : -1)).slice(0, 3),
+    [minutesList],
+  );
+  const recentEvents = useMemo(
+    () =>
+      [...clubEvents]
+        .sort((a, b) => ((b.commencing_date || "") > (a.commencing_date || "") ? 1 : -1))
+        .slice(0, 3),
+    [clubEvents],
+  );
+  const eventTitleOf = (eventId: string) =>
+    clubEvents.find((e) => e.id === eventId)?.title || "कार्यक्रम";
+  const statusBadge = (status: ClubEvent["status"]) => {
+    const map: Record<ClubEvent["status"], string> = {
+      planned: "bg-warning/15 text-warning",
+      ongoing: "bg-info/15 text-info",
+      completed: "bg-success/15 text-success",
+      postponed: "bg-destructive/15 text-destructive",
+    };
+    const label: Record<ClubEvent["status"], string> = {
+      planned: "योजना",
+      ongoing: "चालु",
+      completed: "सम्पन्न",
+      postponed: "स्थगित",
+    };
+    return (
+      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${map[status] ?? ""}`}>
+        {label[status] ?? status}
+      </span>
+    );
+  };
   const rpAccounts: RPAccount[] = useMemo(
     () => (rpQuery.data as { accounts?: RPAccount[] } | undefined)?.accounts ?? [],
     [rpQuery.data],
@@ -621,56 +678,135 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-lg border">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b bg-muted/40 font-bold text-foreground">
-              <tr>
-                {["मिति (BS)", "खाता", "प्रकार", "पक्ष", "रकम (रु.)"].map((t) => (
-                  <th key={t} className="px-3 py-2">
-                    {t}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {rpSummary.latest.map((t) => (
-                <tr key={t.id} className="transition-colors hover:bg-accent/40">
-                  <td className="px-3 py-2 font-mono whitespace-nowrap">{np(t.txn_date)}</td>
-                  <td className="px-3 py-2">{t.account_name || "-"}</td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                        t.txn_type === "receipt"
-                          ? "bg-success/15 text-success"
-                          : t.txn_type === "payment"
-                            ? "bg-destructive/15 text-destructive"
-                            : "bg-info/15 text-info"
-                      }`}
-                    >
-                      {t.txn_type === "receipt"
-                        ? "रसिद"
-                        : t.txn_type === "payment"
-                          ? "भुक्तानी"
-                          : "ट्रान्सफर"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">{t.party_name || t.company_name || "-"}</td>
-                  <td className="px-3 py-2 whitespace-nowrap font-black text-right">
-                    {money(t.amount)}
-                  </td>
-                </tr>
-              ))}
-              {!rpSummary.latest.length && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-4 text-center text-muted-foreground">
-                    यो मिति अवधिमा नगद/बैंक कारोबार भेटिएन।
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" asChild className="font-semibold text-xs">
+            <Link to="/receipts-payments">
+              सबै नगद/बैंक कारोबार विवरण हेर्नुहोस् (View all cash/bank transactions) &rarr;
+            </Link>
+          </Button>
         </div>
       </div>
+
+      {/* ─── RECENT PROGRAMMES & MEETINGS ─── */}
+      {signedIn && userId && (
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {/* Recent programmes */}
+          <div className="rounded-xl border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-extrabold text-foreground">
+                  <Calendar className="size-4 text-warning" />
+                  हालका कार्यक्रमहरू (Recent Programmes)
+                </h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  पछिल्ला ३ कार्यक्रम/कार्यपत्र
+                </p>
+              </div>
+              <Button variant="outline" size="sm" asChild className="text-xs font-semibold">
+                <Link to="/events">सबै हेर्नुहोस् &rarr;</Link>
+              </Button>
+            </div>
+            {eventsQuery.isLoading ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">लोड हुँदैछ…</p>
+            ) : recentEvents.length ? (
+              <div className="space-y-2">
+                {recentEvents.map((ev) => (
+                  <div
+                    key={ev.id ?? ev.title}
+                    className="rounded-lg border bg-card/60 p-3 transition-colors hover:bg-accent/40"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold text-foreground">{ev.title}</span>
+                      {statusBadge(ev.status)}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                      <span>📅 मिति: {ev.commencing_date ? np(ev.commencing_date) : "—"}</span>
+                      {ev.locality && <span>📍 {ev.locality}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                कुनै कार्यक्रम दर्ता छैन।
+              </p>
+            )}
+          </div>
+
+          {/* Recent meetings + agenda */}
+          <div className="rounded-xl border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-extrabold text-foreground">
+                  <Users className="size-4 text-info" />
+                  हालका बैठक र एजेन्डा (Recent Meetings)
+                </h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  पछिल्ला ३ बैठकका छलफल/निर्णय बुँदा
+                </p>
+              </div>
+              <Button variant="outline" size="sm" asChild className="text-xs font-semibold">
+                <Link to="/minutes" search={{ event_id: undefined, new: undefined }}>
+                  सबै हेर्नुहोस् &rarr;
+                </Link>
+              </Button>
+            </div>
+            {minutesQuery.isLoading ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">लोड हुँदैछ…</p>
+            ) : recentMinutes.length ? (
+              <div className="space-y-2">
+                {recentMinutes.map((m) => (
+                  <div key={m.id ?? m.meeting_date} className="rounded-lg border bg-card/60 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold text-foreground">
+                        {eventTitleOf(m.event_id)}
+                      </span>
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        बैठक मिति: {np(m.meeting_date)}
+                      </span>
+                    </div>
+                    {m.agenda?.length ? (
+                      <ul className="mt-1.5 space-y-1">
+                        {m.agenda.slice(0, 4).map((a) => (
+                          <li
+                            key={a.id}
+                            className="flex items-start gap-1.5 text-[11px] text-muted-foreground"
+                          >
+                            <span
+                              className={`mt-0.5 shrink-0 rounded px-1 text-[9px] font-bold ${
+                                a.done ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+                              }`}
+                            >
+                              {a.done ? "✓" : "बाँकी"}
+                            </span>
+                            <span className={a.done ? "line-through opacity-70" : ""}>
+                              {a.text}
+                              {a.decision ? ` — निर्णय: ${a.decision}` : ""}
+                            </span>
+                          </li>
+                        ))}
+                        {m.agenda.length > 4 && (
+                          <li className="text-[10px] text-muted-foreground">
+                            …थप {m.agenda.length - 4} बुँदा
+                          </li>
+                        )}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        एजेन्डा दर्ता छैन।
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                कुनै बैठक मिनिट्स दर्ता छैन।
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ─── LIVE TEAM & CUSTOMER LOCATION MAP ─── */}
       {signedIn && userId && (
