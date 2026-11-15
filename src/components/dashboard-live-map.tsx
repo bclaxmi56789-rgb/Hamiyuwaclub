@@ -22,8 +22,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -88,23 +86,38 @@ const ROLE_META: Record<TeamMemberRole, { emoji: string; color: string; label: s
   other: { emoji: "👤", color: "#64748b", label: "अन्य" },
 };
 
-export type MapStyleKey = "liberty" | "dark" | "positron" | "osm";
+export type MapStyleKey = "voyager" | "dark" | "positron" | "osm";
 
-export const MAP_STYLES: Record<MapStyleKey, { label: string; url?: string }> = {
-  liberty: {
-    label: "🗽 Liberty (OpenFreeMap)",
-    url: "https://tiles.openfreemap.org/styles/liberty",
+export const MAP_STYLES: Record<
+  MapStyleKey,
+  { label: string; url: string; subdomains: string[]; maxZoom: number; isRetina?: boolean }
+> = {
+  voyager: {
+    label: "🗺️ आधुनिक सफा (Voyager)",
+    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    subdomains: ["a", "b", "c", "d"],
+    maxZoom: 20,
+    isRetina: true,
   },
   dark: {
-    label: "🌑 Dark (गाढा)",
-    url: "https://tiles.openfreemap.org/styles/dark",
+    label: "🌑 गाढा (Dark Mode)",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    subdomains: ["a", "b", "c", "d"],
+    maxZoom: 20,
+    isRetina: true,
   },
   positron: {
-    label: "⚪ Positron (सफा)",
-    url: "https://tiles.openfreemap.org/styles/positron",
+    label: "⚪ न्यूनतम (Positron)",
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    subdomains: ["a", "b", "c", "d"],
+    maxZoom: 20,
+    isRetina: true,
   },
   osm: {
     label: "🌐 OpenStreetMap (क्लासिक)",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    subdomains: ["a", "b", "c"],
+    maxZoom: 19,
   },
 };
 
@@ -175,7 +188,7 @@ export function DashboardLiveMap({
   const tileLayerRef = useRef<L.Layer | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("voyager");
   const [members, setMembers] = useState<TeamMemberLocation[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "driver" | "collector">("all");
 
@@ -493,15 +506,25 @@ export function DashboardLiveMap({
       attributionControl: false,
     });
 
+    // Create initial tile layer immediately
+    const initialStyle = MAP_STYLES.voyager;
+    const initialLayer = L.tileLayer(initialStyle.url, {
+      subdomains: initialStyle.subdomains,
+      maxZoom: initialStyle.maxZoom,
+      detectRetina: Boolean(initialStyle.isRetina),
+    }).addTo(map);
+    tileLayerRef.current = initialLayer;
+
     peopleMarkersLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
     setMapReady(true);
 
     setTimeout(() => {
       if (mapRef.current) {
+        mapRef.current.invalidateSize();
         mapRef.current.flyTo(BIRENDRANAGAR_CENTER, 14, { duration: 1.5 });
       }
-    }, 500);
+    }, 400);
 
     return () => {
       setMapReady(false);
@@ -515,10 +538,12 @@ export function DashboardLiveMap({
     };
   }, []);
 
-  // 2b. Map tile layer management (OpenFreeMap vector tiles with OSM fallback)
+  // 2b. Map tile layer management (Voyager HD, Dark Mode, Positron, OSM)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
+
+    const cfg = MAP_STYLES[mapStyle] || MAP_STYLES.voyager;
 
     if (tileLayerRef.current) {
       try {
@@ -529,26 +554,13 @@ export function DashboardLiveMap({
       tileLayerRef.current = null;
     }
 
-    const selected = MAP_STYLES[mapStyle];
-    if (mapStyle === "osm" || !selected?.url) {
-      const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-      }).addTo(map);
-      tileLayerRef.current = osmLayer;
-    } else {
-      try {
-        const glLayer = maplibreGL({
-          style: selected.url,
-        }).addTo(map);
-        tileLayerRef.current = glLayer;
-      } catch (err) {
-        console.warn("Vector tile initialization failed, using OSM fallback:", err);
-        const osmFallback = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-        }).addTo(map);
-        tileLayerRef.current = osmFallback;
-      }
-    }
+    const newLayer = L.tileLayer(cfg.url, {
+      subdomains: cfg.subdomains,
+      maxZoom: cfg.maxZoom,
+      detectRetina: Boolean(cfg.isRetina),
+    }).addTo(map);
+
+    tileLayerRef.current = newLayer;
   }, [mapReady, mapStyle]);
 
   // 3. Render and update team members (Collectors & Drivers)
@@ -892,9 +904,9 @@ export function DashboardLiveMap({
             onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
             title="नक्सा शैली छान्नुहोस् (Map Style)"
           >
-            <option value="liberty">🗽 OpenFreeMap (Liberty)</option>
-            <option value="dark">🌑 गाढा (Dark)</option>
-            <option value="positron">⚪ सफा (Positron)</option>
+            <option value="voyager">🗺️ आधुनिक सफा (Voyager)</option>
+            <option value="dark">🌑 गाढा (Dark Mode)</option>
+            <option value="positron">⚪ न्यूनतम (Positron)</option>
             <option value="osm">🌐 OSM (Classic)</option>
           </select>
 
