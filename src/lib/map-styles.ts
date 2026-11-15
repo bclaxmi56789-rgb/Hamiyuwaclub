@@ -18,12 +18,12 @@ if (typeof window !== "undefined") {
 }
 
 export type MapStyleKey =
-  | "liberty"
+  | "osm"
   | "voyager"
   | "satellite_hybrid"
   | "satellite"
-  | "dark"
-  | "osm";
+  | "liberty"
+  | "dark";
 
 export interface MapStyleConfig {
   label: string;
@@ -36,9 +36,17 @@ export interface MapStyleConfig {
   isRetina?: boolean;
 }
 
-export const DEFAULT_MAP_STYLE: MapStyleKey = "voyager";
+export const DEFAULT_MAP_STYLE: MapStyleKey = "osm";
 
 export const MAP_STYLES: Record<MapStyleKey, MapStyleConfig> = {
+  osm: {
+    label: "🌐 OpenStreetMap (क्लासिक)",
+    category: "street",
+    type: "raster",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    subdomains: ["a", "b", "c"],
+    maxZoom: 19,
+  },
   voyager: {
     label: "🗺️ आधुनिक सडक (CartoDB Voyager HD)",
     category: "street",
@@ -76,14 +84,6 @@ export const MAP_STYLES: Record<MapStyleKey, MapStyleConfig> = {
     type: "vector",
     url: "https://tiles.openfreemap.org/styles/dark",
   },
-  osm: {
-    label: "🌐 OpenStreetMap (क्लासिक)",
-    category: "street",
-    type: "raster",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    subdomains: ["a", "b", "c"],
-    maxZoom: 19,
-  },
 };
 
 /** Shared style-selector groups for <select> dropdowns */
@@ -93,7 +93,7 @@ export const MAP_STYLE_GROUPS: Array<{
 }> = [
   {
     label: "🗺️ सडक नक्सा",
-    keys: ["voyager", "osm", "liberty", "dark"],
+    keys: ["osm", "voyager", "liberty", "dark"],
   },
   {
     label: "🛰️ स्याटेलाइट",
