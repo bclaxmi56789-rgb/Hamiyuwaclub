@@ -12,6 +12,14 @@ import {
   getLocalityPhoto,
 } from "@/lib/workspace.functions";
 import { BUSINESS_NATURES, natureEmoji } from "@/lib/nature";
+import {
+  MUNICIPALITIES,
+  SURKHET_DISTRICT,
+  findMunicipalityForTole,
+  findWardForTole,
+  getToleOptions,
+  getWardOptions,
+} from "@/lib/locations";
 import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -181,6 +189,8 @@ function Masters() {
   const [camOpen, setCamOpen] = useState(false);
   const [camOpening, setCamOpening] = useState(false);
   const [camErr, setCamErr] = useState("");
+  const [newTole, setNewTole] = useState("");
+  const [showNewTole, setShowNewTole] = useState(false);
   const formPhotoSrc = useLocalityPhotoSrc(form.locality_photo);
   const viewerPhotoSrc = useLocalityPhotoSrc(viewingMapPerson?.locality_photo || "");
   const viewPhotoSrc = useLocalityPhotoSrc(viewingPerson?.locality_photo || "");
@@ -1195,13 +1205,38 @@ function Masters() {
                     <label className="block text-xs font-semibold text-muted-foreground">
                       नगरपालिका / गाउँपालिका (Municipality)
                     </label>
-                    <input
-                      aria-label="Municipality"
-                      className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
-                      placeholder="उदा: वीरेन्द्रनगर"
+                    <SearchSelect
+                      className="mt-1"
                       value={form.municipality ?? ""}
-                      maxLength={80}
-                      onChange={(e) => setForm({ ...form, municipality: e.target.value })}
+                      allowClear
+                      onChange={(value) =>
+                        setForm((prev) => {
+                          const wardCount =
+                            MUNICIPALITIES.find((m) => m.name === value)?.wards ?? 16;
+                          const keepWard =
+                            value && Number(prev.ward || "0") <= wardCount ? prev.ward : "";
+                          const municipalityChanged =
+                            value && prev.municipality && value !== prev.municipality;
+                          const keepTole =
+                            value && prev.tole && !municipalityChanged
+                              ? prev.tole
+                              : "";
+                          return {
+                            ...prev,
+                            municipality: value,
+                            district: prev.district || SURKHET_DISTRICT,
+                            ward: keepWard,
+                            tole: keepTole,
+                          };
+                        })
+                      }
+                      options={[
+                        ...MUNICIPALITIES.map((m) => ({ value: m.name, label: m.name })),
+                        ...(form.municipality &&
+                        !MUNICIPALITIES.some((m) => m.name === form.municipality)
+                          ? [{ value: form.municipality, label: form.municipality }]
+                          : []),
+                      ]}
                     />
                   </div>
                 </div>
@@ -1236,11 +1271,20 @@ function Masters() {
                       className="mt-1"
                       value={form.ward}
                       allowClear
-                      onChange={(value) => setForm({ ...form, ward: value })}
-                      options={Array.from({ length: 16 }, (_, i) => String(i + 1)).map((w) => ({
-                        value: w,
-                        label: `वडा ${w}`,
-                      }))}
+                      onChange={(value) =>
+                        setForm((prev) => {
+                          const toleWard =
+                            value && prev.municipality
+                              ? findWardForTole(prev.municipality, prev.tole)
+                              : null;
+                          return {
+                            ...prev,
+                            ward: value,
+                            tole: toleWard && toleWard !== value ? "" : prev.tole,
+                          };
+                        })
+                      }
+                      options={getWardOptions(form.municipality ?? "")}
                     />
                   </div>
 
@@ -1869,14 +1913,88 @@ function Masters() {
                     <label className="block text-xs font-semibold text-muted-foreground">
                       टोल (Tole) *
                     </label>
-                    <input
-                      aria-label="Tole"
-                      className="mt-1 w-full rounded border bg-background px-3 py-2 text-sm text-foreground"
-                      placeholder="उदा: वीरेन्द्र चोक"
+                    <SearchSelect
+                      className="mt-1"
                       value={form.tole}
-                      maxLength={80}
-                      onChange={(e) => setForm({ ...form, tole: e.target.value })}
+                      allowClear
+                      onChange={(value) =>
+                        setForm((prev) => {
+                          const next = { ...prev, tole: value };
+                          if (!value) return next;
+                          const municipality =
+                            (prev.municipality &&
+                              findWardForTole(prev.municipality, value) &&
+                              prev.municipality) ||
+                            findMunicipalityForTole(value);
+                          if (municipality) {
+                            next.municipality = municipality;
+                            next.district = prev.district || SURKHET_DISTRICT;
+                            const ward = findWardForTole(municipality, value);
+                            if (ward) next.ward = ward;
+                          }
+                          return next;
+                        })
+                      }
+                      options={[
+                        ...new Map(
+                          [
+                            ...getToleOptions(form.municipality ?? "", form.ward),
+                            ...(query.data?.people ?? [])
+                              .filter(
+                                (p) =>
+                                  p.tole &&
+                                  (!form.municipality || p.municipality === form.municipality) &&
+                                  (!form.ward || p.ward === form.ward),
+                              )
+                              .map((p) => ({ value: p.tole, label: p.tole })),
+                            ...(form.tole ? [{ value: form.tole, label: form.tole }] : []),
+                          ].map((o) => [o.value, o]),
+                        ).values(),
+                      ]}
                     />
+                    {showNewTole ? (
+                      <div className="mt-1.5 flex gap-1.5">
+                        <input
+                          aria-label="New tole"
+                          className="flex-1 rounded border bg-background px-2 py-1.5 text-xs text-foreground"
+                          placeholder="नयाँ टोलको नाम लेख्नुहोस्…"
+                          value={newTole}
+                          maxLength={80}
+                          onChange={(e) => setNewTole(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (newTole.trim()) {
+                                setForm((prev) => ({ ...prev, tole: newTole.trim() }));
+                                setNewTole("");
+                                setShowNewTole(false);
+                              }
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={!newTole.trim()}
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, tole: newTole.trim() }));
+                            setNewTole("");
+                            setShowNewTole(false);
+                          }}
+                        >
+                          थप्नुहोस्
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewTole(true)}
+                        className="mt-1 text-[11px] font-semibold text-primary hover:underline"
+                      >
+                        + नयाँ टोल थप्नुहोस् (Add new tole)
+                      </button>
+                    )}
                   </div>
 
                   <div>
@@ -2091,7 +2209,7 @@ function Masters() {
                           if (address.district) next.district = address.district;
                           if (address.municipality) next.municipality = address.municipality;
                           if (address.ward) next.ward = address.ward;
-                          if (address.tole) next.tole = address.tole;
+                          // Tole is user-managed (dropdown/add-new) — GPS must not overwrite it.
                           if (address.full_address) next.full_address = address.full_address;
                         }
                         return next;

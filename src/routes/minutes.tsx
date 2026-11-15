@@ -475,7 +475,7 @@ function MinutesPage() {
 
   if (!app.ready) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <p role="status">Opening minutes module…</p>
       </main>
     );
@@ -483,7 +483,7 @@ function MinutesPage() {
 
   if (!app.signedIn) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <SignInPanel />
       </main>
     );
@@ -506,7 +506,7 @@ function MinutesPage() {
     : minutesList;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
+    <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b pb-4">
         <div>
@@ -548,16 +548,16 @@ function MinutesPage() {
 
       {/* ── LOG TABLE ── */}
       <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-        <table className="w-full text-left text-xs">
+        <table className="w-full text-left text-sm">
           <thead className="border-b bg-muted/40 font-semibold text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">सि.नं.</th>
-              <th className="px-4 py-3">मिति</th>
-              <th className="px-4 py-3">कार्यक्रम / निकाय</th>
-              <th className="px-4 py-3">उपस्थिति</th>
-              <th className="px-4 py-3">एजेन्डा</th>
-              <th className="px-4 py-3">अवस्था</th>
-              <th className="px-4 py-3 text-right">कार्य</th>
+              <th className="px-4 py-3.5">सि.नं.</th>
+              <th className="px-4 py-3.5">मिति</th>
+              <th className="px-4 py-3.5">कार्यक्रम / निकाय</th>
+              <th className="px-4 py-3.5">उपस्थिति</th>
+              <th className="px-4 py-3.5">एजेन्डा</th>
+              <th className="px-4 py-3.5">अवस्था</th>
+              <th className="px-4 py-3.5 text-right">कार्य</th>
             </tr>
           </thead>
           <tbody className="divide-y">

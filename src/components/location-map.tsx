@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { MAP_STYLES, MAP_STYLE_GROUPS, type MapStyleKey } from "@/lib/map-styles";
 import { Button } from "@/components/ui/button";
 import {
   MapPin,
@@ -174,6 +177,7 @@ export function LocationMap({
   const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
   const lastCenteredRef = useRef<string>("");
+  const tileLayerRef = useRef<L.Layer | null>(null);
 
   const [locating, setLocating] = useState(false);
   const [gpsError, setGpsError] = useState("");
@@ -182,6 +186,7 @@ export function LocationMap({
   const [geocodedNotice, setGeocodedNotice] = useState("");
   const [refining, setRefining] = useState(false);
   const [refiningNotice, setRefiningNotice] = useState("");
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
 
   const watchIdRef = useRef<number | null>(null);
   const refineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -331,11 +336,6 @@ export function LocationMap({
         attributionControl: false,
       });
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(map);
-
       mapRef.current = map;
 
       if (!readOnly && onChange) {
@@ -457,11 +457,48 @@ export function LocationMap({
       }
       markerRef.current = null;
       circleRef.current = null;
+      tileLayerRef.current = null;
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       if (refineTimerRef.current) clearTimeout(refineTimerRef.current);
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     };
   }, []);
+
+  // Tile layer switching (OpenFreeMap vector / ESRI satellite / CartoDB raster)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+      try { map.removeLayer(tileLayerRef.current); } catch { /* already removed */ }
+      tileLayerRef.current = null;
+    }
+
+    const cfg = MAP_STYLES[mapStyle] ?? MAP_STYLES.liberty;
+
+    if (cfg.type === "vector") {
+      try {
+        tileLayerRef.current = maplibreGL({ style: cfg.url }).addTo(map);
+      } catch (err) {
+        console.warn("MapLibre vector tiles failed, using raster fallback:", err);
+        tileLayerRef.current = L.tileLayer(MAP_STYLES.voyager.url, {
+          subdomains: MAP_STYLES.voyager.subdomains,
+          maxZoom: MAP_STYLES.voyager.maxZoom,
+          detectRetina: true,
+        }).addTo(map);
+      }
+    } else if (cfg.type === "hybrid") {
+      const base = L.tileLayer(cfg.url, { maxZoom: cfg.maxZoom ?? 19 });
+      const overlay = L.tileLayer(cfg.overlayUrl!, { maxZoom: cfg.maxZoom ?? 19 });
+      tileLayerRef.current = L.layerGroup([base, overlay]).addTo(map);
+    } else {
+      tileLayerRef.current = L.tileLayer(cfg.url, {
+        subdomains: cfg.subdomains,
+        maxZoom: cfg.maxZoom ?? 19,
+        detectRetina: Boolean(cfg.isRetina),
+      }).addTo(map);
+    }
+  }, [mapStyle]);
 
   const handleGetLiveGPS = () => {
     if (!navigator.geolocation) {
@@ -642,6 +679,24 @@ export function LocationMap({
         style={{ height }}
       >
         <div ref={containerRef} className="size-full" />
+
+        {/* Map Style Selector — floating top-right */}
+        <div className="absolute top-2 right-2 z-[1000]">
+          <select
+            value={mapStyle}
+            onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
+            className="rounded-full bg-card/95 backdrop-blur px-2 py-1 text-[11px] text-foreground shadow-lg border hover:bg-accent cursor-pointer focus:outline-none"
+            title="नक्सा प्रकार छान्नुहोस् (Select map style)"
+          >
+            {MAP_STYLE_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.keys.map((key) => (
+                  <option key={key} value={key}>{MAP_STYLES[key].label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
 
         {!hasCoords && !readOnly && (
           <div className="pointer-events-none absolute inset-x-2 bottom-2 z-[1000] flex justify-center">

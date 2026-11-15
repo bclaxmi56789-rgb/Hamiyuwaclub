@@ -648,7 +648,7 @@ function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-6 p-5 md:px-8 md:py-7 w-full max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
         <div>

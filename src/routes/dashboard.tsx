@@ -10,6 +10,7 @@ import {
   collectionByMonth,
   inBSRange,
   todayBS,
+  fiscalLabel,
   remainingDuesForPerson,
   indexPaidReceiptsByCustomer,
   getCustomerTotalRate,
@@ -84,7 +85,7 @@ export const Route = createFileRoute("/dashboard")({
 const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4"];
 
 function Dashboard() {
-  const { query, ward, year, userId, signedIn } = useWorkspace();
+  const { query, ward, year, setYear, userId, signedIn } = useWorkspace();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [tole, setTole] = useState("");
@@ -125,6 +126,23 @@ function Dashboard() {
       [],
     [query.data?.receipts, ward, year],
   );
+
+  // Fiscal years that actually contain receipts (current ward scope), newest first
+  const availableYears = useMemo(() => {
+    const set = new Set<number>();
+    (query.data?.receipts ?? [])
+      .filter((r) => !ward || r.ward === ward)
+      .forEach((r) => {
+        const y = Number(r.year);
+        if (Number.isFinite(y) && y > 2000) set.add(y);
+      });
+    return Array.from(set).sort((a, b) => b - a);
+  }, [query.data?.receipts, ward]);
+
+  // The workspace data is not empty, but none of it belongs to the selected
+  // fiscal year — point the user at the years that do have receipts.
+  const yearMismatch =
+    yearReceipts.length === 0 && availableYears.length > 0 && !availableYears.includes(year);
 
   const toles = useMemo(
     () => [...new Set(yearReceipts.map((r) => r.tole).filter(Boolean))].sort(),
@@ -287,8 +305,8 @@ function Dashboard() {
             </h1>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            आर्थिक वर्ष २०८१/८२ · वडा {ward ? np(ward) : "सबै"} · संकलन, खर्च, बाँकी बक्यौता तथा
-            इन्फोग्राफिक्स
+            आर्थिक वर्ष {year ? fiscalLabel(year) : "—"} · वडा {ward ? np(ward) : "सबै"} · संकलन,
+            खर्च, बाँकी बक्यौता तथा इन्फोग्राफिक्स
           </p>
         </div>
 
@@ -309,6 +327,33 @@ function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {yearMismatch && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+          <AlertTriangle className="size-5 shrink-0 text-warning" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-foreground">
+              आ.व. {fiscalLabel(year)} मा कुनै रसिद भेटिएन
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              तपाईंका रसिदहरू अर्को आर्थिक वर्षमा दर्ता भएका छन्। तलको वर्ष छानेर हेर्नुहोस्:
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {availableYears.map((y) => (
+              <Button
+                key={y}
+                size="sm"
+                variant={y === year ? "default" : "outline"}
+                className="font-bold"
+                onClick={() => setYear(y)}
+              >
+                {fiscalLabel(y)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ─── PRIMARY KPI INFOGRAPHIC CARDS ─── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

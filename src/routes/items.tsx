@@ -393,7 +393,7 @@ function ItemsAndAssetsPage() {
   const uniqueAssetParents = Array.from(new Set(assets.map((x) => x.parent).filter(Boolean))).length;
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 p-5 md:px-8 md:py-7 w-full max-w-[1600px] mx-auto">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
         <div>

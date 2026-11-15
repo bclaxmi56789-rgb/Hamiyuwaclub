@@ -393,7 +393,7 @@ function RPPage() {
 
   if (!app.ready) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <p role="status">Opening cash book…</p>
       </main>
     );
@@ -401,7 +401,7 @@ function RPPage() {
 
   if (!app.signedIn) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <SignInPanel />
       </main>
     );
@@ -452,7 +452,7 @@ function RPPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
+    <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
       {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-2.5">

@@ -413,9 +413,19 @@
 
   * { letter-spacing: 0; }
 
+  html {
+    /* Bump base font-size from browser default (16px) to 17px so that
+       text-sm (0.875rem = ~15px) and text-xs (0.75rem = ~13px) are
+       comfortably readable, especially for Nepali/Devanagari script. */
+    font-size: 17px;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 

@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { MAP_STYLES, MAP_STYLE_GROUPS, type MapStyleKey } from "@/lib/map-styles";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useWorkspace, WorkspacePage } from "@/components/workspace";
@@ -110,6 +113,12 @@ function TripDriverPage() {
   const trailLineRef = useRef<L.Polyline | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const tileLayerRef = useRef<L.Layer | null>(null);
+
+  // Map instance generation — bumped whenever the Leaflet map is re-created
+  // (e.g. entering/exiting fullscreen) so marker effects re-add their layers.
+  const [mapReady, setMapReady] = useState(0);
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
 
   // Driver / principal location + breadcrumb trail while moving
   const [driverLocation, setDriverLocation] = useState<{
@@ -438,8 +447,6 @@ function TripDriverPage() {
       attributionControl: false,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
-
     markersLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
@@ -473,9 +480,49 @@ function TripDriverPage() {
         mapRef.current = null;
       }
       markersLayerRef.current = null;
+      routeLineRef.current = null;
+      trailLineRef.current = null;
+      driverMarkerRef.current = null;
       teamMemberMarkersRef.current.clear();
+      setMapReady((v) => v + 1);
     };
   }, [query.isPending, mapFull]);
+
+  // Tile layer switching (OpenFreeMap vector / ESRI satellite / CartoDB raster)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    if (tileLayerRef.current) {
+      try { map.removeLayer(tileLayerRef.current); } catch { /* already removed */ }
+      tileLayerRef.current = null;
+    }
+
+    const cfg = MAP_STYLES[mapStyle] ?? MAP_STYLES.liberty;
+
+    if (cfg.type === "vector") {
+      try {
+        tileLayerRef.current = maplibreGL({ style: cfg.url }).addTo(map);
+      } catch (err) {
+        console.warn("MapLibre vector tiles failed, using raster fallback:", err);
+        tileLayerRef.current = L.tileLayer(MAP_STYLES.voyager.url, {
+          subdomains: MAP_STYLES.voyager.subdomains,
+          maxZoom: MAP_STYLES.voyager.maxZoom,
+          detectRetina: true,
+        }).addTo(map);
+      }
+    } else if (cfg.type === "hybrid") {
+      const base = L.tileLayer(cfg.url, { maxZoom: cfg.maxZoom ?? 19 });
+      const overlay = L.tileLayer(cfg.overlayUrl!, { maxZoom: cfg.maxZoom ?? 19 });
+      tileLayerRef.current = L.layerGroup([base, overlay]).addTo(map);
+    } else {
+      tileLayerRef.current = L.tileLayer(cfg.url, {
+        subdomains: cfg.subdomains,
+        maxZoom: cfg.maxZoom ?? 19,
+        detectRetina: Boolean(cfg.isRetina),
+      }).addTo(map);
+    }
+  }, [mapReady, mapStyle]);
 
   // Render live team members (other workers / collectors) on map
   useEffect(() => {
@@ -545,7 +592,7 @@ function TripDriverPage() {
         teamMemberMarkersRef.current.set(markerId, marker);
       }
     });
-  }, [teamMembers, userId, activeEmployeeId]);
+  }, [teamMembers, userId, activeEmployeeId, mapReady]);
 
   // Driver (principal) marker
   useEffect(() => {
@@ -594,7 +641,7 @@ function TripDriverPage() {
       });
       driverMarkerRef.current = marker;
     }
-  }, [driverLocation]);
+  }, [driverLocation, mapReady]);
 
   // Driver GPS breadcrumb trail (the track covered on home trips)
   useEffect(() => {
@@ -622,7 +669,7 @@ function TripDriverPage() {
       );
       trailLineRef.current = line;
     }
-  }, [driverTrail]);
+  }, [driverTrail, mapReady]);
 
   // Trip status bubbles (red = बाँकी, orange = जारी, green = पूरा)
   useEffect(() => {
@@ -697,7 +744,7 @@ function TripDriverPage() {
       );
       markersLayer.addLayer(marker);
     });
-  }, [filteredCustomers, selectedCustomer]);
+  }, [filteredCustomers, selectedCustomer, mapReady]);
 
   // Route line principal → selected customer's home
   useEffect(() => {
@@ -738,7 +785,7 @@ function TripDriverPage() {
 
       routeLineRef.current = line;
     }
-  }, [driverLocation, selectedCustomer]);
+  }, [driverLocation, selectedCustomer, mapReady]);
 
   // Driver location tracking with 3-stage fallback (same resilient pipeline as collection map)
   const flushTripPoints = async (): Promise<boolean> => {
@@ -1314,6 +1361,21 @@ function TripDriverPage() {
           >
             {hideBoxes ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
           </button>
+          {/* Map Style Selector */}
+          <select
+            value={mapStyle}
+            onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
+            className="rounded-full bg-card px-2 py-1.5 text-[11px] text-foreground shadow-lg border hover:bg-accent cursor-pointer focus:outline-none"
+            title="नक्सा प्रकार छान्नुहोस् (Select map style)"
+          >
+            {MAP_STYLE_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.keys.map((key) => (
+                  <option key={key} value={key}>{MAP_STYLES[key].label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <button
             type="button"
             title={mapFull ? "फुल स्क्रिन बन्द (Exit full screen)" : "फुल स्क्रिन (Full screen)"}

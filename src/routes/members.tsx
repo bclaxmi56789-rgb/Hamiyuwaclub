@@ -1160,7 +1160,7 @@ function MembersPage() {
 
   if (!app.ready) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <p role="status">Opening members module…</p>
       </main>
     );
@@ -1168,14 +1168,14 @@ function MembersPage() {
 
   if (!app.signedIn) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <SignInPanel />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
+    <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
       {/* Page Title & Navigation Tabs */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b pb-4">
         <div>
@@ -1239,19 +1239,19 @@ function MembersPage() {
           {/* Members Stats Cards */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-xl border bg-card p-4 shadow-xs">
-              <div className="text-xs text-muted-foreground font-medium">कुल सदस्य संख्या (Total Members)</div>
+              <div className="text-sm text-muted-foreground font-medium">कुल सदस्य संख्या (Total Members)</div>
               <div className="mt-1 text-2xl font-extrabold text-foreground">
                 {memberList.length} जना
               </div>
             </div>
             <div className="rounded-xl border bg-card p-4 shadow-xs">
-              <div className="text-xs text-muted-foreground font-medium">सक्रिय सदस्यहरू (Active Members)</div>
+              <div className="text-sm text-muted-foreground font-medium">सक्रिय सदस्यहरू (Active Members)</div>
               <div className="mt-1 text-2xl font-extrabold text-success">
                 {memberList.filter((b) => b.status === "active").length} जना
               </div>
             </div>
             <div className="rounded-xl border bg-card p-4 shadow-xs">
-              <div className="text-xs text-muted-foreground font-medium">वार्षिक सदस्यता शुल्क प्रतिबद्धता</div>
+              <div className="text-sm text-muted-foreground font-medium">वार्षिक सदस्यता शुल्क प्रतिबद्धता</div>
               <div className="mt-1 text-2xl font-extrabold text-primary">
                 {money(memberList.reduce((acc, b) => acc + (b.membership_fee || 0), 0))}
               </div>
@@ -1260,19 +1260,19 @@ function MembersPage() {
 
           {/* Members Action & Filter Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="relative w-full max-w-xs">
+            <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
               <Input
                 placeholder="नाम, पद वा पेशा खोज्नुहोस्…"
                 value={searchMember}
                 onChange={(e) => setSearchMember(e.target.value)}
-                className="pl-9 text-xs"
+                className="pl-9 text-sm"
               />
             </div>
             <Button
               onClick={handleOpenAddMember}
               size="sm"
-              className="flex items-center gap-1.5 font-bold shadow-xs"
+              className="flex items-center gap-1.5 font-bold shadow-xs text-sm"
             >
               <Plus className="size-4" />
               <span>नयाँ सदस्य थप्नुहोस्</span>
@@ -1281,18 +1281,18 @@ function MembersPage() {
 
           {/* Members Table */}
           <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-sm">
               <thead className="border-b bg-muted/40 font-semibold text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">सि.नं.</th>
-                  <th className="px-4 py-3">पद (Designation)</th>
-                  <th className="px-4 py-3">पूरा नाम (Name)</th>
-                  <th className="px-4 py-3">पेशा (Occupation)</th>
-                  <th className="px-4 py-3">जन्म मिति (DOB)</th>
-                  <th className="px-4 py-3 text-right">सदस्यता शुल्क (Fee)</th>
-                  <th className="px-4 py-3">सम्पर्क / ठेगाना</th>
-                  <th className="px-4 py-3">स्थिति</th>
-                  <th className="no-print px-4 py-3 text-right">कार्य</th>
+                  <th className="px-4 py-3.5">सि.नं.</th>
+                  <th className="px-4 py-3.5">पद (Designation)</th>
+                  <th className="px-4 py-3.5">पूरा नाम (Name)</th>
+                  <th className="px-4 py-3.5">पेशा (Occupation)</th>
+                  <th className="px-4 py-3.5">जन्म मिति (DOB)</th>
+                  <th className="px-4 py-3.5 text-right">सदस्यता शुल्क (Fee)</th>
+                  <th className="px-4 py-3.5">सम्पर्क / ठेगाना</th>
+                  <th className="px-4 py-3.5">स्थिति</th>
+                  <th className="no-print px-4 py-3.5 text-right">कार्य</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -1305,25 +1305,25 @@ function MembersPage() {
                 ) : (
                   filteredMembers.map((item, idx) => (
                     <tr key={item.id || idx} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-mono">{idx + 1}</td>
-                      <td className="px-4 py-3">
-                        <span className="rounded-md bg-primary/10 px-2 py-0.5 font-bold text-primary">
+                      <td className="px-4 py-3.5 font-mono">{idx + 1}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
                           {item.designation}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-bold text-foreground">{item.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{item.occupation || "—"}</td>
-                      <td className="px-4 py-3 font-mono">{np(item.dob || "—")}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-foreground">
+                      <td className="px-4 py-3.5 font-bold text-foreground">{item.name}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{item.occupation || "—"}</td>
+                      <td className="px-4 py-3.5 font-mono">{np(item.dob || "—")}</td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-foreground">
                         {money(item.membership_fee || 0)}
                       </td>
-                      <td className="px-4 py-3">
-                        <div>{item.phone || "—"}</div>
-                        <div className="text-[10px] text-muted-foreground">{item.address || ""}</div>
+                      <td className="px-4 py-3.5">
+                        <div className="font-medium">{item.phone || "—"}</div>
+                        <div className="text-xs text-muted-foreground">{item.address || ""}</div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                             item.status === "active"
                               ? "bg-success/10 text-success"
                               : "bg-muted text-muted-foreground"
@@ -1332,25 +1332,25 @@ function MembersPage() {
                           {item.status === "active" ? "सक्रिय" : "निष्कृय"}
                         </span>
                       </td>
-                      <td className="no-print px-4 py-3 text-right">
+                      <td className="no-print px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7"
+                            className="size-8"
                             title="सम्पादन गर्नुहोस्"
                             onClick={() => handleOpenEditMember(item)}
                           >
-                            <Edit2 className="size-3.5" />
+                            <Edit2 className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7 text-destructive hover:bg-destructive/10"
+                            className="size-8 text-destructive hover:bg-destructive/10"
                             title="हटाउनुहोस्"
                             onClick={() => handleDeleteMember(item.id)}
                           >
-                            <Trash2 className="size-3.5" />
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </td>
@@ -1397,19 +1397,19 @@ function MembersPage() {
 
           {/* Employee Action & Filter Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="relative w-full max-w-xs">
+            <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
               <Input
                 placeholder="नाम, पद वा योग्यता खोज्नुहोस्…"
                 value={searchEmp}
                 onChange={(e) => setSearchEmp(e.target.value)}
-                className="pl-9 text-xs"
+                className="pl-9 text-sm"
               />
             </div>
             <Button
               onClick={handleOpenAddEmp}
               size="sm"
-              className="flex items-center gap-1.5 font-bold shadow-xs bg-success hover:bg-success/90 text-success-foreground"
+              className="flex items-center gap-1.5 font-bold shadow-xs bg-success hover:bg-success/90 text-success-foreground text-sm"
             >
               <Plus className="size-4" />
               <span>नयाँ कर्मचारी थप्नुहोस्</span>
@@ -1418,19 +1418,19 @@ function MembersPage() {
 
           {/* Employee Table */}
           <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-sm">
               <thead className="border-b bg-muted/40 font-semibold text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">सि.नं.</th>
-                  <th className="px-4 py-3">कर्मचारीको नाम (Name)</th>
-                  <th className="px-4 py-3">पद (Designation)</th>
-                  <th className="px-4 py-3">उमेर (Age)</th>
-                  <th className="px-4 py-3">शैक्षिक योग्यता</th>
-                  <th className="px-4 py-3 text-right">आधारभूत तलब (Basic)</th>
-                  <th className="px-4 py-3">भत्ता आधार र दर (Allowance)</th>
-                  <th className="px-4 py-3">सम्पर्क / प्यान</th>
-                  <th className="px-4 py-3">स्थिति</th>
-                  <th className="no-print px-4 py-3 text-right">कार्य</th>
+                  <th className="px-4 py-3.5">सि.नं.</th>
+                  <th className="px-4 py-3.5">कर्मचारीको नाम (Name)</th>
+                  <th className="px-4 py-3.5">पद (Designation)</th>
+                  <th className="px-4 py-3.5">उमेर (Age)</th>
+                  <th className="px-4 py-3.5">शैक्षिक योग्यता</th>
+                  <th className="px-4 py-3.5 text-right">आधारभूत तलब (Basic)</th>
+                  <th className="px-4 py-3.5">भत्ता आधार र दर (Allowance)</th>
+                  <th className="px-4 py-3.5">सम्पर्क / प्यान</th>
+                  <th className="px-4 py-3.5">स्थिति</th>
+                  <th className="no-print px-4 py-3.5 text-right">कार्य</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -1443,8 +1443,8 @@ function MembersPage() {
                 ) : (
                   filteredEmp.map((item, idx) => (
                     <tr key={item.id || idx} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-mono">{idx + 1}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5 font-mono">{idx + 1}</td>
+                      <td className="px-4 py-3.5">
                         <button
                           type="button"
                           onClick={() => handleOpenEmpLedger(item.id)}
@@ -1452,23 +1452,23 @@ function MembersPage() {
                           title="यस कर्मचारीको खाता / लेजर हेर्नुहोस्"
                         >
                           <span>{item.name}</span>
-                          <BookOpen className="size-3 text-muted-foreground opacity-60" />
+                          <BookOpen className="size-3.5 text-muted-foreground opacity-60" />
                         </button>
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                           नियुक्ति: {np(item.joining_date || "—")}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
+                      <td className="px-4 py-3.5">
+                        <span className="rounded-md bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
                           {item.designation}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-mono">{np(item.age || "—")} वर्ष</td>
-                      <td className="px-4 py-3 text-muted-foreground">{item.qualification || "—"}</td>
-                      <td className="px-4 py-3 text-right font-bold text-foreground">
+                      <td className="px-4 py-3.5 font-mono">{np(item.age || "—")} वर्ष</td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{item.qualification || "—"}</td>
+                      <td className="px-4 py-3.5 text-right font-bold text-foreground">
                         {money(item.basic_salary)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <div className="font-medium">
                           {item.allowance_type === "trip" && (
                             <span className="text-warning">प्रति ट्रिप {money(item.allowance_rate || 0)}</span>
@@ -1484,13 +1484,13 @@ function MembersPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div>{item.phone || "—"}</div>
-                        {item.pan && <div className="text-[10px] font-mono text-muted-foreground">PAN: {item.pan}</div>}
+                      <td className="px-4 py-3.5">
+                        <div className="font-medium">{item.phone || "—"}</div>
+                        {item.pan && <div className="text-xs font-mono text-muted-foreground">PAN: {item.pan}</div>}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                             item.status === "active"
                               ? "bg-success/10 text-success"
                               : item.status === "on_leave"
@@ -1501,35 +1501,35 @@ function MembersPage() {
                           {item.status === "active" ? "सक्रिय" : item.status === "on_leave" ? "बिदामा" : "निष्कृय"}
                         </span>
                       </td>
-                      <td className="no-print px-4 py-3 text-right">
+                      <td className="no-print px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-[11px] font-semibold text-success border-success/30 hover:bg-success/10"
+                            className="h-8 px-2.5 text-xs font-semibold text-success border-success/30 hover:bg-success/10"
                             title="यस कर्मचारीको खाता / लेजर हेर्नुहोस्"
                             onClick={() => handleOpenEmpLedger(item.id)}
                           >
-                            <BookOpen className="mr-1 size-3 text-success" />
+                            <BookOpen className="mr-1 size-3.5 text-success" />
                             <span>लेजर</span>
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7"
+                            className="size-8"
                             title="सम्पादन गर्नुहोस्"
                             onClick={() => handleOpenEditEmp(item)}
                           >
-                            <Edit2 className="size-3.5" />
+                            <Edit2 className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7 text-destructive hover:bg-destructive/10"
+                            className="size-8 text-destructive hover:bg-destructive/10"
                             title="हटाउनुहोस्"
                             onClick={() => handleDeleteEmp(item.id)}
                           >
-                            <Trash2 className="size-3.5" />
+                            <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </td>
@@ -1944,7 +1944,7 @@ function MembersPage() {
 
               {/* Payroll Table */}
               <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-                <table className="w-full text-left text-xs min-w-[1000px]">
+                <table className="w-full text-left text-sm min-w-[1050px]">
                   <thead className="border-b bg-muted/50 font-semibold text-muted-foreground">
                     <tr>
                       <th className="px-3 py-3">सि.नं.</th>
@@ -2682,7 +2682,7 @@ function MembersPage() {
 
                   {/* History Table */}
                   <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-                    <table className="w-full text-left text-xs min-w-[950px]">
+                    <table className="w-full text-left text-sm min-w-[1000px]">
                       <thead className="border-b bg-muted/50 font-semibold text-muted-foreground">
                         <tr>
                           <th className="px-3 py-3">सि.नं.</th>
@@ -2902,7 +2902,7 @@ function MembersPage() {
                             </span>
                           )}
                         </div>
-                        <table className="w-full text-left text-xs min-w-[720px]">
+                        <table className="w-full text-left text-sm min-w-[750px]">
                           <thead className="border-b bg-muted/50 font-semibold text-muted-foreground">
                             <tr>
                               <th className="px-3 py-2.5">मिति</th>
@@ -3142,7 +3142,7 @@ function MembersPage() {
                               </span>
                             </div>
                             <div className="overflow-x-auto">
-                              <table className="w-full text-xs min-w-[500px]">
+                              <table className="w-full text-sm min-w-[500px]">
                                 <thead className="border-b bg-muted/30">
                                   <tr>
                                     <th className="px-3 py-2 text-left">मिति</th>
@@ -3176,7 +3176,7 @@ function MembersPage() {
 
                         {/* Detailed Payroll Statement */}
                         <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-                          <table className="w-full text-left text-xs min-w-[950px]">
+                          <table className="w-full text-left text-sm min-w-[1000px]">
                             <thead className="border-b bg-muted/50 font-semibold text-muted-foreground">
                               <tr>
                                 <th className="px-3 py-3">सि.नं.</th>

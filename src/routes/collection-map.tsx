@@ -2,6 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { MAP_STYLES, MAP_STYLE_GROUPS, type MapStyleKey } from "@/lib/map-styles";
 import { useWorkspace, WorkspacePage, money } from "@/components/workspace";
 import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
@@ -97,6 +100,7 @@ function CollectionMapPage() {
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
+  const tileLayerRef = useRef<L.Layer | null>(null);
 
   // Driver/Collector Location
   const [driverLocation, setDriverLocation] = useState<{
@@ -122,6 +126,7 @@ function CollectionMapPage() {
   // Map instance generation — bumped whenever the Leaflet map is re-created
   // (e.g. entering/exiting fullscreen) so marker effects re-add their layers.
   const [mapReady, setMapReady] = useState(0);
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
 
   // Compute broadcaster's actual employee name and designation
   const activeEmployee = employees?.find((e) => e.id === activeEmployeeId);
@@ -319,10 +324,6 @@ function CollectionMapPage() {
       attributionControl: false,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-    }).addTo(map);
-
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
     mapRef.current = map;
@@ -366,6 +367,42 @@ function CollectionMapPage() {
       setMapReady((v) => v + 1);
     };
   }, [query.isPending, mapFull]);
+
+  // Tile layer switching (OpenFreeMap vector / ESRI satellite / CartoDB raster)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    if (tileLayerRef.current) {
+      try { map.removeLayer(tileLayerRef.current); } catch { /* already removed */ }
+      tileLayerRef.current = null;
+    }
+
+    const cfg = MAP_STYLES[mapStyle] ?? MAP_STYLES.liberty;
+
+    if (cfg.type === "vector") {
+      try {
+        tileLayerRef.current = maplibreGL({ style: cfg.url }).addTo(map);
+      } catch (err) {
+        console.warn("MapLibre vector tiles failed, using raster fallback:", err);
+        tileLayerRef.current = L.tileLayer(MAP_STYLES.voyager.url, {
+          subdomains: MAP_STYLES.voyager.subdomains,
+          maxZoom: MAP_STYLES.voyager.maxZoom,
+          detectRetina: true,
+        }).addTo(map);
+      }
+    } else if (cfg.type === "hybrid") {
+      const base = L.tileLayer(cfg.url, { maxZoom: cfg.maxZoom ?? 19 });
+      const overlay = L.tileLayer(cfg.overlayUrl!, { maxZoom: cfg.maxZoom ?? 19 });
+      tileLayerRef.current = L.layerGroup([base, overlay]).addTo(map);
+    } else {
+      tileLayerRef.current = L.tileLayer(cfg.url, {
+        subdomains: cfg.subdomains,
+        maxZoom: cfg.maxZoom ?? 19,
+        detectRetina: Boolean(cfg.isRetina),
+      }).addTo(map);
+    }
+  }, [mapReady, mapStyle]);
 
   // Render live team members (other workers) as vehicle cards — real
   // 🚚/🛻 vehicle markers, never plain pins.
@@ -1073,6 +1110,21 @@ function CollectionMapPage() {
           >
             {hideBoxes ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
           </button>
+          {/* Map Style Selector */}
+          <select
+            value={mapStyle}
+            onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
+            className="rounded-full bg-card px-2 py-1.5 text-[11px] text-foreground shadow-lg border hover:bg-accent cursor-pointer focus:outline-none"
+            title="नक्सा प्रकार छान्नुहोस् (Select map style)"
+          >
+            {MAP_STYLE_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.keys.map((key) => (
+                  <option key={key} value={key}>{MAP_STYLES[key].label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <button
             type="button"
             title={mapFull ? "फुल स्क्रिन बन्द (Exit full screen)" : "फुल स्क्रिन (Full screen)"}

@@ -625,7 +625,7 @@ function EventsPage() {
 
   if (!app.ready) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <p role="status">Opening events module…</p>
       </main>
     );
@@ -633,7 +633,7 @@ function EventsPage() {
 
   if (!app.signedIn) {
     return (
-      <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
         <SignInPanel />
       </main>
     );
@@ -665,7 +665,7 @@ function EventsPage() {
   };
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
+    <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b pb-4">
         <div>
@@ -1061,18 +1061,18 @@ function EventsPage() {
         /* TABLE VIEW */
         /* ========================================================================= */
         <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-sm">
             <thead className="border-b bg-muted/40 font-semibold text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">सि.नं.</th>
-                <th className="px-4 py-3">कार्यक्रमको नाम (Programme Name)</th>
-                <th className="px-4 py-3">स्थान (Locality)</th>
-                <th className="px-4 py-3 text-right">बजेट तथा खर्च (Budget & Spent)</th>
-                <th className="px-4 py-3">सुरु हुने मिति</th>
-                <th className="px-4 py-3">अधिकृत व्यक्तिहरू</th>
-                <th className="px-4 py-3">बैठक मिनेट</th>
-                <th className="px-4 py-3">अवस्था</th>
-                <th className="no-print px-4 py-3 text-right">कार्य</th>
+                <th className="px-4 py-3.5">सि.नं.</th>
+                <th className="px-4 py-3.5">कार्यक्रमको नाम (Programme Name)</th>
+                <th className="px-4 py-3.5">स्थान (Locality)</th>
+                <th className="px-4 py-3.5 text-right">बजेट तथा खर्च (Budget & Spent)</th>
+                <th className="px-4 py-3.5">सुरु हुने मिति</th>
+                <th className="px-4 py-3.5">अधिकृत व्यक्तिहरू</th>
+                <th className="px-4 py-3.5">बैठक मिनेट</th>
+                <th className="px-4 py-3.5">अवस्था</th>
+                <th className="no-print px-4 py-3.5 text-right">कार्य</th>
               </tr>
             </thead>
             <tbody className="divide-y">

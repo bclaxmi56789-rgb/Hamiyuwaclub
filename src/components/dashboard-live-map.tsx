@@ -22,7 +22,10 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { useServerFn } from "@tanstack/react-start";
+import { MAP_STYLES, MAP_STYLE_GROUPS, type MapStyleKey, type MapStyleConfig } from "@/lib/map-styles";
 import { supabase } from "@/integrations/supabase/client";
 import {
   TEAM_LOCATION_CHANNEL,
@@ -86,40 +89,6 @@ const ROLE_META: Record<TeamMemberRole, { emoji: string; color: string; label: s
   other: { emoji: "👤", color: "#64748b", label: "अन्य" },
 };
 
-export type MapStyleKey = "voyager" | "dark" | "positron" | "osm";
-
-export const MAP_STYLES: Record<
-  MapStyleKey,
-  { label: string; url: string; subdomains: string[]; maxZoom: number; isRetina?: boolean }
-> = {
-  voyager: {
-    label: "🗺️ आधुनिक सफा (Voyager)",
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    subdomains: ["a", "b", "c", "d"],
-    maxZoom: 20,
-    isRetina: true,
-  },
-  dark: {
-    label: "🌑 गाढा (Dark Mode)",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    subdomains: ["a", "b", "c", "d"],
-    maxZoom: 20,
-    isRetina: true,
-  },
-  positron: {
-    label: "⚪ न्यूनतम (Positron)",
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    subdomains: ["a", "b", "c", "d"],
-    maxZoom: 20,
-    isRetina: true,
-  },
-  osm: {
-    label: "🌐 OpenStreetMap (क्लासिक)",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    subdomains: ["a", "b", "c"],
-    maxZoom: 19,
-  },
-};
 
 const tripDateTime = (iso: string | null) =>
   iso
@@ -188,7 +157,7 @@ export function DashboardLiveMap({
   const tileLayerRef = useRef<L.Layer | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>("voyager");
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
   const [members, setMembers] = useState<TeamMemberLocation[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "driver" | "collector">("all");
 
@@ -502,18 +471,12 @@ export function DashboardLiveMap({
     const map = L.map(mapContainerRef.current, {
       center: NEPAL_CENTER,
       zoom: 7,
+      minZoom: 2,
+      maxBounds: [[180, -Infinity], [-180, Infinity]],
+      maxBoundsViscosity: 1,
       zoomControl: true,
       attributionControl: false,
     });
-
-    // Create initial tile layer immediately
-    const initialStyle = MAP_STYLES.voyager;
-    const initialLayer = L.tileLayer(initialStyle.url, {
-      subdomains: initialStyle.subdomains,
-      maxZoom: initialStyle.maxZoom,
-      detectRetina: Boolean(initialStyle.isRetina),
-    }).addTo(map);
-    tileLayerRef.current = initialLayer;
 
     peopleMarkersLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
@@ -538,12 +501,10 @@ export function DashboardLiveMap({
     };
   }, []);
 
-  // 2b. Map tile layer management (Voyager HD, Dark Mode, Positron, OSM)
+  // 2b. Map tile layer management (OpenFreeMap Vector Tiles + Satellite Hybrid + CartoDB/OSM)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
-
-    const cfg = MAP_STYLES[mapStyle] || MAP_STYLES.voyager;
 
     if (tileLayerRef.current) {
       try {
@@ -554,13 +515,36 @@ export function DashboardLiveMap({
       tileLayerRef.current = null;
     }
 
-    const newLayer = L.tileLayer(cfg.url, {
-      subdomains: cfg.subdomains,
-      maxZoom: cfg.maxZoom,
-      detectRetina: Boolean(cfg.isRetina),
-    }).addTo(map);
+    const cfg = MAP_STYLES[mapStyle] || MAP_STYLES.liberty;
 
-    tileLayerRef.current = newLayer;
+    if (cfg.type === "vector") {
+      try {
+        const glLayer = maplibreGL({
+          style: cfg.url,
+        }).addTo(map);
+        tileLayerRef.current = glLayer;
+      } catch (err) {
+        console.warn("OpenFreeMap vector tile initialization failed, using raster fallback:", err);
+        const fallback = L.tileLayer(MAP_STYLES.voyager.url, {
+          subdomains: MAP_STYLES.voyager.subdomains,
+          maxZoom: MAP_STYLES.voyager.maxZoom,
+          detectRetina: true,
+        }).addTo(map);
+        tileLayerRef.current = fallback;
+      }
+    } else if (cfg.type === "hybrid") {
+      const base = L.tileLayer(cfg.url, { maxZoom: cfg.maxZoom || 19 });
+      const overlay = L.tileLayer(cfg.overlayUrl!, { maxZoom: cfg.maxZoom || 19 });
+      const group = L.layerGroup([base, overlay]).addTo(map);
+      tileLayerRef.current = group;
+    } else {
+      const raster = L.tileLayer(cfg.url, {
+        subdomains: cfg.subdomains,
+        maxZoom: cfg.maxZoom || 19,
+        detectRetina: Boolean(cfg.isRetina),
+      }).addTo(map);
+      tileLayerRef.current = raster;
+    }
   }, [mapReady, mapStyle]);
 
   // 3. Render and update team members (Collectors & Drivers)
@@ -896,18 +880,24 @@ export function DashboardLiveMap({
             <option value="pending">🔴 रातो / बाँकी ({pendingCount})</option>
           </select>
 
-          {/* Map Style Selector */}
+          {/* Map Style & Layer Type Selector (Street / Satellite) */}
           <select
             aria-label="Map style"
             className="h-8 rounded-md border bg-background px-2 text-xs font-bold text-foreground cursor-pointer"
             value={mapStyle}
             onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
-            title="नक्सा शैली छान्नुहोस् (Map Style)"
+            title="नक्सा प्रकार छान्नुहोस् (Street / Satellite)"
           >
-            <option value="voyager">🗺️ आधुनिक सफा (Voyager)</option>
-            <option value="dark">🌑 गाढा (Dark Mode)</option>
-            <option value="positron">⚪ न्यूनतम (Positron)</option>
-            <option value="osm">🌐 OSM (Classic)</option>
+            <optgroup label="🗺️ सडक नक्सा (Street View)">
+              <option value="liberty">🗽 OpenFreeMap Liberty (Vector)</option>
+              <option value="voyager">🗺️ CartoDB Voyager (HD)</option>
+              <option value="dark">🌑 Dark Mode (गाढा)</option>
+              <option value="osm">🌐 OpenStreetMap (क्लासिक)</option>
+            </optgroup>
+            <optgroup label="🛰️ स्याटेलाइट (Satellite Aerial)">
+              <option value="satellite_hybrid">🛰️ स्याटेलाइट + सडक नाम (Hybrid)</option>
+              <option value="satellite">🛰️ स्याटेलाइट फोटो मात्र</option>
+            </optgroup>
           </select>
 
           {/* Refresh Button */}

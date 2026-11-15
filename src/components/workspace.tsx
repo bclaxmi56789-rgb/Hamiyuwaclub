@@ -99,7 +99,7 @@ export function WorkspacePage({
   const readOnly = isPageReadOnly(path);
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-7 sm:px-8">
+    <main className="mx-auto w-full max-w-[1600px] px-5 py-7 sm:px-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-ink flex items-center gap-2">

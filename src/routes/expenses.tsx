@@ -2151,7 +2151,7 @@ function ExpenseListTable({
     <div className="rounded-xl border overflow-auto shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/50 text-xs">
+          <TableRow className="bg-muted/50 text-sm">
             <TableHead>मिति (BS)</TableHead>
             <TableHead>बिल नं.</TableHead>
             <TableHead>भेन्डर (Vendor)</TableHead>
@@ -2166,7 +2166,7 @@ function ExpenseListTable({
         <TableBody>
           {filtered.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+              <TableCell colSpan={9} className="text-center py-12 text-muted-foreground text-sm">
                 कुनै {typeLabel} फेला परेन। नयाँ थप्नुस् वा बिल स्क्यान गर्नुस्।
               </TableCell>
             </TableRow>
@@ -2178,55 +2178,55 @@ function ExpenseListTable({
 
               return (
                 <TableRow key={r.id} className="hover:bg-muted/30">
-                  <TableCell className="font-mono text-xs">{r.date_bs}</TableCell>
-                  <TableCell className="text-xs font-mono">{r.bill_number || "—"}</TableCell>
-                  <TableCell className="max-w-[120px] truncate text-xs font-medium">
+                  <TableCell className="font-mono text-sm">{r.date_bs}</TableCell>
+                  <TableCell className="text-sm font-mono">{r.bill_number || "—"}</TableCell>
+                  <TableCell className="max-w-[160px] truncate text-sm font-medium">
                     {r.vendor_name || "—"}
                   </TableCell>
 
                   {/* Validated Entity Badges */}
-                  <TableCell className="text-xs">
+                  <TableCell className="text-sm">
                     <div className="flex flex-wrap gap-1">
                       {matchedMember && (
                         <Badge
                           variant="outline"
-                          className="text-[11px] py-0 gap-1 bg-info/10 text-info"
+                          className="text-xs py-0.5 gap-1 bg-info/10 text-info font-medium"
                         >
-                          <UserCheck className="h-3 w-3" />
+                          <UserCheck className="h-3.5 w-3.5" />
                           {matchedMember.name}
                         </Badge>
                       )}
                       {matchedEmployee && (
                         <Badge
                           variant="outline"
-                          className="text-[11px] py-0 gap-1 bg-primary/10 text-primary"
+                          className="text-xs py-0.5 gap-1 bg-primary/10 text-primary font-medium"
                         >
-                          <Users className="h-3 w-3" />
+                          <Users className="h-3.5 w-3.5" />
                           {matchedEmployee.name}
                         </Badge>
                       )}
                       {matchedEvent && (
                         <Badge
                           variant="outline"
-                          className="text-[11px] py-0 gap-1 bg-warning/10 text-warning"
+                          className="text-xs py-0.5 gap-1 bg-warning/10 text-warning font-medium"
                         >
-                          <CalendarDays className="h-3 w-3" />
+                          <CalendarDays className="h-3.5 w-3.5" />
                           {matchedEvent.title}
                         </Badge>
                       )}
                       {!matchedMember && !matchedEmployee && !matchedEvent && (
-                        <span className="text-muted-foreground text-xs">—</span>
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </div>
                   </TableCell>
 
                   {type !== "expense" && (
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="text-sm text-muted-foreground">
                       {np((Array.isArray(r.line_items) ? r.line_items : []).length)} items
                     </TableCell>
                   )}
 
-                  <TableCell className="text-right font-mono font-semibold text-primary">
+                  <TableCell className="text-right font-mono font-semibold text-primary text-sm">
                     रु. {fmt(r.final_amount)}
                   </TableCell>
 
@@ -2429,7 +2429,7 @@ function ExpensesPage() {
     tab === "fixed_asset" ? "स्थायी सम्पत्ति" : tab === "item" ? "सामान/वस्तु" : "खर्च (OpEx)";
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 p-5 md:px-8 md:py-7 w-full max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
         <div>
