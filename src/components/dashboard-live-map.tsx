@@ -22,6 +22,8 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -84,6 +86,26 @@ const ROLE_META: Record<TeamMemberRole, { emoji: string; color: string; label: s
   driver: { emoji: "🛻", color: "#7c3aed", label: "चालक" },
   admin: { emoji: "🏢", color: "#059669", label: "प्रशासक" },
   other: { emoji: "👤", color: "#64748b", label: "अन्य" },
+};
+
+export type MapStyleKey = "liberty" | "dark" | "positron" | "osm";
+
+export const MAP_STYLES: Record<MapStyleKey, { label: string; url?: string }> = {
+  liberty: {
+    label: "🗽 Liberty (OpenFreeMap)",
+    url: "https://tiles.openfreemap.org/styles/liberty",
+  },
+  dark: {
+    label: "🌑 Dark (गाढा)",
+    url: "https://tiles.openfreemap.org/styles/dark",
+  },
+  positron: {
+    label: "⚪ Positron (सफा)",
+    url: "https://tiles.openfreemap.org/styles/positron",
+  },
+  osm: {
+    label: "🌐 OpenStreetMap (क्लासिक)",
+  },
 };
 
 const tripDateTime = (iso: string | null) =>
@@ -150,7 +172,10 @@ export function DashboardLiveMap({
   const mapRef = useRef<L.Map | null>(null);
   const teamMarkersRef = useRef<Map<string, L.Marker>>(new Map());
   const peopleMarkersLayerRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.Layer | null>(null);
 
+  const [mapReady, setMapReady] = useState(false);
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
   const [members, setMembers] = useState<TeamMemberLocation[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "driver" | "collector">("all");
 
@@ -468,12 +493,9 @@ export function DashboardLiveMap({
       attributionControl: false,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-    }).addTo(map);
-
     peopleMarkersLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+    setMapReady(true);
 
     setTimeout(() => {
       if (mapRef.current) {
@@ -482,12 +504,52 @@ export function DashboardLiveMap({
     }, 500);
 
     return () => {
+      setMapReady(false);
+      if (tileLayerRef.current) {
+        tileLayerRef.current = null;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
   }, []);
+
+  // 2b. Map tile layer management (OpenFreeMap vector tiles with OSM fallback)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    if (tileLayerRef.current) {
+      try {
+        map.removeLayer(tileLayerRef.current);
+      } catch {
+        // layer already removed
+      }
+      tileLayerRef.current = null;
+    }
+
+    const selected = MAP_STYLES[mapStyle];
+    if (mapStyle === "osm" || !selected?.url) {
+      const osmLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+      }).addTo(map);
+      tileLayerRef.current = osmLayer;
+    } else {
+      try {
+        const glLayer = maplibreGL({
+          style: selected.url,
+        }).addTo(map);
+        tileLayerRef.current = glLayer;
+      } catch (err) {
+        console.warn("Vector tile initialization failed, using OSM fallback:", err);
+        const osmFallback = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+        }).addTo(map);
+        tileLayerRef.current = osmFallback;
+      }
+    }
+  }, [mapReady, mapStyle]);
 
   // 3. Render and update team members (Collectors & Drivers)
   useEffect(() => {
@@ -820,6 +882,20 @@ export function DashboardLiveMap({
             <option value="all">सबै अवस्था ({totalPeopleCount})</option>
             <option value="done">🟢 हरियो / पुगेको ({greenCount})</option>
             <option value="pending">🔴 रातो / बाँकी ({pendingCount})</option>
+          </select>
+
+          {/* Map Style Selector */}
+          <select
+            aria-label="Map style"
+            className="h-8 rounded-md border bg-background px-2 text-xs font-bold text-foreground cursor-pointer"
+            value={mapStyle}
+            onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
+            title="नक्सा शैली छान्नुहोस् (Map Style)"
+          >
+            <option value="liberty">🗽 OpenFreeMap (Liberty)</option>
+            <option value="dark">🌑 गाढा (Dark)</option>
+            <option value="positron">⚪ सफा (Positron)</option>
+            <option value="osm">🌐 OSM (Classic)</option>
           </select>
 
           {/* Refresh Button */}
