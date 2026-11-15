@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { MAP_STYLES, MAP_STYLE_GROUPS, type MapStyleKey } from "@/lib/map-styles";
+import { MAP_STYLES, MAP_STYLE_GROUPS, DEFAULT_MAP_STYLE, type MapStyleKey } from "@/lib/map-styles";
 import { Button } from "@/components/ui/button";
 import {
   MapPin,
@@ -186,7 +186,7 @@ export function LocationMap({
   const [geocodedNotice, setGeocodedNotice] = useState("");
   const [refining, setRefining] = useState(false);
   const [refiningNotice, setRefiningNotice] = useState("");
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>(DEFAULT_MAP_STYLE);
 
   const watchIdRef = useRef<number | null>(null);
   const refineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

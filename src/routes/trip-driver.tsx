@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { MAP_STYLES, MAP_STYLE_GROUPS, type MapStyleKey } from "@/lib/map-styles";
+import { MAP_STYLES, MAP_STYLE_GROUPS, DEFAULT_MAP_STYLE, type MapStyleKey } from "@/lib/map-styles";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useWorkspace, WorkspacePage } from "@/components/workspace";
@@ -118,7 +118,7 @@ function TripDriverPage() {
   // Map instance generation — bumped whenever the Leaflet map is re-created
   // (e.g. entering/exiting fullscreen) so marker effects re-add their layers.
   const [mapReady, setMapReady] = useState(0);
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>(DEFAULT_MAP_STYLE);
 
   // Driver / principal location + breadcrumb trail while moving
   const [driverLocation, setDriverLocation] = useState<{

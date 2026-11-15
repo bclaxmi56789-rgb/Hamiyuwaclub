@@ -25,7 +25,7 @@ import "leaflet/dist/leaflet.css";
 import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useServerFn } from "@tanstack/react-start";
-import { MAP_STYLES, MAP_STYLE_GROUPS, type MapStyleKey, type MapStyleConfig } from "@/lib/map-styles";
+import { MAP_STYLES, MAP_STYLE_GROUPS, DEFAULT_MAP_STYLE, type MapStyleKey, type MapStyleConfig } from "@/lib/map-styles";
 import { supabase } from "@/integrations/supabase/client";
 import {
   TEAM_LOCATION_CHANNEL,
@@ -157,7 +157,7 @@ export function DashboardLiveMap({
   const tileLayerRef = useRef<L.Layer | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>("liberty");
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>(DEFAULT_MAP_STYLE);
   const [members, setMembers] = useState<TeamMemberLocation[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "driver" | "collector">("all");
 

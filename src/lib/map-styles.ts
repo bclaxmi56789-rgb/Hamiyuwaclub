@@ -36,13 +36,9 @@ export interface MapStyleConfig {
   isRetina?: boolean;
 }
 
+export const DEFAULT_MAP_STYLE: MapStyleKey = "voyager";
+
 export const MAP_STYLES: Record<MapStyleKey, MapStyleConfig> = {
-  liberty: {
-    label: "🗽 OpenFreeMap Liberty (Vector)",
-    category: "street",
-    type: "vector",
-    url: "https://tiles.openfreemap.org/styles/liberty",
-  },
   voyager: {
     label: "🗺️ आधुनिक सडक (CartoDB Voyager HD)",
     category: "street",
@@ -68,6 +64,12 @@ export const MAP_STYLES: Record<MapStyleKey, MapStyleConfig> = {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     maxZoom: 19,
   },
+  liberty: {
+    label: "🗽 OpenFreeMap Liberty (Vector)",
+    category: "street",
+    type: "vector",
+    url: "https://tiles.openfreemap.org/styles/liberty",
+  },
   dark: {
     label: "🌑 गाढा नक्सा (OpenFreeMap Dark)",
     category: "street",
@@ -84,16 +86,14 @@ export const MAP_STYLES: Record<MapStyleKey, MapStyleConfig> = {
   },
 };
 
-/** Shared style-selector JSX string (rendered via dangerouslySetInnerHTML or inline).
- *  Returns an HTML <select> element ID so callers can reference it.
- *  For React components prefer the MapStyleSelector component instead. */
+/** Shared style-selector groups for <select> dropdowns */
 export const MAP_STYLE_GROUPS: Array<{
   label: string;
   keys: MapStyleKey[];
 }> = [
   {
     label: "🗺️ सडक नक्सा",
-    keys: ["liberty", "voyager", "dark", "osm"],
+    keys: ["voyager", "osm", "liberty", "dark"],
   },
   {
     label: "🛰️ स्याटेलाइट",
