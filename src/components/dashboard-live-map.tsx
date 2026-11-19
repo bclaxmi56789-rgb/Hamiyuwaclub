@@ -75,6 +75,7 @@ import {
   getDueMonths,
   mergeOpeningDues,
   getCustomerTotalRate,
+  todayBS,
   type Person,
   type PlanItem,
   type TripLogEntry,
@@ -400,7 +401,7 @@ export function DashboardLiveMap({
             .filter((r) => r.ward === p.ward && r.card.toLowerCase() === p.card.toLowerCase())
             .flatMap((r) => r.months.map((m) => `${m.year ?? r.year}:${m.m}`)),
         );
-        const autoDues = p.joining_date ? getDueMonths(p.joining_date, customerPaidSet) : [];
+        const autoDues = p.joining_date ? getDueMonths(p.joining_date, customerPaidSet, todayBS()) : [];
         const dueMonths = mergeOpeningDues(autoDues, p.opening_dues, customerPaidSet);
         const monthlyFee = getCustomerTotalRate(p, activePlans);
         const dueAmount = dueMonths.reduce((s, dm) => s + (dm.amount ?? monthlyFee), 0);
