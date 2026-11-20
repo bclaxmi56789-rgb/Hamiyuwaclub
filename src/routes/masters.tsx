@@ -39,6 +39,8 @@ import {
   Camera,
   ImagePlus,
   Eye,
+  BookOpen,
+  Printer,
 } from "lucide-react";
 import { LocationMap } from "@/components/location-map";
 import { PhotoLightbox } from "@/components/photo-lightbox";
@@ -60,6 +62,7 @@ import {
   type CustomerPlanSubscription,
   type DueMonth,
   type OpeningDue,
+  type Receipt,
 } from "@/lib/receipt-rules";
 import { DigitalCard } from "@/components/digital-card";
 
@@ -167,6 +170,7 @@ function Masters() {
   const [viewingMapPerson, setViewingMapPerson] = useState<Person | null>(null);
   const [viewingCardPerson, setViewingCardPerson] = useState<Person | null>(null);
   const [viewingPerson, setViewingPerson] = useState<Person | null>(null);
+  const [ledgerTab, setLedgerTab] = useState<"details" | "ledger">("details");
   const plans: PlanItem[] = query.data?.plans ?? [];
   const [form, setForm] = useState<Person>(getEmptyForm(appWard || "1"));
   const [busy, setBusy] = useState(false);
@@ -1038,20 +1042,35 @@ function Masters() {
                         const remain = peopleDues.get(`${p.ward}-${p.card}`);
                         if (!remain) {
                           return (
-                            <span className="inline-block rounded-full bg-success/10 border border-success/30 px-2 py-0.5 text-[10px] font-bold text-success">
-                              ✓ चुक्ता
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => { setViewingPerson(p); setLedgerTab("ledger"); }}
+                              className="inline-block rounded-full bg-success/10 border border-success/30 px-2 py-0.5 text-[10px] font-bold text-success hover:bg-success/20 transition-colors"
+                              title="लेजर हेर्नुहोस् (View Customer Ledger)"
+                            >
+                              ✓ चुक्ता (लेजर)
+                            </button>
                           );
                         }
                         return remain.months.length > 0 ? (
-                          <span className="inline-block rounded-full bg-warning/10 border border-warning/30 px-2 py-0.5 text-[10px] font-bold text-warning">
+                          <button
+                            type="button"
+                            onClick={() => { setViewingPerson(p); setLedgerTab("ledger"); }}
+                            className="inline-block rounded-full bg-warning/10 border border-warning/30 px-2 py-0.5 text-[10px] font-bold text-warning hover:bg-warning/20 transition-colors text-left"
+                            title="लेजर हेर्नुहोस् (View Customer Ledger)"
+                          >
                             बाँकी: रु. {remain.total.toLocaleString("en-IN")} (
                             {remain.months.length} महिना)
-                          </span>
+                          </button>
                         ) : (
-                          <span className="inline-block rounded-full bg-success/10 border border-success/30 px-2 py-0.5 text-[10px] font-bold text-success">
-                            ✓ चुक्ता
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => { setViewingPerson(p); setLedgerTab("ledger"); }}
+                            className="inline-block rounded-full bg-success/10 border border-success/30 px-2 py-0.5 text-[10px] font-bold text-success hover:bg-success/20 transition-colors"
+                            title="लेजर हेर्नुहोस् (View Customer Ledger)"
+                          >
+                            ✓ चुक्ता (लेजर)
+                          </button>
                         );
                       })()}
                     </div>
@@ -1083,11 +1102,21 @@ function Masters() {
                         <span className="hidden sm:inline">कार्ड</span>
                       </Button>
                       <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1 border-primary/40 bg-primary/10 px-2 text-xs font-semibold text-primary hover:bg-primary/20"
+                        title="ग्राहक लेजर (Customer Ledger: Debit Due, Credit Collected)"
+                        onClick={() => { setViewingPerson(p); setLedgerTab("ledger"); }}
+                      >
+                        <BookOpen className="size-3.5" />
+                        <span className="hidden sm:inline">लेजर</span>
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="icon"
                         className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                         title="विवरण हेर्नुहोस् (View customer details)"
-                        onClick={() => setViewingPerson(p)}
+                        onClick={() => { setViewingPerson(p); setLedgerTab("details"); }}
                       >
                         <Eye className="size-4" />
                       </Button>
@@ -2435,198 +2464,405 @@ function Masters() {
       )}
 
       {/* Customer View Modal */}
-      {viewingPerson && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border bg-card shadow-2xl">
-            <div className="flex items-center justify-between border-b px-6 pb-3 pt-5">
-              <div>
-                <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
-                  {natureEmoji(viewingPerson.nature) && (
-                    <span>{natureEmoji(viewingPerson.nature)}</span>
-                  )}
-                  {viewingPerson.name}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  ग्राहक विवरण (Customer details) — कार्ड सं.{" "}
-                  <span className="font-semibold text-primary">{viewingPerson.card}</span> · वडा{" "}
-                  {viewingPerson.ward}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewingPerson(null)}
-                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+      {viewingPerson && (() => {
+        // Build complete accounting ledger for this person
+        // DEBIT = Amount Due (charges/bills generated), CREDIT = Amount Collected (receipts paid)
+        const personReceipts = allReceipts.filter(
+          (r) => r.ward === viewingPerson.ward && r.card.toLowerCase() === viewingPerson.card.toLowerCase(),
+        );
+        const monthlyFee = getCustomerTotalRate(viewingPerson, plans);
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                {(
-                  [
-                    ["सम्पर्क (Phone)", viewingPerson.phone],
-                    ["इमेल (Email)", viewingPerson.email],
-                    ["जिल्ला (District)", viewingPerson.district],
-                    ["न.पा./गा.पा. (Municipality)", viewingPerson.municipality],
-                    ["टोल (Tole)", viewingPerson.tole],
-                    ["घर/तल्ला/कोठा विवरण (House/Room)", viewingPerson.place_detail],
-                    [
-                      "घर क्षेत्रफल (Home Area)",
-                      viewingPerson.home_area_sqft != null
-                        ? `${viewingPerson.home_area_sqft} व.फि. (sq ft)`
-                        : undefined,
-                    ],
-                    [
-                      "तल्ला संख्या (Floors)",
-                      viewingPerson.no_of_floors != null
-                        ? String(viewingPerson.no_of_floors)
-                        : undefined,
-                    ],
-                    [
-                      "कोठा संख्या (Rooms)",
-                      viewingPerson.no_of_rooms != null
-                        ? String(viewingPerson.no_of_rooms)
-                        : undefined,
-                    ],
-                    [
-                      "भाडा कोठा संख्या (Rental Rooms)",
-                      viewingPerson.no_of_rental_rooms != null
-                        ? String(viewingPerson.no_of_rental_rooms)
-                        : undefined,
-                    ],
-                    [
-                      "घरधनी (House Owner / Ghardhani)",
-                      viewingPerson.ghardhani_name
-                        ? viewingPerson.ghardhani_ref
-                          ? `${viewingPerson.ghardhani_name} (वडा ${viewingPerson.ghardhani_ref.split(":")[0]}, कार्ड नं. ${viewingPerson.ghardhani_ref.split(":")[1]})`
-                          : viewingPerson.ghardhani_name
-                        : undefined,
-                    ],
-                    ["विस्तृत ठेगाना (Full Address)", viewingPerson.full_address],
-                    ["प्यान (PAN)", viewingPerson.pan],
-                    ["व्यवसाय मुख्ति (Nature)", viewingPerson.nature],
-                  ] as [string, string | undefined][]
-                ).map(([label, value]) =>
-                  value ? (
-                    <div key={label} className="border-b pb-2">
-                      <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
-                      <div className="text-sm font-semibold text-foreground">{value}</div>
+        // 1. Gather all billed due months (opening dues + auto months from joining date to today)
+        const allBilledMonths: DueMonth[] = mergeOpeningDues(
+          viewingPerson.joining_date ? getDueMonths(viewingPerson.joining_date, new Set(), todayBS()) : [],
+          viewingPerson.opening_dues,
+          new Set(),
+        );
+
+        // Also ensure any months present in historical receipts are accounted for in billed debits
+        const billedKeys = new Set(allBilledMonths.map((b) => `${b.fy}:${b.month}`));
+        personReceipts.forEach((r) => {
+          r.months.forEach((m) => {
+            const fy = m.year ?? Number(r.year);
+            const key = `${fy}:${m.m}`;
+            if (!billedKeys.has(key)) {
+              billedKeys.add(key);
+              allBilledMonths.push({
+                fy,
+                month: m.m,
+                isOverdue: false,
+                amount: m.amt,
+              });
+            }
+          });
+        });
+
+        type LedgerRow = {
+          date: string; // BS date string for sorting
+          description: string;
+          note?: string;
+          debit: number;
+          credit: number;
+          isOpening?: boolean;
+        };
+        const ledgerRows: LedgerRow[] = [];
+
+        // Add DEBITS: all billed dues
+        allBilledMonths.forEach((dm) => {
+          const amt = dm.amount ?? monthlyFee;
+          // Approximate calendar date in BS for chronological ordering:
+          // Shrawan (3) .. Chaitra (11) is in calendar year fy; Baisakh (0) .. Asar (2) is in calendar year fy + 1
+          const calYear = dm.month >= 3 ? dm.fy : dm.fy + 1;
+          const dateStr = `${calYear}/${String(dm.month + 1).padStart(2, "0")}/01`;
+          const monthLabel = `${MONTHS[dm.month]} (${fiscalLabel(dm.fy)})`;
+          const isOpening = (viewingPerson.opening_dues || []).some(
+            (od) => od.fy === dm.fy && od.month === dm.month,
+          );
+
+          ledgerRows.push({
+            date: dateStr,
+            description: isOpening
+              ? `प्रारम्भिक बक्यौता (Opening Due) — ${monthLabel}`
+              : `मासिक फोहोर व्यवस्थापन शुल्क — ${monthLabel}`,
+            note: isOpening ? "Opening Due" : "Monthly Charge",
+            debit: amt,
+            credit: 0,
+            isOpening,
+          });
+        });
+
+        // Add CREDITS: all receipts collected
+        personReceipts.forEach((r) => {
+          const monthsLabel = r.months
+            .map((m) => `${MONTHS[m.m]}${m.year && String(m.year) !== r.year ? ` (${fiscalLabel(m.year)})` : ""}`)
+            .join(", ");
+          ledgerRows.push({
+            date: r.date || `${r.year}/01/01`,
+            description: `रसिद सं. #${r.no} भुक्तानी — ${monthsLabel}`,
+            note: `${r.mode || "नगद"}${r.ref ? ` (Ref: ${r.ref})` : ""}`,
+            debit: 0,
+            credit: r.total,
+          });
+        });
+
+        // Sort chronologically by BS date
+        ledgerRows.sort((a, b) => a.date.localeCompare(b.date));
+
+        // Compute running balance
+        let runningBalance = 0;
+        const ledgerWithBalance = ledgerRows.map((row) => {
+          runningBalance += row.debit - row.credit;
+          return { ...row, balance: runningBalance };
+        });
+
+        const totalDebit = ledgerRows.reduce((s, r) => s + r.debit, 0);
+        const totalCredit = ledgerRows.reduce((s, r) => s + r.credit, 0);
+        const netBalance = totalDebit - totalCredit;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-xl border bg-card shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b px-6 pb-3 pt-5">
+                <div>
+                  <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
+                    {natureEmoji(viewingPerson.nature) && (
+                      <span>{natureEmoji(viewingPerson.nature)}</span>
+                    )}
+                    {viewingPerson.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    कार्ड सं.{" "}
+                    <span className="font-semibold text-primary">{viewingPerson.card}</span> · वडा{" "}
+                    {viewingPerson.ward}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewingPerson(null)}
+                  className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b bg-muted/30 px-6 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setLedgerTab("details")}
+                  className={`mr-1 flex items-center gap-1.5 rounded-t-md border-b-2 px-4 py-2 text-xs font-bold transition-colors ${ledgerTab === "details" ? "border-primary text-primary bg-card" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Eye className="size-3.5" /> विवरण (Details)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLedgerTab("ledger")}
+                  className={`flex items-center gap-1.5 rounded-t-md border-b-2 px-4 py-2 text-xs font-bold transition-colors ${ledgerTab === "ledger" ? "border-primary text-primary bg-card" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                >
+                  <BookOpen className="size-3.5" /> लेजर (Ledger)
+                </button>
+              </div>
+
+              {/* Tab content */}
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                {ledgerTab === "details" ? (
+                  <>
+                    <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                      {(
+                        [
+                          ["सम्पर्क (Phone)", viewingPerson.phone],
+                          ["इमेल (Email)", viewingPerson.email],
+                          ["जिल्ला (District)", viewingPerson.district],
+                          ["न.पा./गा.पा. (Municipality)", viewingPerson.municipality],
+                          ["टोल (Tole)", viewingPerson.tole],
+                          ["घर/तल्ला/कोठा विवरण (House/Room)", viewingPerson.place_detail],
+                          [
+                            "घर क्षेत्रफल (Home Area)",
+                            viewingPerson.home_area_sqft != null
+                              ? `${viewingPerson.home_area_sqft} व.फि. (sq ft)`
+                              : undefined,
+                          ],
+                          [
+                            "तल्ला संख्या (Floors)",
+                            viewingPerson.no_of_floors != null
+                              ? String(viewingPerson.no_of_floors)
+                              : undefined,
+                          ],
+                          [
+                            "कोठा संख्या (Rooms)",
+                            viewingPerson.no_of_rooms != null
+                              ? String(viewingPerson.no_of_rooms)
+                              : undefined,
+                          ],
+                          [
+                            "भाडा कोठा संख्या (Rental Rooms)",
+                            viewingPerson.no_of_rental_rooms != null
+                              ? String(viewingPerson.no_of_rental_rooms)
+                              : undefined,
+                          ],
+                          [
+                            "घरधनी (House Owner / Ghardhani)",
+                            viewingPerson.ghardhani_name
+                              ? viewingPerson.ghardhani_ref
+                                ? `${viewingPerson.ghardhani_name} (वडा ${viewingPerson.ghardhani_ref.split(":")[0]}, कार्ड नं. ${viewingPerson.ghardhani_ref.split(":")[1]})`
+                                : viewingPerson.ghardhani_name
+                              : undefined,
+                          ],
+                          ["विस्तृत ठेगाना (Full Address)", viewingPerson.full_address],
+                          ["प्यान (PAN)", viewingPerson.pan],
+                          ["व्यवसाय मुख्ति (Nature)", viewingPerson.nature],
+                        ] as [string, string | undefined][]
+                      ).map(([label, value]) =>
+                        value ? (
+                          <div key={label} className="border-b pb-2">
+                            <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
+                            <div className="text-sm font-semibold text-foreground">{value}</div>
+                          </div>
+                        ) : null,
+                      )}
+                      <div className="border-b pb-2">
+                        <div className="text-[10px] font-semibold text-muted-foreground">दर्ता मिति (Joined)</div>
+                        <div className="text-sm font-semibold text-foreground">
+                          {viewingPerson.joining_date ? np(viewingPerson.joining_date) : "—"}
+                        </div>
+                      </div>
+                      <div className="border-b pb-2">
+                        <div className="text-[10px] font-semibold text-muted-foreground">योजना (Plans)</div>
+                        <div className="text-sm font-semibold text-foreground">
+                          {viewingPerson.plans && viewingPerson.plans.length > 0
+                            ? viewingPerson.plans
+                                .map((sp) =>
+                                  sp.quantity && sp.quantity > 1
+                                    ? `${sp.name} (${sp.quantity}×)`
+                                    : sp.name,
+                                )
+                                .join(", ")
+                            : viewingPerson.plan || "—"}
+                        </div>
+                      </div>
+                      <div className="border-b pb-2">
+                        <div className="text-[10px] font-semibold text-muted-foreground">मासिक कुल (Monthly Total)</div>
+                        <div className="text-sm font-semibold text-foreground">
+                          रु. {getCustomerTotalRate(viewingPerson, plans).toLocaleString("en-IN")}
+                        </div>
+                      </div>
                     </div>
-                  ) : null,
-                )}
-                <div className="border-b pb-2">
-                  <div className="text-[10px] font-semibold text-muted-foreground">
-                    दर्ता मिति (Joined)
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {viewingPerson.joining_date ? np(viewingPerson.joining_date) : "—"}
-                  </div>
-                </div>
-                <div className="border-b pb-2">
-                  <div className="text-[10px] font-semibold text-muted-foreground">
-                    योजना (Plans)
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {viewingPerson.plans && viewingPerson.plans.length > 0
-                      ? viewingPerson.plans
-                          .map((sp) =>
-                            sp.quantity && sp.quantity > 1
-                              ? `${sp.name} (${sp.quantity}×)`
-                              : sp.name,
-                          )
-                          .join(", ")
-                      : viewingPerson.plan || "—"}
-                  </div>
-                </div>
-                <div className="border-b pb-2">
-                  <div className="text-[10px] font-semibold text-muted-foreground">
-                    मासिक कुल (Monthly Total)
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    रु. {getCustomerTotalRate(viewingPerson, plans).toLocaleString("en-IN")}
-                  </div>
-                </div>
-              </div>
 
-              {/* Photo */}
-              {viewingPerson.locality_photo && (
-                <div className="mt-4">
-                  <div className="text-[10px] font-semibold text-muted-foreground">
-                    टोल/घरको फोटो
-                  </div>
-                  <PhotoLightbox
-                    src={viewPhotoSrc}
-                    alt={`टोल/घरको फोटो`}
-                    className="mt-1 max-h-44 w-full max-w-md"
-                  />
-                </div>
-              )}
+                    {/* Photo */}
+                    {viewingPerson.locality_photo && (
+                      <div className="mt-4">
+                        <div className="text-[10px] font-semibold text-muted-foreground">टोल/घरको फोटो</div>
+                        <PhotoLightbox
+                          src={viewPhotoSrc}
+                          alt={`टोल/घरको फोटो`}
+                          className="mt-1 max-h-44 w-full max-w-md"
+                        />
+                      </div>
+                    )}
 
-              {/* GPS location summary */}
-              {viewingPerson.latitude != null && viewingPerson.longitude != null && (
-                <div className="mt-4 rounded-lg border bg-accent/20 p-3">
-                  <div className="text-[10px] font-semibold text-muted-foreground">GPS लोकेसन</div>
-                  <div className="text-sm font-mono font-semibold text-foreground">
-                    {viewingPerson.latitude.toFixed(7)}, {viewingPerson.longitude.toFixed(7)}
-                    {typeof viewingPerson.gps_accuracy === "number" && (
-                      <span className="ml-2 rounded bg-info/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-info">
-                        ±{viewingPerson.gps_accuracy}m
-                      </span>
+                    {/* GPS location summary */}
+                    {viewingPerson.latitude != null && viewingPerson.longitude != null && (
+                      <div className="mt-4 rounded-lg border bg-accent/20 p-3">
+                        <div className="text-[10px] font-semibold text-muted-foreground">GPS लोकेसन</div>
+                        <div className="text-sm font-mono font-semibold text-foreground">
+                          {viewingPerson.latitude.toFixed(7)}, {viewingPerson.longitude.toFixed(7)}
+                          {typeof viewingPerson.gps_accuracy === "number" && (
+                            <span className="ml-2 rounded bg-info/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-info">
+                              ±{viewingPerson.gps_accuracy}m
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* ── LEDGER TAB ── */
+                  <div>
+                    {/* Summary bar */}
+                    <div className="mb-4 grid grid-cols-3 gap-3">
+                      <div className="rounded-lg border bg-destructive/5 p-3 text-center">
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">कुल डेबिट (Due)</div>
+                        <div className="mt-0.5 text-base font-black text-destructive">
+                          रु. {totalDebit.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border bg-success/5 p-3 text-center">
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">कुल क्रेडिट (Collected)</div>
+                        <div className="mt-0.5 text-base font-black text-success">
+                          रु. {totalCredit.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <div className={`rounded-lg border p-3 text-center ${netBalance > 0 ? "bg-warning/10" : "bg-success/10"}`}>
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">बाँकी ब्यालेन्स</div>
+                        <div className={`mt-0.5 text-base font-black ${netBalance > 0 ? "text-warning" : "text-success"}`}>
+                          रु. {Math.abs(netBalance).toLocaleString("en-IN")}
+                          {netBalance <= 0 && <span className="ml-1 text-xs">✓ चुक्ता</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ledger table */}
+                    {ledgerWithBalance.length === 0 ? (
+                      <div className="rounded-lg border bg-muted/30 py-10 text-center text-sm text-muted-foreground">
+                        कुनै लेनदेन विवरण छैन।
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-lg border">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-muted/60 font-bold text-muted-foreground uppercase tracking-wider">
+                            <tr>
+                              <th className="px-3 py-2.5">मिति / विवरण</th>
+                              <th className="px-3 py-2.5 text-right text-destructive">डेबिट (बाँकी)</th>
+                              <th className="px-3 py-2.5 text-right text-success">क्रेडिट (संकलन)</th>
+                              <th className="px-3 py-2.5 text-right">ब्यालेन्स</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {ledgerWithBalance.map((row, i) => (
+                              <tr key={i} className={`transition-colors ${row.debit > 0 ? "hover:bg-destructive/5" : "hover:bg-success/5"}`}>
+                                <td className="px-3 py-2.5 max-w-[220px]">
+                                  <div className={`font-semibold ${row.debit > 0 ? "text-foreground" : "text-success"}`}>
+                                    {row.description}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground font-mono">{np(row.date)}</div>
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-destructive">
+                                  {row.debit > 0 ? `रु. ${row.debit.toLocaleString("en-IN")}` : "—"}
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-mono font-semibold text-success">
+                                  {row.credit > 0 ? `रु. ${row.credit.toLocaleString("en-IN")}` : "—"}
+                                </td>
+                                <td className={`px-3 py-2.5 text-right font-mono font-bold ${row.balance > 0 ? "text-warning" : "text-success"}`}>
+                                  रु. {Math.abs(row.balance).toLocaleString("en-IN")}
+                                  {row.balance <= 0 && <span className="ml-1">✓</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="border-t-2 bg-muted/50 font-bold">
+                            <tr>
+                              <td className="px-3 py-2.5 text-xs font-black">जम्मा (Total)</td>
+                              <td className="px-3 py-2.5 text-right font-mono text-destructive">
+                                रु. {totalDebit.toLocaleString("en-IN")}
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-mono text-success">
+                                रु. {totalCredit.toLocaleString("en-IN")}
+                              </td>
+                              <td className={`px-3 py-2.5 text-right font-mono font-black ${netBalance > 0 ? "text-warning" : "text-success"}`}>
+                                रु. {Math.abs(netBalance).toLocaleString("en-IN")}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-6 py-3">
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 text-xs"
-                  onClick={() => {
-                    setViewingMapPerson(viewingPerson);
-                    setViewingPerson(null);
-                  }}
-                >
-                  <MapPin className="size-3.5 text-success" />
-                  नक्सामा हेर्नुहोस्
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 text-xs"
-                  onClick={() => {
-                    setViewingCardPerson(viewingPerson);
-                    setViewingPerson(null);
-                  }}
-                >
-                  <CreditCard className="size-3.5 text-info" />
-                  परिचय पत्र
-                </Button>
+                )}
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 text-xs"
-                  onClick={() => {
-                    handleOpenEdit(viewingPerson);
-                    setViewingPerson(null);
-                  }}
-                >
-                  <Edit2 className="size-3.5" />
-                  सम्पादन (Edit)
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setViewingPerson(null)}>
-                  बन्द गर्नुहोस् (Close)
-                </Button>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-6 py-3">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs"
+                    onClick={() => {
+                      setViewingMapPerson(viewingPerson);
+                      setViewingPerson(null);
+                    }}
+                  >
+                    <MapPin className="size-3.5 text-success" />
+                    नक्सामा हेर्नुहोस्
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs"
+                    onClick={() => {
+                      setViewingCardPerson(viewingPerson);
+                      setViewingPerson(null);
+                    }}
+                  >
+                    <CreditCard className="size-3.5 text-info" />
+                    परिचय पत्र
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  {ledgerTab === "ledger" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/10"
+                      onClick={() => window.print()}
+                      title="लेजर स्टेटमेन्ट प्रिन्ट गर्नुहोस्"
+                    >
+                      <Printer className="size-3.5" />
+                      प्रिन्ट लेजर
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs"
+                    onClick={() => {
+                      handleOpenEdit(viewingPerson);
+                      setViewingPerson(null);
+                    }}
+                  >
+                    <Edit2 className="size-3.5" />
+                    सम्पादन (Edit)
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setViewingPerson(null)}>
+                    बन्द गर्नुहोस् (Close)
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Map Preview Modal */}
       {viewingMapPerson && (
