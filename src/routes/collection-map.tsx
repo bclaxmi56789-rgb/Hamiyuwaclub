@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { maplibreGL } from "@maplibre/maplibre-gl-leaflet";
@@ -8,6 +8,7 @@ import { MAP_STYLES, MAP_STYLE_GROUPS, DEFAULT_MAP_STYLE, type MapStyleKey } fro
 import { useWorkspace, WorkspacePage, money } from "@/components/workspace";
 import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   useTeamLocationBroadcast,
   useTeamLocationSubscribe,
@@ -32,6 +33,17 @@ import {
   EyeOff,
   Eye,
   RotateCw,
+  Target,
+  Play,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  TrendingUp,
+  Users,
+  Wallet,
+  Flag,
+  ArrowRight,
+  Clock,
 } from "lucide-react";
 import {
   todayBS,
@@ -53,6 +65,42 @@ import {
 } from "@/lib/geo";
 import { natureEmoji } from "@/lib/nature";
 import { CustomerPhotoButton } from "@/components/customer-photo-button";
+
+// ── Collection Journey Types ──────────────────────────────────────────────────
+interface JourneyCustomer {
+  card: string;
+  ward: string;
+  name: string;
+  tole: string;
+  phone?: string;
+  dueAmount: number;
+  dueMonthCount: number;
+  collectedAmount: number; // 0 until reconciled
+  status: "pending" | "collected" | "skipped";
+}
+
+interface CollectionJourney {
+  id: string;             // date-ward-tole key
+  date: string;           // BS date string e.g. "२०८१/०८/०४"
+  dateKey: string;        // ISO date YYYY-MM-DD for keying
+  ward: string;           // ward filter ("all" or "1"–"16")
+  tole: string;           // selected tole name
+  targetAmount: number;   // sum of all due amounts at start
+  targetCount: number;    // number of customers targeted
+  customers: JourneyCustomer[];
+  startedAt: string;      // ISO timestamp
+  status: "active" | "reconciled";
+  note: string;
+}
+
+function journeyStorageKey(userId: string, dateKey: string) {
+  return `hami_journey_v1_${userId}_${dateKey}`;
+}
+
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export const Route = createFileRoute("/collection-map")({
   ssr: false,
@@ -87,6 +135,532 @@ interface CustomerWithDue extends Person {
   displayLng: number;
   isApproximateArea: boolean;
   distanceFromDriver?: number | undefined;
+}
+
+// ── Journey Customer Row Component ──────────────────────────────────────────
+function JourneyCustomerRow({
+  c,
+  updateCustomer,
+  navigate,
+}: {
+  c: JourneyCustomer;
+  updateCustomer: (card: string, ward: string, patch: Partial<JourneyCustomer>) => void;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const [editMode, setEditMode] = useState(false);
+  const [editAmt, setEditAmt] = useState(String(c.dueAmount));
+
+  const bgClass =
+    c.status === "collected"
+      ? "bg-success/5"
+      : c.status === "skipped"
+        ? "bg-muted/40"
+        : "";
+
+  return (
+    <div className={`p-3 text-xs ${bgClass} transition-colors`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-foreground text-sm">{c.name}</span>
+            <span className="text-muted-foreground">कार्ड: {c.card}</span>
+            {c.status === "collected" && (
+              <Badge className="text-[10px] bg-success/15 text-success border-success/30 border h-4">✓ संकलित</Badge>
+            )}
+            {c.status === "skipped" && (
+              <Badge variant="outline" className="text-[10px] text-muted-foreground h-4">नभेटिए</Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground">{c.tole} • वडा {c.ward} • {c.dueMonthCount} महिना बाँकी</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-mono font-extrabold text-destructive">{money(c.dueAmount)}</p>
+          {c.status === "collected" && c.collectedAmount !== c.dueAmount && (
+            <p className="text-[10px] text-success font-mono">संकलित: {money(c.collectedAmount)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      {c.status === "pending" && !editMode && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {c.phone && (
+            <Button asChild size="sm" variant="outline" className="h-7 text-[11px] gap-1 px-2">
+              <a href={`tel:${c.phone}`}><Phone className="size-3 text-success" />{c.phone}</a>
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={() => updateCustomer(c.card, c.ward, { status: "collected", collectedAmount: c.dueAmount })}
+            className="h-7 text-[11px] gap-1 bg-success hover:bg-success/90 text-success-foreground px-3 font-bold"
+          >
+            <CheckCircle2 className="size-3" /> पूरै संकलित ({money(c.dueAmount)})
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { setEditMode(true); setEditAmt(""); }}
+            className="h-7 text-[11px] gap-1 px-2 border-primary/40 text-primary font-medium"
+          >
+            आंशिक रकम
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => updateCustomer(c.card, c.ward, { status: "skipped" })}
+            className="h-7 text-[11px] gap-1 px-2 text-muted-foreground hover:text-destructive"
+          >
+            <XCircle className="size-3" /> नभेटिए
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate({ to: "/", search: { card: c.card, ward: c.ward } })}
+            className="h-7 text-[11px] gap-1 px-2 text-primary hover:bg-primary/10"
+          >
+            <Receipt className="size-3" /> रसिद काट्नुहोस्
+          </Button>
+        </div>
+      )}
+
+      {c.status === "pending" && editMode && (
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-1 flex-1">
+            <span className="text-muted-foreground font-mono">रु.</span>
+            <input
+              type="number"
+              className="flex-1 rounded border bg-background px-2 py-1 text-xs focus:outline-none focus:border-primary font-mono"
+              placeholder="संकलित रकम"
+              value={editAmt}
+              onChange={(e) => setEditAmt(e.target.value)}
+              min={0}
+              max={c.dueAmount}
+              autoFocus
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              const amt = Number(editAmt);
+              if (amt > 0) {
+                updateCustomer(c.card, c.ward, { status: "collected", collectedAmount: amt });
+                setEditMode(false);
+              }
+            }}
+            className="h-7 text-[11px] bg-success text-success-foreground px-3 font-bold"
+          >
+            बचत
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 text-[11px] px-2" onClick={() => setEditMode(false)}>
+            रद्द
+          </Button>
+        </div>
+      )}
+
+      {c.status !== "pending" && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => updateCustomer(c.card, c.ward, { status: "pending", collectedAmount: 0 })}
+          className="h-6 text-[11px] text-muted-foreground hover:text-foreground px-1 mt-1"
+        >
+          ↩ पूर्ववत् गर्नुहोस्
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ── Collection Journey Tab Component ─────────────────────────────────────────
+function CollectionJourneyTab({
+  customersWithDues,
+  userId,
+  navigate,
+}: {
+  customersWithDues: CustomerWithDue[];
+  userId: string | null | undefined;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const dateKey = todayKey();
+  const storageKey = userId ? journeyStorageKey(userId, dateKey) : null;
+
+  // Load persisted journey for today
+  const [journey, setJourney] = useState<CollectionJourney | null>(() => {
+    if (!storageKey) return null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? (JSON.parse(raw) as CollectionJourney) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Setup-screen state
+  const [setupWard, setSetupWard] = useState("all");
+  const [setupTole, setSetupTole] = useState("");
+  const [searchQ, setSearchQ] = useState("");
+
+  // Persist whenever journey changes
+  const persistJourney = useCallback((j: CollectionJourney | null) => {
+    setJourney(j);
+    if (!storageKey) return;
+    try {
+      if (j) localStorage.setItem(storageKey, JSON.stringify(j));
+      else localStorage.removeItem(storageKey);
+    } catch {}
+  }, [storageKey]);
+
+  // Distinct wards and toles available from data
+  const wardOptions = useMemo(() => {
+    const wards = new Set(customersWithDues.map((c) => c.ward));
+    return Array.from(wards).sort((a, b) => Number(a) - Number(b));
+  }, [customersWithDues]);
+
+  const toleOptions = useMemo(() => {
+    const src = setupWard === "all"
+      ? customersWithDues
+      : customersWithDues.filter((c) => c.ward === setupWard);
+    const toles = new Set(src.map((c) => c.tole.trim()).filter(Boolean));
+    return Array.from(toles).sort();
+  }, [customersWithDues, setupWard]);
+
+  // Preview: customers in selected tole with dues
+  const previewCustomers = useMemo(() => {
+    if (!setupTole) return [];
+    return customersWithDues.filter((c) => {
+      if (setupWard !== "all" && c.ward !== setupWard) return false;
+      if (c.tole.trim() !== setupTole) return false;
+      return c.dueAmount > 0;
+    });
+  }, [customersWithDues, setupWard, setupTole]);
+
+  const previewTotal = useMemo(() => previewCustomers.reduce((s, c) => s + c.dueAmount, 0), [previewCustomers]);
+
+  // Start journey — lock in the target
+  const handleStartJourney = () => {
+    if (!setupTole || previewCustomers.length === 0) return;
+    const today = todayBS();
+    const j: CollectionJourney = {
+      id: `${dateKey}-W${setupWard}-${setupTole}`,
+      date: `${today.year}/${String(today.month).padStart(2, "0")}/${String(today.day).padStart(2, "0")}`,
+      dateKey,
+      ward: setupWard,
+      tole: setupTole,
+      targetAmount: previewTotal,
+      targetCount: previewCustomers.length,
+      customers: previewCustomers.map((c) => ({
+        card: c.card,
+        ward: c.ward,
+        name: c.name,
+        tole: c.tole,
+        phone: c.phone,
+        dueAmount: c.dueAmount,
+        dueMonthCount: c.dueMonths.length,
+        collectedAmount: 0,
+        status: "pending",
+      })),
+      startedAt: new Date().toISOString(),
+      status: "active",
+      note: "",
+    };
+    persistJourney(j);
+  };
+
+  // Update a customer's collected amount & status
+  const updateCustomer = (card: string, ward: string, patch: Partial<JourneyCustomer>) => {
+    if (!journey) return;
+    const updated: CollectionJourney = {
+      ...journey,
+      customers: journey.customers.map((c) =>
+        c.card === card && c.ward === ward ? { ...c, ...patch } : c,
+      ),
+    };
+    // Auto-mark reconciled if all done
+    const allDone = updated.customers.every((c) => c.status !== "pending");
+    persistJourney({ ...updated, status: allDone ? "reconciled" : "active" });
+  };
+
+  // Reset journey for today
+  const resetJourney = () => persistJourney(null);
+
+  // ── Filtered active-journey customers ────────────────────────────────────
+  const filteredJourneyCustomers = useMemo(() => {
+    if (!journey) return [];
+    if (!searchQ.trim()) return journey.customers;
+    const q = searchQ.toLowerCase();
+    return journey.customers.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.card.toLowerCase().includes(q),
+    );
+  }, [journey, searchQ]);
+
+  // Stats
+  const collectedTotal = useMemo(
+    () => journey?.customers.reduce((s, c) => s + (c.status === "collected" ? c.collectedAmount : 0), 0) ?? 0,
+    [journey],
+  );
+  const skippedCount = useMemo(
+    () => journey?.customers.filter((c) => c.status === "skipped").length ?? 0,
+    [journey],
+  );
+  const pendingCount = useMemo(
+    () => journey?.customers.filter((c) => c.status === "pending").length ?? 0,
+    [journey],
+  );
+  const collectedCount = useMemo(
+    () => journey?.customers.filter((c) => c.status === "collected").length ?? 0,
+    [journey],
+  );
+  const progressPct = journey ? Math.min(100, Math.round((collectedTotal / journey.targetAmount) * 100)) : 0;
+
+  // ─────────────────────────── RENDER ──────────────────────────────────────
+
+  // If no journey started today, show setup screen
+  if (!journey) {
+    return (
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="rounded-xl border bg-gradient-to-r from-primary/5 to-primary/10 p-4">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="rounded-lg bg-primary/15 p-2">
+              <Target className="size-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-base text-foreground">संकलन यात्रा सुरु गर्नुहोस्</h2>
+              <p className="text-xs text-muted-foreground">टोल छानेर आजको संकलन लक्ष्य तोक्नुहोस् र Reconcile गर्नुहोस्</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 1: Select Ward + Tole */}
+        <div className="rounded-xl border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+            <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-extrabold">१</span>
+            टोल (Tole) छान्नुहोस्
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">वडा नं. (Ward)</label>
+              <SearchSelect
+                value={setupWard}
+                onChange={(v) => { setSetupWard(v); setSetupTole(""); }}
+                placeholder="सबै वडा"
+                options={[
+                  { value: "all", label: "सबै वडा (All)" },
+                  ...wardOptions.map((w) => ({ value: w, label: `वडा नं. ${w}` })),
+                ]}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">टोल (Tole)</label>
+              <SearchSelect
+                value={setupTole}
+                onChange={setSetupTole}
+                placeholder="टोल छान्नुहोस्..."
+                options={toleOptions.map((t) => ({ value: t, label: t }))}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Step 2: Preview */}
+        {setupTole && (
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
+              <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-extrabold">२</span>
+                लक्ष्य पूर्वावलोकन — {setupTole}
+                {setupWard !== "all" && <span className="text-xs font-normal text-muted-foreground">(वडा {setupWard})</span>}
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  <Users className="size-3.5 inline mr-0.5" /> {previewCustomers.length} ग्राहक
+                </span>
+              </div>
+            </div>
+
+            {previewCustomers.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                <CheckCircle2 className="size-8 mx-auto mb-2 text-success opacity-60" />
+                यस टोलमा कुनै बक्यौता छैन — सबै चुक्ता!
+              </div>
+            ) : (
+              <>
+                {/* Target Summary Banner */}
+                <div className="p-3 bg-destructive/5 border-b border-destructive/15 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">आजको संकलन लक्ष्य (Target)</p>
+                    <p className="font-mono text-2xl font-extrabold text-destructive">{money(previewTotal)}</p>
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    <p><b className="text-foreground">{previewCustomers.length}</b> जनाको बाँकी</p>
+                    <p>औसत {money(Math.round(previewTotal / previewCustomers.length))} / जना</p>
+                  </div>
+                </div>
+
+                {/* Customer List */}
+                <div className="divide-y max-h-72 overflow-y-auto">
+                  {previewCustomers.map((c) => (
+                    <div key={`${c.ward}-${c.card}`} className="flex items-center justify-between gap-2 px-3 py-2 text-xs hover:bg-muted/30">
+                      <div>
+                        <span className="font-bold text-foreground">{c.name}</span>
+                        <span className="text-muted-foreground ml-1.5">कार्ड: {c.card}</span>
+                        {c.phone && (
+                          <a href={`tel:${c.phone}`} className="ml-1.5 text-info hover:underline">
+                            {c.phone}
+                          </a>
+                        )}
+                        <div className="text-muted-foreground">{c.dueMonths.length} महिना बाँकी</div>
+                      </div>
+                      <span className="font-mono font-extrabold text-destructive shrink-0">{money(c.dueAmount)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <div className="p-3 border-t">
+                  <Button
+                    onClick={handleStartJourney}
+                    className="w-full h-11 font-extrabold gap-2 bg-primary text-primary-foreground shadow-md hover:opacity-90"
+                  >
+                    <Play className="size-4" />
+                    यात्रा सुरु गर्नुहोस् — लक्ष्य: {money(previewTotal)}
+                    <ArrowRight className="size-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {!setupTole && (
+          <div className="rounded-xl border border-dashed bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+            <Flag className="size-8 mx-auto mb-2 text-primary/40" />
+            माथि वडा र टोल छानेपछि संकलन लक्ष्य देखिनेछ
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Active / Reconciled Journey View ─────────────────────────────────────
+  return (
+    <div className="space-y-4">
+      {/* Journey Header */}
+      <div className={`rounded-xl border p-4 ${journey.status === "reconciled" ? "bg-success/5 border-success/30" : "bg-primary/5 border-primary/20"}`}>
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-extrabold text-base text-foreground">
+                {journey.status === "reconciled" ? "✅ Reconciled" : "🚀 यात्रा जारी छ"}
+              </h2>
+              <Badge variant="outline" className="text-[11px]">
+                {journey.tole} {journey.ward !== "all" && `• वडा ${journey.ward}`}
+              </Badge>
+              <Badge variant="secondary" className="text-[11px]">
+                <Clock className="size-2.5 mr-0.5" />{journey.date}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {journey.targetCount} ग्राहक • {new Date(journey.startedAt).toLocaleTimeString("ne-NP", { hour: "2-digit", minute: "2-digit" })} मा सुरु
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={resetJourney}
+            className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1 shrink-0"
+            title="आजको यात्रा मेट्नुहोस्"
+          >
+            <RefreshCw className="size-3" /> नयाँ यात्रा
+          </Button>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-muted-foreground">संकलन प्रगति</span>
+            <span className={progressPct >= 100 ? "text-success" : "text-primary"}>{progressPct}%</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${progressPct >= 100 ? "bg-success" : "bg-primary"}`}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-4 gap-2 mt-3">
+          <div className="rounded-lg bg-card border p-2 text-center">
+            <p className="text-[10px] text-muted-foreground">लक्ष्य</p>
+            <p className="font-mono font-extrabold text-sm text-destructive">{money(journey.targetAmount)}</p>
+          </div>
+          <div className="rounded-lg bg-card border p-2 text-center">
+            <p className="text-[10px] text-muted-foreground">संकलित</p>
+            <p className="font-mono font-extrabold text-sm text-success">{money(collectedTotal)}</p>
+          </div>
+          <div className="rounded-lg bg-card border p-2 text-center">
+            <p className="text-[10px] text-muted-foreground">बाँकी</p>
+            <p className="font-mono font-bold text-sm text-warning">{pendingCount} जना</p>
+          </div>
+          <div className="rounded-lg bg-card border p-2 text-center">
+            <p className="text-[10px] text-muted-foreground">नभेटिएका</p>
+            <p className="font-mono font-bold text-sm text-muted-foreground">{skippedCount} जना</p>
+          </div>
+        </div>
+
+        {journey.status === "reconciled" && (
+          <div className="mt-3 rounded-lg bg-success/10 border border-success/30 p-2.5 text-xs text-success font-bold flex items-center gap-2">
+            <CheckCircle2 className="size-4 shrink-0" />
+            सम्पूर्ण संकलन Reconcile सम्पन्न! संकलित: {money(collectedTotal)} / लक्ष्य: {money(journey.targetAmount)}
+          </div>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <input
+          className="w-full rounded-lg border bg-background pl-8 pr-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+          placeholder="नाम वा कार्ड खोज्नुहोस्..."
+          value={searchQ}
+          onChange={(e) => setSearchQ(e.target.value)}
+        />
+      </div>
+
+      {/* Customer Reconciliation List */}
+      <div className="rounded-xl border bg-card overflow-hidden divide-y">
+        {filteredJourneyCustomers.length === 0 ? (
+          <div className="p-6 text-center text-xs text-muted-foreground">कुनै ग्राहक फेला परेन</div>
+        ) : (
+          filteredJourneyCustomers.map((c) => (
+            <JourneyCustomerRow
+              key={`${c.ward}-${c.card}`}
+              c={c}
+              updateCustomer={updateCustomer}
+              navigate={navigate}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Bottom summary */}
+      <div className="rounded-xl border bg-card p-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs">
+          <TrendingUp className="size-4 text-primary" />
+          <span className="font-bold text-foreground">दिनको अन्तिम Reconciliation</span>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground">संकलित / लक्ष्य</p>
+          <p className="font-mono font-extrabold text-sm">
+            <span className="text-success">{money(collectedTotal)}</span>
+            <span className="text-muted-foreground"> / </span>
+            <span className="text-destructive">{money(journey.targetAmount)}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CollectionMapPage() {
@@ -252,6 +826,16 @@ function CollectionMapPage() {
       document.removeEventListener("keydown", onEsc);
     };
   }, [mapFull]);
+
+  // ── Main Page Tab State: "map" | "journey" ───────────────────────────────
+  const [activeTab, setActiveTab] = useState<"map" | "journey">("map");
+
+  // Invalidate map size when switching back to the map tab
+  useEffect(() => {
+    if (activeTab === "map" && mapRef.current) {
+      setTimeout(() => mapRef.current?.invalidateSize(), 150);
+    }
+  }, [activeTab]);
 
   // Filter states; the section drawer (बक्यौता/थेली tabs) starts open on desktop
   const [selectedWard, setSelectedWard] = useState<string>("all");
@@ -976,7 +1560,46 @@ function CollectionMapPage() {
 
   return (
     <WorkspacePage title="संकलन तथा चालक नक्सा (Collection & Driver Map)">
-      {/* Top Controls & Metrics Bar */}
+      {/* ────────────────── Main Tab Switcher ────────────────── */}
+      <div className="mb-3 flex items-center gap-2 border-b border-border pb-2.5">
+        <button
+          type="button"
+          onClick={() => setActiveTab("map")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            activeTab === "map"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-card hover:bg-muted text-muted-foreground border border-border"
+          }`}
+        >
+          <MapPin className="size-3.5" />
+          <span>🗺️ नक्सा दृश्य (Map View)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("journey")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            activeTab === "journey"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-card hover:bg-muted text-muted-foreground border border-border"
+          }`}
+        >
+          <Target className="size-3.5" />
+          <span>🚀 संकलन यात्रा सुरु गर्नुहोस् (Start Collection Journey)</span>
+        </button>
+      </div>
+
+      {/* Journey Tab Content */}
+      <div className={activeTab === "journey" ? "block" : "hidden"}>
+        <CollectionJourneyTab
+          customersWithDues={customersWithDues}
+          userId={userId}
+          navigate={navigate}
+        />
+      </div>
+
+      {/* Map Tab Content */}
+      <div className={activeTab === "map" ? "block" : "hidden"}>
+        {/* Top Controls & Metrics Bar */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border bg-card p-3 shadow-xs">
         {/* Left: Quick Metrics */}
         <div className="flex flex-wrap items-center gap-2.5 text-xs">
@@ -1528,6 +2151,7 @@ function CollectionMapPage() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </WorkspacePage>
   );
