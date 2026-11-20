@@ -1361,16 +1361,16 @@ function TripDriverPage() {
           className={`h-full w-full bg-muted ${settingDriverMode ? "cursor-crosshair" : ""}`}
         />
 
-        {/* Map view controls: navigate, hide boxes, fullscreen */}
-        <div className="absolute top-3 right-3 z-[1001] flex flex-col items-end gap-1.5">
+        {/* Map view controls: navigate, hide boxes, map style */}
+        <div className="absolute top-3 right-3 z-[1001] flex items-center gap-1.5 bg-card/95 backdrop-blur-md p-1 pl-1.5 rounded-full border border-border shadow-md">
           {selectedCustomer && (
             <button
               type="button"
               title="ग्राहकसम्म Google Maps navigation (Navigate)"
               onClick={() => handleOpenDirections(selectedCustomer)}
-              className="rounded-full bg-primary p-2 text-white shadow-lg hover:bg-primary/90"
+              className="rounded-full bg-primary p-1.5 text-white shadow-xs hover:bg-primary/90"
             >
-              <Navigation className="size-4" />
+              <Navigation className="size-3.5" />
             </button>
           )}
           <button
@@ -1381,15 +1381,20 @@ function TripDriverPage() {
                 : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide boxes)"
             }
             onClick={() => setHideBoxes((v) => !v)}
-            className="rounded-full bg-card p-2 text-foreground shadow-lg border hover:bg-accent"
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+              hideBoxes
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-muted/70 hover:bg-muted text-foreground border border-border/60"
+            }`}
           >
-            {hideBoxes ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+            {hideBoxes ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+            <span>{hideBoxes ? "बक्स देखाउनुहोस्" : "लुकाउनुहोस्"}</span>
           </button>
           {/* Map Style Selector */}
           <select
             value={mapStyle}
             onChange={(e) => setMapStyle(e.target.value as MapStyleKey)}
-            className="max-w-[170px] truncate rounded-full bg-card px-2 py-1.5 text-[11px] text-foreground shadow-lg border hover:bg-accent cursor-pointer focus:outline-none"
+            className="max-w-[155px] sm:max-w-[175px] truncate rounded-full bg-card px-2 py-1 text-[11px] text-foreground border border-border/80 hover:bg-accent cursor-pointer focus:outline-none"
             title="नक्सा प्रकार छान्नुहोस् (Select map style)"
           >
             {MAP_STYLE_GROUPS.map((group) => (
@@ -1447,7 +1452,7 @@ function TripDriverPage() {
         )}
 
         {settingDriverMode && (
-          <div className="absolute top-3 right-14 z-[1000] rounded-lg bg-warning text-warning-foreground font-bold text-xs px-3 py-1.5 shadow-xl animate-bounce flex items-center gap-1.5">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] rounded-lg bg-warning text-warning-foreground font-bold text-xs px-3 py-1.5 shadow-xl animate-bounce flex items-center gap-1.5">
             <MousePointer className="size-4" />
             <span>नक्सामा जहाँ प्रमुख चालक छ, त्यहाँ क्लिक गर्नुहोस्</span>
           </div>
