@@ -34,6 +34,7 @@ import {
   ShieldAlert,
   Check,
 } from "lucide-react";
+import { useAppState } from "@/components/app-shell";
 import {
   useAppConfig,
   getStoredConfig,
@@ -76,6 +77,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
+  const app = useAppState();
   const globalConfig = useAppConfig();
   const getAppConfigFn = useServerFn(getAppConfiguration);
   const saveAppConfigFn = useServerFn(saveAppConfiguration);
@@ -645,6 +647,20 @@ function SettingsPage() {
     } finally {
       setTestingAI(false);
     }
+  }
+
+  if (!app.hasPageAccess("/settings")) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+        <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive mb-4">
+          <Lock className="size-8" />
+        </div>
+        <h2 className="text-xl font-bold text-destructive">पहुँच निषेध गरिएको छ (Admin Only)</h2>
+        <p className="text-sm text-muted-foreground mt-2 max-w-md">
+          सेटिङ्स तथा प्रणाली कन्फिगरेसन केवल मुख्य व्यवस्थापक (Admin) ले मात्र हेर्न र सम्पादन गर्न सक्नुहुन्छ।
+        </p>
+      </div>
+    );
   }
 
   return (

@@ -88,6 +88,8 @@ type AppState = {
   setYear: (year: number) => void;
   signOut: () => Promise<void>;
   // RBAC Access Control
+  role: "admin" | "employee" | null;
+  isAdmin: boolean;
   activeEmployeeId: string | null;
   setActiveEmployeeId: (id: string | null) => void;
   employees: Employee[];
@@ -225,8 +227,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState("");
   const [ready, setReady] = useState(false);
 
-  // ─── RBAC: Active Employee & Permissions State ───
+  // ─── RBAC: Active Employee, Role & Permissions State ───
+  const [currentRole, setCurrentRole] = useState<"admin" | "employee" | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("hami_pin_lock_v1") || "null");
+      if (saved?.role === "employee" && saved.emp) return "employee";
+      if (saved?.role === "admin") return "admin";
+    } catch {}
+    return null;
+  });
+
   const [activeEmployeeId, setActiveEmployeeIdState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("hami_pin_lock_v1") || "null");
+      if (saved?.role === "employee" && saved.emp) return saved.emp;
+    } catch {}
     try {
       return localStorage.getItem(hamiCacheKey("hami_active_employee_id")) || null;
     } catch {
@@ -245,13 +262,67 @@ export function AppShell({ children }: { children: ReactNode }) {
   // ─── PIN Unlock Gate (relocks on sign-out or account change) ───
   const verifyPinFn = useServerFn(verifyEmployeePin);
   const verifyAdminPinFn = useServerFn(verifyAdminPin);
-  const [pinUnlocked, setPinUnlocked] = useState(false);
-  const [gateRole, setGateRole] = useState<"admin" | "employee">("admin");
-  const [gateEmpId, setGateEmpId] = useState("");
+  const [pinUnlocked, setPinUnlocked] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("hami_pin_lock_v1") || "null");
+      return Boolean(saved && (saved.role === "admin" || (saved.role === "employee" && saved.emp)));
+    } catch {}
+    return false;
+  });
+  const [gateRole, setGateRole] = useState<"admin" | "employee">(() => {
+    if (typeof window === "undefined") return "admin";
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("hami_pin_lock_v1") || "null");
+      if (saved?.role === "employee") return "employee";
+    } catch {}
+    return "admin";
+  });
+  const [gateEmpId, setGateEmpId] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("hami_pin_lock_v1") || "null");
+      if (saved?.role === "employee" && saved.emp) return saved.emp;
+    } catch {}
+    return "";
+  });
   const [gatePin, setGatePin] = useState("");
   const [gateBusy, setGateBusy] = useState(false);
   const [gateError, setGateError] = useState("");
   const [gateVisible, setGateVisible] = useState(false);
+
+  const restoreLock = (uid: string) => {
+    try {
+      const raw = sessionStorage.getItem("hami_pin_lock_v1");
+      if (!raw) {
+        setPinUnlocked(false);
+        setCurrentRole(null);
+        setActiveEmployeeId(null);
+        return false;
+      }
+      const saved = JSON.parse(raw);
+      if (saved && saved.uid === uid) {
+        if (saved.role === "employee" && saved.emp) {
+          setPinUnlocked(true);
+          setCurrentRole("employee");
+          setGateRole("employee");
+          setGateEmpId(saved.emp);
+          setActiveEmployeeId(saved.emp);
+          return true;
+        } else if (saved.role === "admin") {
+          setPinUnlocked(true);
+          setCurrentRole("admin");
+          setGateRole("admin");
+          setActiveEmployeeId(null);
+          return true;
+        }
+      }
+    } catch {}
+    setPinUnlocked(false);
+    setCurrentRole(null);
+    setActiveEmployeeId(null);
+    return false;
+  };
 
   async function unlockWithPin() {
     if (gateRole === "admin") {
@@ -264,6 +335,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       try {
         const result = await verifyAdminPinFn({ data: { pin: gatePin } });
         if (result.ok && result.code === "ok") {
+          setCurrentRole("admin");
           setActiveEmployeeId(null);
           try {
             localStorage.removeItem(hamiCacheKey("hami_active_employee_id"));
@@ -271,7 +343,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           try {
             sessionStorage.setItem(
               "hami_pin_lock_v1",
-              JSON.stringify({ uid: userId, role: "admin" }),
+              JSON.stringify({ uid: userId, role: "admin", emp: null }),
             );
           } catch {}
           setPinUnlocked(true);
@@ -306,6 +378,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     try {
       const result = await verifyPinFn({ data: { employee_id: gateEmpId, pin: gatePin } });
       if (result.ok) {
+        setCurrentRole("employee");
         setActiveEmployeeId(gateEmpId);
         try {
           sessionStorage.setItem(
@@ -355,22 +428,34 @@ export function AppShell({ children }: { children: ReactNode }) {
     } catch {}
   };
 
-  // Helper checks based on active employee & permissions
+  // Helper checks based on active employee & permissions (FAIL-CLOSED)
   const hasPageAccess = (path: string): boolean => {
-    if (!activeEmployeeId) return true; // Owner/Admin has full access to all pages
-    if (path === "/settings") return false; // Non-admin employee cannot edit settings
-    return canViewPage(permissions, activeEmployeeId, path);
+    if (!pinUnlocked) return false;
+    if (currentRole === "employee" || activeEmployeeId !== null) {
+      if (!activeEmployeeId) return false; // Fail-closed: missing employee ID means NO access
+      if (path === "/settings") return false; // Non-admin employee can NEVER access settings
+      return canViewPage(permissions, activeEmployeeId, path);
+    }
+    return currentRole === "admin";
   };
 
   const isPageReadOnly = (path: string): boolean => {
-    if (!activeEmployeeId) return false; // Owner/Admin has edit rights
-    const level = getPageAccessLevel(permissions, activeEmployeeId, path);
-    return level === "read_only";
+    if (currentRole === "employee" || activeEmployeeId !== null) {
+      if (!activeEmployeeId) return true;
+      const level = getPageAccessLevel(permissions, activeEmployeeId, path);
+      return level === "read_only";
+    }
+    return false; // Owner/Admin has edit rights
   };
 
   const canEditOnPage = (path: string): boolean => {
-    if (!activeEmployeeId) return true;
-    return canEditPage(permissions, activeEmployeeId, path);
+    if (!pinUnlocked) return false;
+    if (currentRole === "employee" || activeEmployeeId !== null) {
+      if (!activeEmployeeId) return false;
+      if (path === "/settings") return false;
+      return canEditPage(permissions, activeEmployeeId, path);
+    }
+    return currentRole === "admin";
   };
 
   const queryClient = useQueryClient();
@@ -400,24 +485,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         void queryClient.cancelQueries();
         queryClient.clear();
         setPinUnlocked(false);
+        setCurrentRole(null);
+        setActiveEmployeeId(null);
         setGateEmpId("");
         setGatePin("");
         setGateError("");
         setGateVisible(false);
       } else if (session) {
         // Same account still unlocked within this browser session? skip the gate.
-        try {
-          const saved = JSON.parse(sessionStorage.getItem("hami_pin_lock_v1") || "null");
-          if (saved && saved.uid === session.user.id && (saved.role === "admin" || saved.emp)) {
-            setPinUnlocked(true);
-            if (saved.role === "employee") {
-              setGateRole("employee");
-              setGateEmpId(saved.emp || "");
-            } else {
-              setGateRole("admin");
-            }
-          }
-        } catch {}
+        restoreLock(session.user.id);
       }
       // Defer asynchronous auth-dependent work until the auth callback releases its lock.
       queueMicrotask(() => {
@@ -430,11 +506,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       .getUser()
       .then(({ data, error }) => {
         if (active && !transition) {
+          const uid = error ? null : (data.user?.id ?? null);
           setSignedIn(!error && Boolean(data.user));
-          setUserId(error ? null : (data.user?.id ?? null));
+          setUserId(uid);
           setUserEmail(error ? null : (data.user?.email ?? null));
-          setCacheScope(error ? null : (data.user?.id ?? null));
+          setCacheScope(uid);
           setReady(true);
+          if (uid) {
+            restoreLock(uid);
+          }
         }
       })
       .catch(() => {
@@ -499,10 +579,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     setUserId(null);
     setUserEmail(null);
     setPinUnlocked(false);
+    setCurrentRole(null);
+    setActiveEmployeeId(null);
     setGateEmpId("");
     setGatePin("");
     setGateError("");
     setGateVisible(false);
+    try {
+      sessionStorage.removeItem("hami_pin_lock_v1");
+    } catch {}
     await navigate({ to: "/", replace: true });
   }
 
@@ -514,30 +599,49 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  const appContextValue: AppState = useMemo(
+    () => ({
+      ward,
+      setWard,
+      year,
+      setYear,
+      signedIn,
+      userId,
+      userEmail,
+      ready,
+      signOut,
+      role: currentRole,
+      isAdmin: currentRole === "admin" && activeEmployeeId === null,
+      activeEmployeeId,
+      setActiveEmployeeId,
+      employees,
+      permissions,
+      hasPageAccess,
+      isPageReadOnly,
+      canEditOnPage,
+      refreshPermissions,
+    }),
+    [
+      ward,
+      year,
+      signedIn,
+      userId,
+      userEmail,
+      ready,
+      currentRole,
+      activeEmployeeId,
+      employees,
+      permissions,
+      hasPageAccess,
+      isPageReadOnly,
+      canEditOnPage,
+    ],
+  );
+
   // Hide the navigation sidebar and workspace header when viewing the Landing Page
   if (isLanding) {
     return (
-      <AppContext.Provider
-        value={{
-          ward,
-          setWard,
-          year,
-          setYear,
-          signedIn,
-          userId,
-          userEmail,
-          ready,
-          signOut,
-          activeEmployeeId,
-          setActiveEmployeeId,
-          employees,
-          permissions,
-          hasPageAccess,
-          isPageReadOnly,
-          canEditOnPage,
-          refreshPermissions,
-        }}
-      >
+      <AppContext.Provider value={appContextValue}>
         <div className="min-h-screen bg-background text-foreground">
           {children}
           <ScrollNavigationButtons />
@@ -549,27 +653,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Credentials verification spinner
   if (!ready) {
     return (
-      <AppContext.Provider
-        value={{
-          ward,
-          setWard,
-          year,
-          setYear,
-          signedIn,
-          userId,
-          userEmail,
-          ready,
-          signOut,
-          activeEmployeeId,
-          setActiveEmployeeId,
-          employees,
-          permissions,
-          hasPageAccess,
-          isPageReadOnly,
-          canEditOnPage,
-          refreshPermissions,
-        }}
-      >
+      <AppContext.Provider value={appContextValue}>
         <div className="flex min-h-screen items-center justify-center bg-background p-6">
           <div className="flex items-center gap-3 text-sm text-muted-foreground animate-pulse">
             <RefreshCw className="h-4 w-4 animate-spin text-primary" />
@@ -583,27 +667,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // When signed out (and not on landing page), show the shared sign-in panel without sidebar
   if (!signedIn) {
     return (
-      <AppContext.Provider
-        value={{
-          ward,
-          setWard,
-          year,
-          setYear,
-          signedIn,
-          userId,
-          userEmail,
-          ready,
-          signOut,
-          activeEmployeeId,
-          setActiveEmployeeId,
-          employees,
-          permissions,
-          hasPageAccess,
-          isPageReadOnly,
-          canEditOnPage,
-          refreshPermissions,
-        }}
-      >
+      <AppContext.Provider value={appContextValue}>
         <div className="min-h-screen bg-background text-foreground">
           <SignInPanel />
           <ScrollNavigationButtons />
@@ -616,27 +680,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!pinUnlocked) {
     const gateEmp = employees.find((e) => e.id === gateEmpId);
     return (
-      <AppContext.Provider
-        value={{
-          ward,
-          setWard,
-          year,
-          setYear,
-          signedIn,
-          userId,
-          userEmail,
-          ready,
-          signOut,
-          activeEmployeeId,
-          setActiveEmployeeId,
-          employees,
-          permissions,
-          hasPageAccess,
-          isPageReadOnly,
-          canEditOnPage,
-          refreshPermissions,
-        }}
-      >
+      <AppContext.Provider value={appContextValue}>
         <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 selection:bg-primary/20 relative">
           <div className="absolute -z-10 w-96 h-96 bg-primary/15 rounded-full blur-[100px] pointer-events-none" />
           <div className="w-full max-w-md rounded-3xl border bg-card/95 backdrop-blur-2xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.22)] border-t-white/30 relative transition-all duration-300">
@@ -811,10 +855,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </div>
 
-          <div className="mt-7 pt-4 border-t flex items-center justify-center gap-3">
+          <div className="mt-7 pt-4 border-t flex items-center justify-between gap-3">
             <Badge variant="outline" className="text-[10px] text-muted-foreground border-muted">
               मुख्य लगइन: सफल ✓
             </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              className="text-xs text-muted-foreground hover:text-destructive gap-1.5 h-8"
+            >
+              <LogOut className="size-3.5" />
+              <span>साइन आउट</span>
+            </Button>
           </div>
           <ScrollNavigationButtons />
           </div>
@@ -824,27 +877,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AppContext.Provider
-      value={{
-        ward,
-        setWard,
-        year,
-        setYear,
-        signedIn,
-        userId,
-        userEmail,
-        ready,
-        signOut,
-        activeEmployeeId,
-        setActiveEmployeeId,
-        employees,
-        permissions,
-        hasPageAccess,
-        isPageReadOnly,
-        canEditOnPage,
-        refreshPermissions,
-      }}
-    >
+    <AppContext.Provider value={appContextValue}>
       <div
         className={`min-h-screen lg:grid lg:h-screen lg:overflow-hidden ${collapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[265px_minmax(0,1fr)]"}`}
       >
@@ -863,7 +896,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           }`}
         >
           {collapsed ? (
-            <div className="flex justify-center border-b border-sidebar-border py-2">
+            <div className="flex flex-col items-center gap-2 border-b border-sidebar-border py-2.5 px-1">
               <Button
                 variant="outline"
                 size="icon"
@@ -874,18 +907,40 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <PanelLeftOpen />
               </Button>
+              <Link to="/dashboard" title={appConfig.entity_name || "ड्यासबोर्ड"}>
+                {appConfig.logo_url ? (
+                  <img
+                    src={appConfig.logo_url}
+                    alt={appConfig.entity_name || "Logo"}
+                    className="size-9 rounded-sm bg-card object-contain p-0.5 border border-sidebar-border"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className="size-9 rounded-sm bg-primary/20 text-primary flex items-center justify-center font-black text-xs border border-primary/30">
+                    {appConfig.entity_name ? appConfig.entity_name.slice(0, 2) : "हा"}
+                  </div>
+                )}
+              </Link>
             </div>
           ) : (
             <div className="flex items-start justify-between gap-1 border-b border-sidebar-border px-3 py-4">
               <Link to="/dashboard" className="flex min-w-0 flex-1 items-center gap-3">
-                <img
-                  src={appConfig.logo_url || ""}
-                  alt={appConfig.entity_name || "Logo"}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).removeAttribute("src");
-                  }}
-                  className="size-11 shrink-0 rounded-sm bg-card object-contain"
-                />
+                {appConfig.logo_url ? (
+                  <img
+                    src={appConfig.logo_url}
+                    alt={appConfig.entity_name || "Logo"}
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                    className="size-11 shrink-0 rounded-sm bg-card object-contain p-0.5 border border-sidebar-border"
+                  />
+                ) : (
+                  <div className="size-11 shrink-0 rounded-sm bg-primary/20 text-primary flex items-center justify-center font-black text-sm border border-primary/30">
+                    {appConfig.entity_name ? appConfig.entity_name.slice(0, 2) : "हा"}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <div className="text-base font-extrabold truncate">
                     {appConfig.entity_sub_name || ""}
@@ -1042,76 +1097,152 @@ export function AppShell({ children }: { children: ReactNode }) {
               {authError}
             </p>
           )}
-          {/* Top bar opposite the navigation: access profile + theme + sign out */}
-          <div className="no-print sticky top-0 z-20 flex items-center justify-end gap-3 border-b border-border bg-background/90 px-4 py-2 backdrop-blur sm:px-7">
-            {/* ─── Access Profile Indicator ─── */}
-            <div className="flex items-center gap-2 mr-auto ml-12 lg:ml-0">
-              <span className="text-[11px] font-semibold text-muted-foreground hidden sm:inline shrink-0">
-                पहुँच प्रोफाइल:
-              </span>
-              <Select
-                value={activeEmployeeId ?? "__admin__"}
-                onValueChange={(val) => {
-                  if (val === "__admin__") {
-                    // Switch to admin: requires re-lock so admin can re-enter PIN
-                    if (window.confirm("Admin पहुँचमा फर्कन PIN पुनः प्रविष्ट गर्नुपर्छ। जारी राख्ने?")) {
+          {/* Top bar opposite the navigation: desktop brand + access profile + theme + sign out */}
+          <div className="no-print sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-2 backdrop-blur sm:px-7">
+            {/* ─── Desktop Header Branding (Logo & Company Details) ─── */}
+            <Link
+              to="/dashboard"
+              className="hidden lg:flex items-center gap-2.5 min-w-0 max-w-[360px] truncate group py-0.5 mr-auto"
+              title={appConfig.entity_name || "ड्यासबोर्ड"}
+            >
+              {appConfig.logo_url ? (
+                <img
+                  src={appConfig.logo_url}
+                  alt={appConfig.entity_name || "Logo"}
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                  className="size-9 shrink-0 rounded-md bg-card object-contain p-0.5 border border-border shadow-2xs"
+                />
+              ) : null}
+              <div
+                className={`size-9 shrink-0 rounded-md bg-primary/10 text-primary items-center justify-center font-black text-xs border border-primary/20 shadow-2xs ${
+                  appConfig.logo_url ? "hidden" : "flex"
+                }`}
+              >
+                {appConfig.entity_name ? appConfig.entity_name.slice(0, 2) : "हा"}
+              </div>
+              <div className="min-w-0 leading-tight">
+                <div className="text-xs font-black text-foreground truncate group-hover:text-primary transition-colors">
+                  {appConfig.entity_name || "हामी युवा क्लब"}
+                </div>
+                {appConfig.entity_sub_name && (
+                  <div className="text-[10px] font-bold text-muted-foreground truncate">
+                    {appConfig.entity_sub_name}
+                  </div>
+                )}
+              </div>
+            </Link>
+
+            {/* Right side controls: Profile / Theme / Sign out */}
+            <div className="flex items-center gap-3 ml-auto">
+              {/* ─── Access Profile Indicator ─── */}
+              {currentRole === "employee" ? (
+                <div className="flex items-center gap-2 ml-12 lg:ml-0">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary border border-border text-xs font-bold text-foreground">
+                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                      👤 {employees.find((e) => e.id === activeEmployeeId)?.name || "कर्मचारी"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-semibold">(Staff)</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1 px-2 border-border"
+                    onClick={() => {
+                      try {
+                        sessionStorage.removeItem("hami_pin_lock_v1");
+                      } catch {}
                       setPinUnlocked(false);
+                      setCurrentRole(null);
                       setActiveEmployeeId(null);
                       setGateRole("admin");
                       setGatePin("");
                       setGateError("");
-                    }
-                  } else {
-                    // Switch to employee: requires re-lock
-                    if (window.confirm(`कर्मचारी पहुँचमा स्विच गर्न PIN पुनः प्रविष्ट गर्नुपर्छ। जारी राख्ने?`)) {
-                      setPinUnlocked(false);
-                      setGateRole("employee");
-                      setGateEmpId(val);
-                      setGatePin("");
-                      setGateError("");
-                    }
-                  }
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs font-semibold w-[220px] sm:w-[260px] border-primary/30 bg-primary/5 text-foreground focus:ring-primary/30">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__admin__">
-                    🔥 मुख्य व्यवस्थापक / Admin (Full Access)
-                  </SelectItem>
-                  {employees
-                    .filter((emp): emp is Employee & { id: string } => Boolean(emp.id))
-                    .map((emp) => {
-                      const empPerms = permissions.filter((p) => p.employee_id === emp.id);
-                      const hasFullAll = empPerms.every((p) => p.access_level === "full_access");
-                      const hasReadAll = empPerms.every((p) => p.access_level === "read_only");
-                      const badge = hasFullAll ? "✏️ Edit" : hasReadAll ? "👁 Read" : "🔒 Mixed";
-                      return (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          👤 {emp.name}
-                          {emp.designation ? ` (${emp.designation})` : ""} — {badge}
-                        </SelectItem>
-                      );
-                    })}
-                </SelectContent>
-              </Select>
-            </div>
+                    }}
+                    title="पहुँच परिवर्तन गर्न लक गर्नुहोस् (Switch profile)"
+                  >
+                    <Lock className="size-3" />
+                    <span className="hidden sm:inline">स्विच / Lock</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 ml-12 lg:ml-0">
+                  <span className="text-[11px] font-semibold text-muted-foreground hidden sm:inline shrink-0">
+                    पहुँच प्रोफाइल:
+                  </span>
+                  <Select
+                    value={activeEmployeeId ?? "__admin__"}
+                    onValueChange={(val) => {
+                      if (val === "__admin__") {
+                        if (window.confirm("Admin पहुँचमा फर्कन PIN पुनः प्रविष्ट गर्नुपर्छ। जारी राख्ने?")) {
+                          try {
+                            sessionStorage.removeItem("hami_pin_lock_v1");
+                          } catch {}
+                          setPinUnlocked(false);
+                          setCurrentRole(null);
+                          setActiveEmployeeId(null);
+                          setGateRole("admin");
+                          setGatePin("");
+                          setGateError("");
+                        }
+                      } else {
+                        if (window.confirm("कर्मचारी पहुँचमा स्विच गर्न PIN पुनः प्रविष्ट गर्नुपर्छ। जारी राख्ने?")) {
+                          try {
+                            sessionStorage.removeItem("hami_pin_lock_v1");
+                          } catch {}
+                          setPinUnlocked(false);
+                          setCurrentRole(null);
+                          setGateRole("employee");
+                          setGateEmpId(val);
+                          setGatePin("");
+                          setGateError("");
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs font-semibold w-[200px] sm:w-[250px] border-primary/30 bg-primary/5 text-foreground focus:ring-primary/30">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__admin__">
+                        🔥 मुख्य व्यवस्थापक / Admin (Full Access)
+                      </SelectItem>
+                      {employees
+                        .filter((emp): emp is Employee & { id: string } => Boolean(emp.id))
+                        .map((emp) => {
+                          const empPerms = permissions.filter((p) => p.employee_id === emp.id);
+                          const hasFullAll = empPerms.every((p) => p.access_level === "full_access");
+                          const hasReadAll = empPerms.every((p) => p.access_level === "read_only");
+                          const badge = hasFullAll ? "✏️ Edit" : hasReadAll ? "👁 Read" : "🔒 Mixed";
+                          return (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              👤 {emp.name}
+                              {emp.designation ? ` (${emp.designation})` : ""} — {badge}
+                            </SelectItem>
+                          );
+                        })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground hidden sm:inline">रङ / Theme</span>
-              <ThemeSelector />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground hidden sm:inline">रङ / Theme</span>
+                <ThemeSelector />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                aria-label="साइन आउट (Sign out)"
+                onClick={signOut}
+              >
+                <LogOut />
+                <span className="hidden sm:inline">साइन आउट</span>
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              aria-label="साइन आउट (Sign out)"
-              onClick={signOut}
-            >
-              <LogOut />
-              <span className="hidden sm:inline">साइन आउट</span>
-            </Button>
           </div>
           {/* Read-only mode banner — shown when active employee has read_only on current page */}
           {activeEmployeeId && isPageReadOnly(location.pathname) && (
