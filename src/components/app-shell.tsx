@@ -388,6 +388,27 @@ export function AppShell({ children }: { children: ReactNode }) {
         } catch {}
         setPinUnlocked(true);
         setGatePin("");
+        // After unlock, navigate employee to their first permitted page
+        // so they never land on a page they have no_access to (e.g. "/" → New Receipt)
+        const ALL_ROUTES = [
+          "/dashboard", "/trip-driver", "/collection-map", "/",
+          "/receipts", "/receipts-payments", "/expenses", "/assets",
+          "/masters", "/members", "/plans", "/vendors", "/items",
+          "/reports", "/minutes", "/events",
+        ];
+        let cachedPerms: EmployeePermission[] = [];
+        try {
+          cachedPerms = JSON.parse(
+            localStorage.getItem(hamiCacheKey("hami_employee_permissions")) || "[]",
+          ) as EmployeePermission[];
+        } catch {}
+        const firstAllowed = ALL_ROUTES.find((r) =>
+          canViewPage(cachedPerms, gateEmpId, r),
+        );
+        const currentPath = window.location.pathname;
+        if (firstAllowed && !canViewPage(cachedPerms, gateEmpId, currentPath)) {
+          void navigate({ to: firstAllowed as never, replace: true });
+        }
       } else if (result.code === "pin_not_set") {
         setGateError("यो कर्मचारीको PIN सेट गरिएको छैन। Admin ले Settings मा PIN राख्नुपर्छ।");
       } else if (result.code === "wrong_pin" || result.code === "not_found") {

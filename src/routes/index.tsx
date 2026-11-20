@@ -156,6 +156,7 @@ function Index() {
     activeEmployeeId,
     employees,
     userEmail,
+    hasPageAccess,
   } = useAppState();
 
   const activeEmployee = employees?.find((e) => e.id === activeEmployeeId);
@@ -514,6 +515,22 @@ function Index() {
 
   if (!signedIn) {
     return <SignInPanel />;
+  }
+
+  // RBAC guard — employees without explicit access to "/" see a blocked message
+  if (!hasPageAccess("/")) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="rounded-full bg-destructive/10 p-4">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+        </div>
+        <h2 className="text-lg font-bold text-foreground">पहुँच अनुमति छैन</h2>
+        <p className="max-w-xs text-sm text-muted-foreground">
+          नयाँ रसिद काट्ने पृष्ठ हेर्ने अनुमति तपाईंलाई छैन।<br />
+          (Access to New Receipt is not permitted for your account.)
+        </p>
+      </div>
+    );
   }
 
   const currentWard = ward || "1";
