@@ -1083,6 +1083,8 @@ const offerDetailsSchema = z
     payment_method: z.string().trim().max(80).optional().default(""),
     payment_day: z.string().trim().max(80).optional().default(""),
     probation_months: z.number().min(0).max(60).optional().default(3),
+    responsibilities: z.array(z.string().trim().max(500)).optional().default([]),
+    insurance_clause: z.string().trim().max(1000).optional().default(""),
     offer_accept_by: z.string().trim().max(20).optional().default(""),
     authorized_name: z.string().trim().max(120).optional().default(""),
     authorized_position: z.string().trim().max(120).optional().default(""),

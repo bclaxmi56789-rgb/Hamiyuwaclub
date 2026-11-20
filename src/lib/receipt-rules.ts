@@ -728,6 +728,17 @@ export type Employee = {
 /** One extra line appended to section ९ (अन्य सर्तहरू) of an offer letter */
 export type OfferTerm = { np: string; en: string };
 
+export const DEFAULT_EMPLOYEE_RESPONSIBILITIES: string[] = [
+  "आफ्नो पदसँग सम्बन्धित कार्य जिम्मेवारी इमानदारीपूर्वक निर्वाह गर्नुपर्नेछ।",
+  "कम्पनीको नीति, नियम तथा व्यवस्थापकीय निर्देशन पालना गर्नुपर्नेछ।",
+  "कम्पनीको सम्पत्ति, कागजात, सूचना तथा गोप्य विवरणको सुरक्षा गर्नुपर्नेछ।",
+  "कम्पनीको हितविपरीत हुने कुनै पनि गतिविधिमा संलग्न हुन पाइने छैन।",
+  "आफ्नो कार्यसम्पादन तथा प्रगतिको विवरण सम्बन्धित अधिकारीलाई नियमित रूपमा उपलब्ध गराउनुपर्नेछ।",
+];
+
+export const DEFAULT_INSURANCE_CLAUSE =
+  "प्रचलित श्रम ऐन तथा कम्पनीको स्वीकृत नीतिअनुसार कर्मचारीको कार्यक्षेत्रमा हुनसक्ने जोखिम न्यूनीकरणका लागि आवश्यक दुर्घटना बीमा (Accidental Insurance) तथा स्वास्थ्य बीमा (Medical/Health Insurance) को व्यवस्था नियमानुसार गरिनेछ।";
+
 /**
  * Structured fields of the official नियुक्ति प्रस्तावपत्र template.
  * Everything not covered by the letter's fixed boilerplate lives here.
@@ -757,6 +768,10 @@ export type OfferDetails = {
   payment_day: string;
   /** परीक्षणकाल (महिना) */
   probation_months: number;
+  /** कर्मचारीका जिम्मेवारीहरू (सम्पादन तथा थपघट गर्न मिल्ने बुँदाहरू) */
+  responsibilities: string[];
+  /** बीमा सम्बन्धी सुविधा तथा व्यवस्था (Insurance clause) */
+  insurance_clause: string;
   /** प्रस्ताव स्वीकृति गर्ने अन्तिम मिति */
   offer_accept_by: string;
   /** भवदीय — अधिकृत व्यक्तिको नाम */
@@ -778,6 +793,8 @@ export const EMPTY_OFFER_DETAILS: OfferDetails = {
   payment_method: "बैंक खातामार्फत",
   payment_day: "",
   probation_months: 3,
+  responsibilities: DEFAULT_EMPLOYEE_RESPONSIBILITIES,
+  insurance_clause: DEFAULT_INSURANCE_CLAUSE,
   offer_accept_by: "",
   authorized_name: "",
   authorized_position: "",
@@ -791,6 +808,12 @@ export function normalizeOfferDetails(raw: unknown): OfferDetails {
     return Number.isFinite(n) ? n : fallback;
   };
   const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+  const respList = Array.isArray(src.responsibilities)
+    ? src.responsibilities
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+    : [];
+
   return {
     employee_address: str(src.employee_address),
     employee_contact: str(src.employee_contact),
@@ -804,6 +827,9 @@ export function normalizeOfferDetails(raw: unknown): OfferDetails {
     payment_method: str(src.payment_method) || EMPTY_OFFER_DETAILS.payment_method,
     payment_day: str(src.payment_day),
     probation_months: num(src.probation_months, EMPTY_OFFER_DETAILS.probation_months),
+    responsibilities:
+      respList.length > 0 ? respList : [...DEFAULT_EMPLOYEE_RESPONSIBILITIES],
+    insurance_clause: str(src.insurance_clause) || DEFAULT_INSURANCE_CLAUSE,
     offer_accept_by: str(src.offer_accept_by),
     authorized_name: str(src.authorized_name),
     authorized_position: str(src.authorized_position),

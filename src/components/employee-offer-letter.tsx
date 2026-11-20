@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  DEFAULT_EMPLOYEE_RESPONSIBILITIES,
+  DEFAULT_INSURANCE_CLAUSE,
   EMPTY_OFFER_DETAILS,
   fiscalLabel,
   fiscalYear,
@@ -17,7 +19,7 @@ import {
   type OfferTerm,
 } from "@/lib/receipt-rules";
 import { useAppConfig } from "@/lib/app-config";
-import { FileText, Pencil, Plus, Printer, Save, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Plus, Printer, RotateCcw, Save, ShieldCheck, Trash2, X } from "lucide-react";
 
 export type OfferDraft = {
   id?: string | undefined;
@@ -31,13 +33,6 @@ export type OfferDraft = {
   terms: OfferTerm[];
   details: OfferDetails;
 };
-
-function defaultOfferedSalary(employee: Employee): number {
-  const basic = Number(employee.basic_salary) || 0;
-  const fixed = employee.allowance_type === "fixed" ? Number(employee.allowance_rate) || 0 : 0;
-  const other = Number(employee.other_allowance) || 0;
-  return basic + fixed + other;
-}
 
 function draftFromLetter(letter: EmployeeOfferLetter, employee: Employee): OfferDraft {
   const details = normalizeOfferDetails(letter.details);
@@ -65,6 +60,11 @@ function draftFromLetter(letter: EmployeeOfferLetter, employee: Employee): Offer
       employee_contact: details.employee_contact || employee.phone || "",
       basic_salary: basic,
       allowance: allowance,
+      responsibilities:
+        Array.isArray(details.responsibilities) && details.responsibilities.length > 0
+          ? details.responsibilities
+          : [...DEFAULT_EMPLOYEE_RESPONSIBILITIES],
+      insurance_clause: details.insurance_clause || DEFAULT_INSURANCE_CLAUSE,
     },
   };
 }
@@ -98,6 +98,8 @@ function draftForNew(employee: Employee, offerNo: string, configAddress: string)
       payment_method: "बैंक खातामार्फत",
       payment_day: "७",
       probation_months: 3,
+      responsibilities: [...DEFAULT_EMPLOYEE_RESPONSIBILITIES],
+      insurance_clause: DEFAULT_INSURANCE_CLAUSE,
       offer_accept_by: "",
       authorized_name: "",
       authorized_position: "अधिकृत हस्ताक्षरकर्ता",
@@ -158,6 +160,46 @@ export function EmployeeOfferLetterModal({
     });
   };
 
+  const setResponsibility = (index: number, val: string) => {
+    setDraft((d) => ({
+      ...d,
+      details: {
+        ...d.details,
+        responsibilities: d.details.responsibilities.map((r, i) => (i === index ? val : r)),
+      },
+    }));
+  };
+
+  const addResponsibility = () => {
+    setDraft((d) => ({
+      ...d,
+      details: {
+        ...d.details,
+        responsibilities: [...d.details.responsibilities, ""],
+      },
+    }));
+  };
+
+  const removeResponsibility = (index: number) => {
+    setDraft((d) => ({
+      ...d,
+      details: {
+        ...d.details,
+        responsibilities: d.details.responsibilities.filter((_, i) => i !== index),
+      },
+    }));
+  };
+
+  const resetResponsibilities = () => {
+    setDraft((d) => ({
+      ...d,
+      details: {
+        ...d.details,
+        responsibilities: [...DEFAULT_EMPLOYEE_RESPONSIBILITIES],
+      },
+    }));
+  };
+
   const setTerm = (index: number, field: keyof OfferTerm, value: string) =>
     setDraft((d) => ({
       ...d,
@@ -183,6 +225,10 @@ export function EmployeeOfferLetterModal({
   const basicSalaryVal = Number(draft.details.basic_salary) || 0;
   const allowanceVal = Number(draft.details.allowance) || 0;
   const totalMonthlyVal = draft.offered_salary || (basicSalaryVal + allowanceVal);
+  const responsibilitiesList =
+    draft.details.responsibilities && draft.details.responsibilities.length > 0
+      ? draft.details.responsibilities
+      : DEFAULT_EMPLOYEE_RESPONSIBILITIES;
 
   const letterBody = createPortal(
     <div className="print-portal fixed inset-0 z-50 overflow-auto bg-black/60 p-4 backdrop-blur-xs">
@@ -443,10 +489,112 @@ export function EmployeeOfferLetterModal({
               </div>
             </div>
 
+            {/* Section 6: Employee Responsibilities (Editable) */}
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-bold text-foreground text-sm">
+                    ४. कर्मचारीको जिम्मेवारी (६. Employee Responsibilities)
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    कर्मचारीको पद र जिम्मेवारीअनुसार बुँदाहरू सम्पादन गर्न, थप्न वा हटाउन सक्नुहुन्छ।
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={resetResponsibilities}
+                    title="पूर्वनिर्धारित ५ बुँदाहरू लोड गर्नुहोस्"
+                  >
+                    <RotateCcw className="mr-1 size-3" />
+                    पूर्वनिर्धारित
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={addResponsibility}
+                  >
+                    <Plus className="mr-1 size-3.5" />
+                    जिम्मेवारी थप्नुहोस्
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                {responsibilitiesList.map((resp, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-md border bg-background p-2">
+                    <span className="w-5 shrink-0 text-center font-mono font-bold text-primary">
+                      {np(i + 1)}.
+                    </span>
+                    <Input
+                      placeholder={`जिम्मेवारी बुँदा नं. ${np(i + 1)}…`}
+                      value={resp}
+                      onChange={(e) => setResponsibility(i, e.target.value)}
+                      className="text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0 text-destructive hover:bg-destructive/10"
+                      title="यो जिम्मेवारी हटाउनुहोस्"
+                      onClick={() => removeResponsibility(i)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                {responsibilitiesList.length === 0 && (
+                  <p className="text-muted-foreground text-xs italic">
+                    कुनै जिम्मेवारी बुँदा छैन। "जिम्मेवारी थप्नुहोस्" थिच्नुहोस्।
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Insurance Clause (Editable) */}
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-4 text-primary" />
+                  <h3 className="font-bold text-foreground text-sm">
+                    ५. कर्मचारी बीमा सुविधा (७. Insurance Clause)
+                  </h3>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setDetail("insurance_clause", DEFAULT_INSURANCE_CLAUSE)}
+                  title="पूर्वनिर्धारित बीमा व्यहोरा लोड गर्नुहोस्"
+                >
+                  <RotateCcw className="mr-1 size-3" />
+                  पूर्वनिर्धारित व्यहोरा
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                दुर्घटना, स्वास्थ्य तथा श्रम ऐनबमोजिमको बीमा सुविधासम्बन्धी सर्त यहाँ सम्पादन गर्नुहोस्।
+              </p>
+              <div className="mt-2.5">
+                <textarea
+                  rows={3}
+                  value={draft.details.insurance_clause}
+                  onChange={(e) => setDetail("insurance_clause", e.target.value)}
+                  placeholder="कर्मचारीको बीमा सम्बन्धी सर्त तथा व्यहोरा…"
+                  className="w-full rounded-md border bg-background p-2.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
             {/* Section 10: Signatory & Acceptance deadline */}
             <div className="rounded-lg border bg-muted/20 p-4">
               <h3 className="font-bold text-foreground text-sm">
-                ४. प्रस्ताव स्वीकृति तथा हस्ताक्षरकर्ता विवरण (Authorization)
+                ६. प्रस्ताव स्वीकृति तथा अधिकृत विवरण (Signatory & Authorization)
               </h3>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
@@ -484,10 +632,10 @@ export function EmployeeOfferLetterModal({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-foreground text-sm">
-                    ५. अन्य थप सर्तहरू (वैकल्पिक थप बुँदाहरू)
+                    ७. अन्य थप सर्तहरू (१०. Extra Clauses)
                   </h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    दफा ९ (अन्य सर्तहरू) को मुनि थप बुँदा समावेश गर्न यहाँ थप्न सक्नुहुन्छ।
+                    दफा १० (अन्य सर्तहरू) को मुनि थप बुँदा समावेश गर्न यहाँ थप्न सक्नुहुन्छ।
                   </p>
                 </div>
                 <Button
@@ -549,19 +697,43 @@ export function EmployeeOfferLetterModal({
           </form>
         ) : (
           /* ── Printable A4 Official Nepali Offer Letter ───────────── */
-          <div className="rounded-lg bg-background p-6 text-foreground sm:p-10 print:bg-white print:p-0 print:text-black print:shadow-none font-serif leading-normal">
+          <div className="relative rounded-lg bg-background p-6 text-foreground sm:p-10 print:bg-white print:p-0 print:text-black print:shadow-none font-serif leading-normal overflow-hidden">
+            {/* Background Watermark (Company logo and name) */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 flex select-none flex-col items-center justify-center overflow-hidden opacity-[0.04] print:opacity-[0.065]"
+            >
+              {config.logo_url && (
+                <img
+                  src={config.logo_url}
+                  alt=""
+                  className="max-h-64 max-w-64 object-contain grayscale"
+                />
+              )}
+              <div className="mt-4 -rotate-12 text-center">
+                <span className="block text-4xl sm:text-5xl font-black uppercase tracking-widest text-foreground print:text-black">
+                  {orgName}
+                </span>
+                {config.entity_sub_name && (
+                  <span className="block text-base font-bold text-muted-foreground print:text-black mt-1">
+                    {config.entity_sub_name}
+                  </span>
+                )}
+              </div>
+            </div>
+
             {/* Header / Letterhead */}
-            <div className="border-b-2 border-foreground/80 pb-4 text-center print:border-black">
+            <div className="relative z-10 border-b-2 border-foreground/80 pb-4 text-center print:border-black">
               {config.logo_url && (
                 <img
                   src={config.logo_url}
                   alt="Logo"
-                  className="mx-auto mb-2 max-h-16 object-contain print:max-h-14"
+                  className="mx-auto mb-2.5 max-h-20 object-contain print:max-h-16"
                 />
               )}
-              <h1 className="text-2xl font-black tracking-wide print:text-2xl">{orgName}</h1>
+              <h1 className="text-2xl font-black tracking-wide uppercase print:text-2xl">{orgName}</h1>
               {config.entity_sub_name && (
-                <p className="text-sm font-semibold text-primary print:text-black mt-0.5">
+                <p className="text-sm font-bold text-primary print:text-black mt-0.5">
                   {config.entity_sub_name}
                 </p>
               )}
@@ -578,7 +750,7 @@ export function EmployeeOfferLetterModal({
             </div>
 
             {/* Meta Strip */}
-            <div className="mt-4 flex flex-wrap justify-between gap-2 text-xs font-semibold print:text-xs">
+            <div className="relative z-10 mt-4 flex flex-wrap justify-between gap-2 text-xs font-semibold print:text-xs">
               <div className="space-y-1">
                 <div>
                   पत्र संख्या: <span className="font-mono font-bold text-primary print:text-black">{np(draft.offer_no)}</span>
@@ -596,7 +768,7 @@ export function EmployeeOfferLetterModal({
             </div>
 
             {/* Addressee */}
-            <div className="mt-5 text-sm leading-relaxed">
+            <div className="relative z-10 mt-5 text-sm leading-relaxed">
               <p className="font-bold text-base">
                 श्री {employee.name}
               </p>
@@ -609,14 +781,14 @@ export function EmployeeOfferLetterModal({
             </div>
 
             {/* Subject */}
-            <div className="mt-4 text-center">
+            <div className="relative z-10 mt-4 text-center">
               <h2 className="text-base font-black underline decoration-1 underline-offset-4">
                 विषय: रोजगारीका लागि नियुक्ति प्रस्ताव (नियुक्ति प्रस्तावपत्र)
               </h2>
             </div>
 
             {/* Body */}
-            <div className="mt-4 space-y-3.5 text-sm leading-relaxed text-justify">
+            <div className="relative z-10 mt-4 space-y-3.5 text-sm leading-relaxed text-justify">
               <p>महोदय/महोदया,</p>
               <p>
                 यस <b>{orgName}</b> मा तपाईंले <b>{draft.designation || "[पदको नाम]"}</b> पदका लागि
@@ -701,22 +873,28 @@ export function EmployeeOfferLetterModal({
                 </p>
               </div>
 
-              {/* Clause 6 */}
+              {/* Clause 6 (Customizable Responsibilities) */}
               <div>
                 <h3 className="font-bold text-foreground print:text-black">६. कर्मचारीको जिम्मेवारी</h3>
                 <p className="mt-1 text-xs sm:text-sm">तपाईंले:</p>
                 <ul className="mt-1 list-disc space-y-1 pl-6 text-xs sm:text-sm">
-                  <li>आफ्नो पदसँग सम्बन्धित कार्य जिम्मेवारी इमानदारीपूर्वक निर्वाह गर्नुपर्नेछ।</li>
-                  <li>कम्पनीको नीति, नियम तथा व्यवस्थापकीय निर्देशन पालना गर्नुपर्नेछ।</li>
-                  <li>कम्पनीको सम्पत्ति, कागजात, सूचना तथा गोप्य विवरणको सुरक्षा गर्नुपर्नेछ।</li>
-                  <li>कम्पनीको हितविपरीत हुने कुनै पनि गतिविधिमा संलग्न हुन पाइने छैन।</li>
-                  <li>आफ्नो कार्यसम्पादन तथा प्रगतिको विवरण सम्बन्धित अधिकारीलाई नियमित रूपमा उपलब्ध गराउनुपर्नेछ।</li>
+                  {responsibilitiesList.map((resp, idx) => (
+                    <li key={idx}>{resp}</li>
+                  ))}
                 </ul>
               </div>
 
-              {/* Clause 7 */}
+              {/* Clause 7 (Insurance Policy & Coverage) */}
               <div>
-                <h3 className="font-bold text-foreground print:text-black">७. गोपनीयता तथा व्यावसायिक आचरण</h3>
+                <h3 className="font-bold text-foreground print:text-black">७. बीमा सुविधा (Insurance Policy & Benefits)</h3>
+                <p className="mt-1 text-xs sm:text-sm leading-relaxed">
+                  {draft.details.insurance_clause || DEFAULT_INSURANCE_CLAUSE}
+                </p>
+              </div>
+
+              {/* Clause 8 */}
+              <div>
+                <h3 className="font-bold text-foreground print:text-black">८. गोपनीयता तथा व्यावसायिक आचरण</h3>
                 <p className="mt-1 text-xs sm:text-sm">
                   कम्पनीको व्यावसायिक सूचना, आर्थिक विवरण, ग्राहकको विवरण, आन्तरिक कागजात, व्यापारिक रणनीति तथा अन्य गोप्य
                   जानकारी कम्पनीको पूर्वस्वीकृतिबिना तेस्रो पक्षलाई खुलासा गर्न पाइने छैन। यो दायित्व रोजगारी समाप्त भएपछि पनि
@@ -724,9 +902,9 @@ export function EmployeeOfferLetterModal({
                 </p>
               </div>
 
-              {/* Clause 8 */}
+              {/* Clause 9 */}
               <div>
-                <h3 className="font-bold text-foreground print:text-black">८. नियुक्ति समाप्ति तथा राजीनामा</h3>
+                <h3 className="font-bold text-foreground print:text-black">९. नियुक्ति समाप्ति तथा राजीनामा</h3>
                 <p className="mt-1 text-xs sm:text-sm">
                   कर्मचारी वा कम्पनीबाट रोजगारी सम्बन्ध समाप्त गर्दा प्रचलित श्रम कानुन तथा लागू सेवा सर्तअनुसार आवश्यक सूचना
                   अवधि, प्रक्रिया र दायित्वहरू पालना गर्नुपर्नेछ। राजीनामा, बर्खास्तगी वा अन्य कारणबाट सेवा समाप्त हुँदा कर्मचारीले
@@ -734,9 +912,9 @@ export function EmployeeOfferLetterModal({
                 </p>
               </div>
 
-              {/* Clause 9 */}
+              {/* Clause 10 */}
               <div>
-                <h3 className="font-bold text-foreground print:text-black">९. अन्य सर्तहरू</h3>
+                <h3 className="font-bold text-foreground print:text-black">१०. अन्य सर्तहरू</h3>
                 <p className="mt-1 text-xs sm:text-sm">
                   यस प्रस्तावपत्रमा उल्लेख नभएका विषयहरू प्रचलित नेपाल कानुन, श्रम ऐन, श्रम नियमावली तथा कम्पनीको स्वीकृत
                   कर्मचारी सेवा विनियमावली/नीतिअनुसार लागू हुनेछन्। यस प्रस्तावपत्र र प्रचलित कानुनबीच बाझिएको अवस्थामा
@@ -754,9 +932,9 @@ export function EmployeeOfferLetterModal({
                 )}
               </div>
 
-              {/* Clause 10 */}
+              {/* Clause 11 */}
               <div>
-                <h3 className="font-bold text-foreground print:text-black">१०. प्रस्ताव स्वीकृति</h3>
+                <h3 className="font-bold text-foreground print:text-black">११. प्रस्ताव स्वीकृति</h3>
                 <p className="mt-1 text-xs sm:text-sm">
                   यस नियुक्ति प्रस्तावका सम्पूर्ण सर्तहरू अध्ययन गरी स्वीकार गर्नुभएको अवस्थामा यसै पत्रको प्रतिलिपिमा
                   हस्ताक्षर गरी {draft.details.offer_accept_by ? <b>{np(draft.details.offer_accept_by)}</b> : "[मिति]"} भित्र
@@ -770,7 +948,7 @@ export function EmployeeOfferLetterModal({
             </div>
 
             {/* Closing Signature of Company */}
-            <div className="mt-8 flex justify-between items-end text-xs sm:text-sm">
+            <div className="relative z-10 mt-8 flex justify-between items-end text-xs sm:text-sm">
               <div />
               <div className="text-center min-w-[200px]">
                 <p className="font-semibold mb-8">भवदीय,</p>
@@ -787,10 +965,10 @@ export function EmployeeOfferLetterModal({
             </div>
 
             {/* Divider */}
-            <div className="my-8 border-t-2 border-dashed border-foreground/50 print:border-black" />
+            <div className="relative z-10 my-8 border-t-2 border-dashed border-foreground/50 print:border-black" />
 
             {/* Employee Acceptance Block */}
-            <div className="space-y-4 text-xs sm:text-sm">
+            <div className="relative z-10 space-y-4 text-xs sm:text-sm">
               <h3 className="text-center text-base font-black underline decoration-1 underline-offset-4">
                 कर्मचारीको स्वीकृति
               </h3>
