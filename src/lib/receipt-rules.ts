@@ -204,6 +204,9 @@ export type Receipt = Person & {
   total: number;
   accountId?: string;
   accountName?: string;
+  booked_by_name?: string;
+  booked_by_id?: string;
+  user_name?: string;
 };
 /** Reference number is typed manually by staff; older receipts without one fall back to the generated format. */
 export const receiptReference = (r: Pick<Receipt, "ward" | "year" | "no" | "ref">) =>

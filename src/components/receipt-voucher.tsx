@@ -52,7 +52,15 @@ export function ReceiptVoucher({ r, onClose }: { r: Receipt; onClose: () => void
         <tr className="font-bold"><td>कुल जम्मा</td><td className="text-right">{money(r.total)}</td></tr>
       </tbody></table>
       <p className="mt-2">भुक्तानी माध्यम: <b>{r.mode}</b></p>
-      <div className="mt-10 flex justify-between text-sm"><span className="border-t border-foreground pt-1">बुझाउनेको सही</span><span className="border-t border-foreground pt-1">बुझिलिनेको सही</span></div>
+      <div className="mt-10 flex justify-between text-sm">
+        <span className="border-t border-foreground pt-1">बुझाउनेको सही</span>
+        <span className="border-t border-foreground pt-1 flex flex-col items-center">
+          <span>बुझिलिनेको सही</span>
+          {(r.booked_by_name || r.user_name) && (
+            <span className="text-[11px] font-normal text-muted-foreground">({r.booked_by_name || r.user_name})</span>
+          )}
+        </span>
+      </div>
       <p className="mt-4 text-center text-xs">"फोहोर नगरौं, वीरेन्द्रनगर नगरपालिका वडा नं. {r.ward} लाई फोहोरमुक्त बनाऔं।"</p>
       <div className="no-print mt-4 flex justify-end gap-2">
         <Button onClick={onClose} className="rounded border px-4 py-2">बन्द</Button>

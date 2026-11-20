@@ -141,6 +141,9 @@ export const saveReceipt = createServerFn({ method: "POST" })
       ref: z.string().trim().min(1).max(40),
       accountId: z.string().optional(),
       accountName: z.string().optional(),
+      booked_by_name: z.string().optional(),
+      booked_by_id: z.string().optional(),
+      user_name: z.string().optional(),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -174,7 +177,16 @@ export const saveReceipt = createServerFn({ method: "POST" })
         );
       }
     }
-    const result = await context.supabase.rpc("save_ward_receipt", { p: data });
+    const bookedByName =
+      data.booked_by_name ||
+      data.user_name ||
+      (context.userEmail ? context.userEmail.split("@")[0] : "Admin");
+    const payloadData = {
+      ...data,
+      booked_by_name: bookedByName,
+      user_name: bookedByName,
+    };
+    const result = await context.supabase.rpc("save_ward_receipt", { p: payloadData });
     if (result.error) {
       if (result.error.message.includes("Card number not found"))
         throw new Error("Card number not found. Leave it blank to create a new member.");

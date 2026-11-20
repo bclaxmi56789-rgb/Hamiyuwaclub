@@ -54,7 +54,7 @@ function History() {
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-accent">
               <tr>
-                {["Receipt", "Date", "Ward", "Customer", "Months", "Payment", "Amount", ""].map(
+                {["Receipt", "Date", "Ward", "Customer", "Months", "Payment", "काट्ने (User)", "Amount", ""].map(
                   (t, i) => (
                     <th className="px-3 py-3" key={i}>
                       {t}
@@ -82,6 +82,11 @@ function History() {
                       .join(", ")}
                   </td>
                   <td className="p-3">{r.mode}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold bg-muted/70 px-2 py-0.5 rounded text-foreground">
+                      👤 {r.booked_by_name || r.user_name || "Admin"}
+                    </span>
+                  </td>
                   <td className="p-3 whitespace-nowrap">{money(r.total)}</td>
                   <td className="p-3">
                     <Button
@@ -96,7 +101,7 @@ function History() {
                   </td>
                 </tr>
               ))}
-              {!receipts.length && <EmptyRows columns={8} text="No matching receipts." />}
+              {!receipts.length && <EmptyRows columns={9} text="No matching receipts." />}
             </tbody>
           </table>
         </div>

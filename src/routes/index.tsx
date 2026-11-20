@@ -147,7 +147,21 @@ function scanCardCandidate(raw: string): string {
 
 function Index() {
   const searchParams = Route.useSearch();
-  const { ward, setWard, signedIn, ready, signOut } = useAppState();
+  const {
+    ward,
+    setWard,
+    signedIn,
+    ready,
+    signOut,
+    activeEmployeeId,
+    employees,
+    userEmail,
+  } = useAppState();
+
+  const activeEmployee = employees?.find((e) => e.id === activeEmployeeId);
+  const currentUserName =
+    activeEmployee?.name || (userEmail ? userEmail.split("@")[0] : "Admin");
+
   const appConfig = useAppConfig();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
@@ -466,6 +480,9 @@ function Index() {
           ref: refNo.trim(),
           accountId: accountId || undefined,
           accountName: chosenAcc?.name,
+          booked_by_name: currentUserName,
+          user_name: currentUserName,
+          booked_by_id: activeEmployeeId ?? undefined,
         },
       });
       setPrinted(r);
@@ -1043,6 +1060,7 @@ function Index() {
                     <th>नाम</th>
                     <th>सम्पर्क</th>
                     <th>माध्यम</th>
+                    <th>काट्ने (User)</th>
                     <th className="text-right">रकम</th>
                   </tr>
                 </thead>
@@ -1062,6 +1080,11 @@ function Index() {
                       <td>{r.name}</td>
                       <td>{r.phone}</td>
                       <td>{r.mode}</td>
+                      <td>
+                        <span className="inline-flex items-center gap-1 rounded bg-muted/70 px-2 py-0.5 text-xs font-semibold text-foreground">
+                          👤 {r.booked_by_name || r.user_name || "Admin"}
+                        </span>
+                      </td>
                       <td className="text-right">{money(r.total)}</td>
                     </tr>
                   ))}
