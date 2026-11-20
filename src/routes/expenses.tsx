@@ -1005,11 +1005,11 @@ function AssetItemForm({
             <TableRow className="bg-muted/50 text-xs">
               <TableHead className="w-[100px]">Item Code</TableHead>
               <TableHead>सामानको नाम (Name)</TableHead>
-              <TableHead className="w-[80px]">Lot</TableHead>
-              <TableHead className="w-[70px]">UOM</TableHead>
-              <TableHead className="w-[70px] text-right">Qty</TableHead>
-              <TableHead className="w-[90px] text-right">Rate</TableHead>
-              <TableHead className="w-[100px] text-right">Amount</TableHead>
+              <TableHead className="w-[110px]">Lot</TableHead>
+              <TableHead className="w-[110px]">UOM</TableHead>
+              <TableHead className="w-[100px] text-right">Qty</TableHead>
+              <TableHead className="w-[120px] text-right">Rate</TableHead>
+              <TableHead className="w-[110px] text-right">Amount</TableHead>
               <TableHead className="w-[40px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -1959,14 +1959,14 @@ function OpExForm({
           <TableHeader>
             <TableRow className="bg-muted/50 text-xs">
               <TableHead>विवरण (Description)</TableHead>
-              <TableHead className="w-[70px]">UOM</TableHead>
-              <TableHead className="w-[70px] text-right">Qty</TableHead>
-              <TableHead className="w-[90px] text-right">Rate</TableHead>
-              <TableHead className="w-[100px] text-right">Amount</TableHead>
+              <TableHead className="w-[110px]">UOM</TableHead>
+              <TableHead className="w-[100px] text-right">Qty</TableHead>
+              <TableHead className="w-[120px] text-right">Rate</TableHead>
+              <TableHead className="w-[110px] text-right">Amount</TableHead>
               <TableHead className="w-[55px] text-center">TDS?</TableHead>
-              <TableHead className="w-[70px] text-right">TDS%</TableHead>
-              <TableHead className="w-[90px] text-right">TDS Amt</TableHead>
-              <TableHead className="w-[100px] text-right">Net Amount</TableHead>
+              <TableHead className="w-[80px] text-right">TDS%</TableHead>
+              <TableHead className="w-[100px] text-right">TDS Amt</TableHead>
+              <TableHead className="w-[110px] text-right">Net Amount</TableHead>
               <TableHead className="w-[40px]"></TableHead>
             </TableRow>
           </TableHeader>
