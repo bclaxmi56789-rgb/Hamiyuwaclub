@@ -308,6 +308,24 @@ function TripDriverPage() {
     } catch {}
   }, [hideBoxes]);
 
+  // ─── Hide entire top controls/metrics bar to make the map bigger ───
+  const [hideTopBar, setHideTopBar] = useState(() => {
+    try {
+      return sessionStorage.getItem("hami_map_hide_topbar_v1") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("hami_map_hide_topbar_v1", hideTopBar ? "1" : "0");
+    } catch {}
+    if (mapRef.current) {
+      setTimeout(() => mapRef.current?.invalidateSize(), 200);
+    }
+  }, [hideTopBar]);
+
   // While the map is fullscreen, lock the page scroll so tabs underneath
   // can't drift; restore when leaving.
   useEffect(() => {
@@ -1133,154 +1151,199 @@ function TripDriverPage() {
 
   return (
     <WorkspacePage title="ट्रिप तथा चालक नक्सा (Trips & Driver Map)">
-      {/* Controls & stats bar */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border bg-card p-3 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2.5 text-xs">
-          <select
-            aria-label="Trip month"
-            className="rounded-md border bg-card px-2.5 py-1.5 text-xs font-bold"
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-          >
-            {MONTHS.map((label, idx) => (
-              <option key={idx} value={idx}>
-                {label} {np(monthYearLabel(year, idx))}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 border border-destructive/20 px-2.5 py-1 text-destructive font-bold">
-            <span className="size-2 rounded-full bg-destructive animate-pulse" />
-            <span>सुरु हुन बाँकी: {stats.red}</span>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-warning/10 border border-warning/20 px-2.5 py-1 text-warning font-bold">
-            <span className="size-2 rounded-full bg-warning" />
-            <span>जारी छ: {stats.orange}</span>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-success/10 border border-success/20 px-2.5 py-1 text-success font-bold">
-            <CheckCircle2 className="size-3.5" />
-            <span>पूरा: {stats.green}</span>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
-            <Truck className="size-3 text-primary" />
-            <span>
-              मासिक ट्रिप: {np(stats.doneTotal)}/{np(stats.plannedTotal)}
+      {/* Slim Restore Bar when top panel is hidden to make map bigger */}
+      {hideTopBar && (
+        <div className="mb-2 flex items-center justify-between rounded-xl border bg-card/95 backdrop-blur-md px-3.5 py-1.5 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground flex-wrap">
+            <span className="size-2 rounded-full bg-success animate-pulse" />
+            <span>नक्सा पूर्ण दृश्य (Expanded Map)</span>
+            <span className="text-muted-foreground font-semibold">
+              • पूरा: <b className="text-success font-mono">{stats.green}</b> / सुरु हुन बाँकी: <b className="text-destructive font-mono">{stats.red}</b>
             </span>
+            {selectedWard !== "all" && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-bold">वडा {selectedWard}</span>
+            )}
+            {selectedTole !== "all" && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-bold">{selectedTole}</span>
+            )}
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Ward filter dropdown */}
-          <SearchSelect
-            className="w-36"
-            value={selectedWard}
-            onChange={(v) => {
-              setSelectedWard(v);
-              setSelectedTole("all");
-            }}
-            placeholder="सबै वडा (All Wards)"
-            options={[
-              { value: "all", label: "सबै वडा (All Wards)" },
-              ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
-            ]}
-          />
-
-          {/* Tole filter dropdown */}
-          <SearchSelect
-            className="w-36"
-            value={selectedTole}
-            onChange={(v) => setSelectedTole(v)}
-            placeholder="सबै टोल (All Toles)"
-            options={[
-              { value: "all", label: "सबै टोल (All Toles)" },
-              ...toleOptions.map((t) => ({ value: t, label: t })),
-            ]}
-          />
-
-          {/* Hide/Show Map Overlays Button */}
-          <Button
-            type="button"
-            size="sm"
-            variant={hideBoxes ? "secondary" : "outline"}
-            onClick={() => setHideBoxes((v) => !v)}
-            className={`h-8 px-2.5 text-xs font-bold gap-1.5 ${
-              hideBoxes ? "border-primary/50 bg-primary/10 text-primary" : "text-muted-foreground"
-            }`}
-            title={hideBoxes ? "नक्सामा बक्सहरू देखाउनुहोस् (Show Boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide Boxes)"}
-          >
-            {hideBoxes ? <Eye className="size-3.5 text-primary" /> : <EyeOff className="size-3.5" />}
-            <span>{hideBoxes ? "बक्स देखाउनुहोस्" : "लुकाउनुहोस्"}</span>
-          </Button>
-
-          {/* Refresh Button */}
           <Button
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => query.refetch()}
-            className="h-8 px-2.5 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
-            title="ग्राहक तथा ट्रिप विवरण ताजा गर्नुहोस् (Refresh)"
+            onClick={() => setHideTopBar(false)}
+            className="h-7 px-3 text-xs font-bold gap-1.5 text-primary border-primary/40 hover:bg-primary/10 shadow-xs"
+            title="कन्ट्रोल तथा विवरण बार देखाउनुहोस्"
           >
-            <RotateCw className="size-3.5" /> ताजा
+            <Eye className="size-3.5" />
+            <span>कन्ट्रोल देखाउनुहोस् (Show Controls)</span>
           </Button>
+        </div>
+      )}
 
-          <Button
-            type="button"
-            size="sm"
-            variant={trackingLocation ? "default" : "outline"}
-            onClick={toggleLocationTracking}
-            className={`gap-1.5 text-xs font-bold ${
-              trackingLocation
-                ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
-                : "border-primary/40 text-primary hover:bg-primary/10"
-            }`}
-          >
-            <LocateFixed className={`size-3.5 ${trackingLocation ? "animate-spin" : ""}`} />
-            {trackingLocation ? "लोकेसन सक्रिय छ (GPS ON)" : "प्रमुख चालक GPS सुरु गर्नुहोस्"}
-          </Button>
+      {/* Controls & stats bar */}
+      {!hideTopBar && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border bg-card p-3 shadow-xs animate-in fade-in">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs">
+            <select
+              aria-label="Trip month"
+              className="rounded-md border bg-card px-2.5 py-1.5 text-xs font-bold"
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+            >
+              {MONTHS.map((label, idx) => (
+                <option key={idx} value={idx}>
+                  {label} {np(monthYearLabel(year, idx))}
+                </option>
+              ))}
+            </select>
 
-          <Button
-            type="button"
-            size="sm"
-            variant={settingDriverMode ? "secondary" : "outline"}
-            onClick={() => {
-              setSettingDriverMode(!settingDriverMode);
-              if (!settingDriverMode) {
-                setLocationError("");
-                setLocatingStatus("👉 नक्सामा प्रमुख चालक / गाडी भएको ठाउँमा क्लिक गर्नुहोस्...");
-              } else {
-                setLocatingStatus("");
-              }
-            }}
-            className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-warning/50 bg-warning/10 text-warning font-bold" : ""}`}
-          >
-            <MousePointer className="size-3.5" />
-            {settingDriverMode ? "नक्सामा थिच्नुहोस्..." : "📍 नक्सामा प्रमुख राख्नुहोस्"}
-          </Button>
+            <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 border border-destructive/20 px-2.5 py-1 text-destructive font-bold">
+              <span className="size-2 rounded-full bg-destructive animate-pulse" />
+              <span>सुरु हुन बाँकी: {stats.red}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg bg-warning/10 border border-warning/20 px-2.5 py-1 text-warning font-bold">
+              <span className="size-2 rounded-full bg-warning" />
+              <span>जारी छ: {stats.orange}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg bg-success/10 border border-success/20 px-2.5 py-1 text-success font-bold">
+              <CheckCircle2 className="size-3.5" />
+              <span>पूरा: {stats.green}</span>
+            </div>
+            <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
+              <Truck className="size-3 text-primary" />
+              <span>
+                मासिक ट्रिप: {np(stats.doneTotal)}/{np(stats.plannedTotal)}
+              </span>
+            </div>
+          </div>
 
-          {driverLocation && (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Hide All Top Bar button to maximize map size */}
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={centerOnDriver}
-              className="h-8 text-xs gap-1 text-primary border-primary/50 hover:bg-primary/10"
+              onClick={() => setHideTopBar(true)}
+              className="h-8 px-2.5 text-xs font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30"
+              title="यो सम्पूर्ण बार लुकाएर नक्सा ठूलो पार्नुहोस् (Hide All & Expand Map)"
             >
-              <Truck className="size-3.5" /> म भएको ठाउँ
+              <EyeOff className="size-3.5" />
+              <span>सबै लुकाउनुहोस् (Hide All)</span>
             </Button>
-          )}
 
-          <Button
-            type="button"
-            size="sm"
-            variant={sidebarOpen ? "secondary" : "outline"}
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="h-8 text-xs gap-1"
-          >
-            <Search className="size-3" /> ग्राहक सूची ({filteredCustomers.length})
-          </Button>
+            {/* Ward filter dropdown */}
+            <SearchSelect
+              className="w-36"
+              value={selectedWard}
+              onChange={(v) => {
+                setSelectedWard(v);
+                setSelectedTole("all");
+              }}
+              placeholder="सबै वडा (All Wards)"
+              options={[
+                { value: "all", label: "सबै वडा (All Wards)" },
+                ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
+              ]}
+            />
+
+            {/* Tole filter dropdown */}
+            <SearchSelect
+              className="w-36"
+              value={selectedTole}
+              onChange={(v) => setSelectedTole(v)}
+              placeholder="सबै टोल (All Toles)"
+              options={[
+                { value: "all", label: "सबै टोल (All Toles)" },
+                ...toleOptions.map((t) => ({ value: t, label: t })),
+              ]}
+            />
+
+            {/* Hide/Show Map Overlays Button */}
+            <Button
+              type="button"
+              size="sm"
+              variant={hideBoxes ? "secondary" : "outline"}
+              onClick={() => setHideBoxes((v) => !v)}
+              className={`h-8 px-2.5 text-xs font-bold gap-1.5 ${
+                hideBoxes ? "border-primary/50 bg-primary/10 text-primary" : "text-muted-foreground"
+              }`}
+              title={hideBoxes ? "नक्सामा बक्सहरू देखाउनुहोस् (Show Boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide Boxes)"}
+            >
+              {hideBoxes ? <Eye className="size-3.5 text-primary" /> : <EyeOff className="size-3.5" />}
+              <span>{hideBoxes ? "बक्स देखाउनुहोस्" : "लुकाउनुहोस्"}</span>
+            </Button>
+
+            {/* Refresh Button */}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => query.refetch()}
+              className="h-8 px-2.5 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
+              title="ग्राहक तथा ट्रिप विवरण ताजा गर्नुहोस् (Refresh)"
+            >
+              <RotateCw className="size-3.5" /> ताजा
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={trackingLocation ? "default" : "outline"}
+              onClick={toggleLocationTracking}
+              className={`gap-1.5 text-xs font-bold ${
+                trackingLocation
+                  ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
+                  : "border-primary/40 text-primary hover:bg-primary/10"
+              }`}
+            >
+              <LocateFixed className={`size-3.5 ${trackingLocation ? "animate-spin" : ""}`} />
+              {trackingLocation ? "लोकेसन सक्रिय छ (GPS ON)" : "प्रमुख चालक GPS सुरु गर्नुहोस्"}
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              variant={settingDriverMode ? "secondary" : "outline"}
+              onClick={() => {
+                setSettingDriverMode(!settingDriverMode);
+                if (!settingDriverMode) {
+                  setLocationError("");
+                  setLocatingStatus("👉 नक्सामा प्रमुख चालक / गाडी भएको ठाउँमा क्लिक गर्नुहोस्...");
+                } else {
+                  setLocatingStatus("");
+                }
+              }}
+              className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-warning/50 bg-warning/10 text-warning font-bold" : ""}`}
+            >
+              <MousePointer className="size-3.5" />
+              {settingDriverMode ? "नक्सामा थिच्नुहोस्..." : "📍 नक्सामा प्रमुख राख्नुहोस्"}
+            </Button>
+
+            {driverLocation && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={centerOnDriver}
+                className="h-8 text-xs gap-1 text-primary border-primary/50 hover:bg-primary/10"
+              >
+                <Truck className="size-3.5" /> म भएको ठाउँ
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              size="sm"
+              variant={sidebarOpen ? "secondary" : "outline"}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="h-8 text-xs gap-1"
+            >
+              <Search className="size-3" /> ग्राहक सूची ({filteredCustomers.length})
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Trip session panel: start GPS-tracked trip (collection / dumping) → end trip */}
       <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border-2 border-primary/30 bg-primary/5 p-2">
@@ -1396,7 +1459,7 @@ function TripDriverPage() {
         ref={mapWrapperRef}
         className={`leaflet-map-wrapper relative w-full overflow-hidden rounded-xl border-2 border-border shadow-lg ${
           mapFull ? "map-fullscreen" : ""
-        }`}
+        } ${hideTopBar ? "map-expanded" : ""}`}
       >
         <div
           ref={mapContainerRef}

@@ -786,6 +786,24 @@ function CollectionMapPage() {
     } catch {}
   }, [hideBoxes]);
 
+  // ─── Hide entire top controls/metrics bar to make the map bigger ───
+  const [hideTopBar, setHideTopBar] = useState(() => {
+    try {
+      return sessionStorage.getItem("hami_map_hide_topbar_v1") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("hami_map_hide_topbar_v1", hideTopBar ? "1" : "0");
+    } catch {}
+    if (mapRef.current) {
+      setTimeout(() => mapRef.current?.invalidateSize(), 200);
+    }
+  }, [hideTopBar]);
+
   // While the map is fullscreen, lock the page scroll so tabs underneath
   // can't drift; restore when leaving.
   useEffect(() => {
@@ -1611,170 +1629,215 @@ function CollectionMapPage() {
 
       {/* Map Tab Content */}
       <div className={activeTab === "map" ? "block" : "hidden"}>
-        {/* Top Controls & Metrics Bar */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border bg-card p-3 shadow-xs">
-        {/* Left: Quick Metrics */}
-        <div className="flex flex-wrap items-center gap-2.5 text-xs">
-          <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 border border-destructive/20 px-2.5 py-1 text-destructive font-bold">
-            <span className="size-2 rounded-full bg-destructive animate-pulse" />
-            <span>कुल बाँकी: {money(totalDuesAmount)}</span>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
-            <AlertTriangle className="size-3 text-warning" />
-            <span>{customersWithDueCount} ग्राहकको बक्यौता</span>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
-            <MapPin className="size-3 text-primary" />
-            <span>
-              {filteredCustomers.length} नक्सामा ({exactGpsCount > 0 ? `${exactGpsCount} GPS` : ""}
-              {exactGpsCount > 0 && approximateCount > 0 ? " • " : ""}
-              {approximateCount > 0 ? `${approximateCount} वडा क्षेत्र` : ""})
-            </span>
-          </div>
-        </div>
-
-        {/* Right: Driver Location & Map Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Ward filter dropdown */}
-          <SearchSelect
-            className="w-36"
-            value={selectedWard}
-            onChange={(v) => {
-              setSelectedWard(v);
-              setSelectedTole("all");
-            }}
-            placeholder="सबै वडा (All Wards)"
-            options={[
-              { value: "all", label: "सबै वडा (All Wards)" },
-              ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
-            ]}
-          />
-
-          {/* Tole filter dropdown */}
-          <SearchSelect
-            className="w-36"
-            value={selectedTole}
-            onChange={(v) => setSelectedTole(v)}
-            placeholder="सबै टोल (All Toles)"
-            options={[
-              { value: "all", label: "सबै टोल (All Toles)" },
-              ...toleOptions.map((t) => ({ value: t, label: t })),
-            ]}
-          />
-
-          {/* Hide/Show Map Overlays Button */}
-          <Button
-            type="button"
-            size="sm"
-            variant={hideBoxes ? "secondary" : "outline"}
-            onClick={() => setHideBoxes((v) => !v)}
-            className={`h-8 px-2.5 text-xs font-bold gap-1.5 ${
-              hideBoxes ? "border-primary/50 bg-primary/10 text-primary" : "text-muted-foreground"
-            }`}
-            title={hideBoxes ? "नक्सामा बक्सहरू देखाउनुहोस् (Show Boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide Boxes)"}
-          >
-            {hideBoxes ? <Eye className="size-3.5 text-primary" /> : <EyeOff className="size-3.5" />}
-            <span>{hideBoxes ? "बक्स देखाउनुहोस्" : "लुकाउनुहोस्"}</span>
-          </Button>
-
-          {/* Refresh Button */}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => query.refetch()}
-            className="h-8 px-2 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
-            title="ग्राहक तथा बक्यौता विवरण ताजा गर्नुहोस् (Refresh)"
-          >
-            <RotateCw className="size-3.5" /> ताजा
-          </Button>
-
-          {/* Driver Location Toggle Button */}
-          <Button
-            type="button"
-            size="sm"
-            variant={trackingLocation ? "default" : "outline"}
-            onClick={toggleLocationTracking}
-            className={`gap-1.5 text-xs font-bold ${
-              trackingLocation
-                ? "bg-info hover:bg-info/90 text-info-foreground shadow-md"
-                : "border-primary/40 text-primary hover:bg-primary/10"
-            }`}
-          >
-            <LocateFixed className={`size-3.5 ${trackingLocation ? "animate-spin" : ""}`} />
-            {trackingLocation
-              ? "लोकेसन सक्रिय छ (GPS ON)"
-              : "मेरो लोकेसन सुरु गर्नुहोस् (Access GPS)"}
-          </Button>
-
-          {/* Manual Placement Button */}
-          <Button
-            type="button"
-            size="sm"
-            variant={settingDriverMode ? "secondary" : "outline"}
-            onClick={() => {
-              setSettingDriverMode(!settingDriverMode);
-              if (!settingDriverMode) {
-                setLocationError("");
-                setLocatingStatus("👉 नक्सामा चालक/गाडी भएको ठाउँमा क्लिक गर्नुहोस्...");
-              } else {
-                setLocatingStatus("");
-              }
-            }}
-            className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-warning/50 bg-warning/10 text-warning font-bold" : ""}`}
-            title="नक्सामा जहाँ हुनुहुन्छ त्यहाँ क्लिक गरेर गाडी राख्न सक्नुहुन्छ"
-          >
-            <MousePointer className="size-3.5" />
-            {settingDriverMode ? "नक्सामा थिच्नुहोस्..." : "📍 नक्सामा गाडी राख्नुहोस्"}
-          </Button>
-
-          {driverLocation && (
+        {/* Slim Restore Bar when top panel is hidden to make map bigger */}
+        {hideTopBar && (
+          <div className="mb-2 flex items-center justify-between rounded-xl border bg-card/95 backdrop-blur-md px-3.5 py-1.5 shadow-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-xs font-bold text-foreground flex-wrap">
+              <span className="size-2 rounded-full bg-success animate-pulse" />
+              <span>नक्सा पूर्ण दृश्य (Expanded Map)</span>
+              <span className="text-muted-foreground font-semibold">
+                • कुल बाँकी: <b className="text-destructive font-mono">{money(totalDuesAmount)}</b> ({customersWithDueCount} ग्राहक)
+              </span>
+              {selectedWard !== "all" && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-bold">वडा {selectedWard}</span>
+              )}
+              {selectedTole !== "all" && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-bold">{selectedTole}</span>
+              )}
+            </div>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={centerOnDriver}
-              className="h-8 text-xs gap-1 text-info border-info/50 hover:bg-info/10"
-              title="गाडी भएको ठाउँमा जानुहोस्"
+              onClick={() => setHideTopBar(false)}
+              className="h-7 px-3 text-xs font-bold gap-1.5 text-primary border-primary/40 hover:bg-primary/10 shadow-xs"
+              title="कन्ट्रोल तथा विवरण बार देखाउनुहोस्"
             >
-              <Car className="size-3.5" /> म भएको ठाउँ
+              <Eye className="size-3.5" />
+              <span>कन्ट्रोल देखाउनुहोस् (Show Controls)</span>
             </Button>
-          )}
+          </div>
+        )}
 
-          {/* Quick Zoom Buttons */}
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={zoomToBirendranagar}
-            className="h-8 text-xs gap-1"
-            title="वीरेन्द्रनगर जुम"
-          >
-            <Compass className="size-3.5 text-primary" /> वीरेन्द्रनगर
-          </Button>
+        {/* Top Controls & Metrics Bar */}
+        {!hideTopBar && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border bg-card p-3 shadow-xs animate-in fade-in">
+            {/* Left: Quick Metrics */}
+            <div className="flex flex-wrap items-center gap-2.5 text-xs">
+              <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 border border-destructive/20 px-2.5 py-1 text-destructive font-bold">
+                <span className="size-2 rounded-full bg-destructive animate-pulse" />
+                <span>कुल बाँकी: {money(totalDuesAmount)}</span>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
+                <AlertTriangle className="size-3 text-warning" />
+                <span>{customersWithDueCount} ग्राहकको बक्यौता</span>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-muted-foreground font-semibold">
+                <MapPin className="size-3 text-primary" />
+                <span>
+                  {filteredCustomers.length} नक्सामा ({exactGpsCount > 0 ? `${exactGpsCount} GPS` : ""}
+                  {exactGpsCount > 0 && approximateCount > 0 ? " • " : ""}
+                  {approximateCount > 0 ? `${approximateCount} वडा क्षेत्र` : ""})
+                </span>
+              </div>
+            </div>
 
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={zoomToNepal}
-            className="h-8 text-xs gap-1 text-muted-foreground"
-            title="सम्पूर्ण नेपाल दृश्य"
-          >
-            नेपाल नक्सा
-          </Button>
+            {/* Right: Driver Location & Map Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Hide All Top Bar button to maximize map size */}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setHideTopBar(true)}
+                className="h-8 px-2.5 text-xs font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30"
+                title="यो सम्पूर्ण बार लुकाएर नक्सा ठूलो पार्नुहोस् (Hide All & Expand Map)"
+              >
+                <EyeOff className="size-3.5" />
+                <span>सबै लुकाउनुहोस् (Hide All)</span>
+              </Button>
 
-          <Button
-            type="button"
-            size="sm"
-            variant={sidebarOpen ? "secondary" : "outline"}
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="h-8 text-xs gap-1"
-          >
-            <Filter className="size-3" /> ग्राहक सूची ({filteredCustomers.length})
-          </Button>
-        </div>
-      </div>
+              {/* Ward filter dropdown */}
+              <SearchSelect
+                className="w-36"
+                value={selectedWard}
+                onChange={(v) => {
+                  setSelectedWard(v);
+                  setSelectedTole("all");
+                }}
+                placeholder="सबै वडा (All Wards)"
+                options={[
+                  { value: "all", label: "सबै वडा (All Wards)" },
+                  ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
+                ]}
+              />
+
+              {/* Tole filter dropdown */}
+              <SearchSelect
+                className="w-36"
+                value={selectedTole}
+                onChange={(v) => setSelectedTole(v)}
+                placeholder="सबै टोल (All Toles)"
+                options={[
+                  { value: "all", label: "सबै टोल (All Toles)" },
+                  ...toleOptions.map((t) => ({ value: t, label: t })),
+                ]}
+              />
+
+              {/* Hide/Show Map Overlays Button */}
+              <Button
+                type="button"
+                size="sm"
+                variant={hideBoxes ? "secondary" : "outline"}
+                onClick={() => setHideBoxes((v) => !v)}
+                className={`h-8 px-2.5 text-xs font-bold gap-1.5 ${
+                  hideBoxes ? "border-primary/50 bg-primary/10 text-primary" : "text-muted-foreground"
+                }`}
+                title={hideBoxes ? "नक्सामा बक्सहरू देखाउनुहोस् (Show Boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide Boxes)"}
+              >
+                {hideBoxes ? <Eye className="size-3.5 text-primary" /> : <EyeOff className="size-3.5" />}
+                <span>{hideBoxes ? "बक्स देखाउनुहोस्" : "लुकाउनुहोस्"}</span>
+              </Button>
+
+              {/* Refresh Button */}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => query.refetch()}
+                className="h-8 px-2 text-xs font-bold gap-1 text-primary hover:bg-primary/10"
+                title="ग्राहक तथा बक्यौता विवरण ताजा गर्नुहोस् (Refresh)"
+              >
+                <RotateCw className="size-3.5" /> ताजा
+              </Button>
+
+              {/* Driver Location Toggle Button */}
+              <Button
+                type="button"
+                size="sm"
+                variant={trackingLocation ? "default" : "outline"}
+                onClick={toggleLocationTracking}
+                className={`gap-1.5 text-xs font-bold ${
+                  trackingLocation
+                    ? "bg-info hover:bg-info/90 text-info-foreground shadow-md"
+                    : "border-primary/40 text-primary hover:bg-primary/10"
+                }`}
+              >
+                <LocateFixed className={`size-3.5 ${trackingLocation ? "animate-spin" : ""}`} />
+                {trackingLocation
+                  ? "लोकेसन सक्रिय छ (GPS ON)"
+                  : "मेरो लोकेसन सुरु गर्नुहोस् (Access GPS)"}
+              </Button>
+
+              {/* Manual Placement Button */}
+              <Button
+                type="button"
+                size="sm"
+                variant={settingDriverMode ? "secondary" : "outline"}
+                onClick={() => {
+                  setSettingDriverMode(!settingDriverMode);
+                  if (!settingDriverMode) {
+                    setLocationError("");
+                    setLocatingStatus("👉 नक्सामा चालक/गाडी भएको ठाउँमा क्लिक गर्नुहोस्...");
+                  } else {
+                    setLocatingStatus("");
+                  }
+                }}
+                className={`h-8 text-xs gap-1 ${settingDriverMode ? "border-warning/50 bg-warning/10 text-warning font-bold" : ""}`}
+                title="नक्सामा जहाँ हुनुहुन्छ त्यहाँ क्लिक गरेर गाडी राख्न सक्नुहुन्छ"
+              >
+                <MousePointer className="size-3.5" />
+                {settingDriverMode ? "नक्सामा थिच्नुहोस्..." : "📍 नक्सामा गाडी राख्नुहोस्"}
+              </Button>
+
+              {driverLocation && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={centerOnDriver}
+                  className="h-8 text-xs gap-1 text-info border-info/50 hover:bg-info/10"
+                  title="गाडी भएको ठाउँमा जानुहोस्"
+                >
+                  <Car className="size-3.5" /> म भएको ठाउँ
+                </Button>
+              )}
+
+              {/* Quick Zoom Buttons */}
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={zoomToBirendranagar}
+                className="h-8 text-xs gap-1"
+                title="वीरेन्द्रनगर जुम"
+              >
+                <Compass className="size-3.5 text-primary" /> वीरेन्द्रनगर
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={zoomToNepal}
+                className="h-8 text-xs gap-1 text-muted-foreground"
+                title="सम्पूर्ण नेपाल दृश्य"
+              >
+                नेपाल नक्सा
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                variant={sidebarOpen ? "secondary" : "outline"}
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="h-8 text-xs gap-1"
+              >
+                <Filter className="size-3" /> ग्राहक सूची ({filteredCustomers.length})
+              </Button>
+            </div>
+          </div>
+        )}
 
       {locatingStatus && (
         <div className="mb-2 flex items-center gap-2 rounded-lg bg-info/10 border border-info/20 p-2 text-xs text-info font-medium">
@@ -1812,7 +1875,7 @@ function CollectionMapPage() {
         ref={mapWrapperRef}
         className={`leaflet-map-wrapper relative w-full overflow-hidden rounded-xl border-2 border-border shadow-lg ${
           mapFull ? "map-fullscreen" : ""
-        }`}
+        } ${hideTopBar ? "map-expanded" : ""}`}
       >
         {/* Leaflet Map Canvas */}
         <div

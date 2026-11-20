@@ -492,6 +492,19 @@
   }
 }
 
+/* Expanded map view when top controls/metrics panel is hidden */
+.leaflet-map-wrapper.map-expanded {
+  height: calc(100svh - 130px);
+  min-height: 560px;
+}
+
+@media (min-width: 1024px) {
+  .leaflet-map-wrapper.map-expanded {
+    height: calc(100vh - 110px);
+    min-height: 640px;
+  }
+}
+
 /* Ensure the map container itself fills the wrapper */
 .leaflet-map-wrapper .leaflet-container {
   width: 100%;
