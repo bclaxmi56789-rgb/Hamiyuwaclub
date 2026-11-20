@@ -13,7 +13,11 @@ import {
   type Member,
   type BODMember,
   type Employee,
+  type EmployeeOfferLetter,
   type PayrollRecord,
+  nextOfferNo,
+  offerFiscalYear,
+  normalizeOfferDetails,
   type ClubEvent,
   type EventMinutes,
   type Vendor,
@@ -733,6 +737,26 @@ export const getMembersData = createServerFn({ method: "GET" })
       // Table may not be migrated yet
     }
 
+    const employeeOffers: EmployeeOfferLetter[] = [];
+    try {
+      const offerRes = await context.supabase
+        .from("employee_offer_letters")
+        .select("*")
+        .eq("owner_id", context.userId)
+        .order("created_at", { ascending: false });
+      if (!offerRes.error && offerRes.data) {
+        employeeOffers.push(
+          ...(offerRes.data as unknown as EmployeeOfferLetter[]).map((o) => ({
+            ...o,
+            terms: Array.isArray(o.terms) ? o.terms : [],
+            details: normalizeOfferDetails(o.details),
+          })),
+        );
+      }
+    } catch {
+      // Table may not be migrated yet
+    }
+
     try {
       const accRes = await context.supabase
         .from("rp_accounts")
@@ -801,6 +825,7 @@ export const getMembersData = createServerFn({ method: "GET" })
       bodMembers: members,
       employees,
       payrollRecords,
+      employeeOffers,
       accounts,
       employeeTransactions,
       employeeReimbursements,
@@ -1031,6 +1056,141 @@ export const deleteEmployee = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("owner_id", context.userId);
     if (res.error) throw new Error(res.error.message);
+    return true;
+  });
+
+const offerTermsSchema = z
+  .array(
+    z.object({
+      np: z.string().trim().max(500).default(""),
+      en: z.string().trim().max(500).default(""),
+    }),
+  )
+  .optional()
+  .default([]);
+
+const offerDetailsSchema = z
+  .object({
+    employee_address: z.string().trim().max(300).optional().default(""),
+    employee_contact: z.string().trim().max(60).optional().default(""),
+    challan_no: z.string().trim().max(60).optional().default(""),
+    department: z.string().trim().max(120).optional().default(""),
+    work_location: z.string().trim().max(200).optional().default(""),
+    reporting_officer: z.string().trim().max(120).optional().default(""),
+    work_nature: z.string().trim().max(60).optional().default("पूर्णकालीन"),
+    basic_salary: z.number().min(0).optional().default(0),
+    allowance: z.number().min(0).optional().default(0),
+    payment_method: z.string().trim().max(80).optional().default(""),
+    payment_day: z.string().trim().max(80).optional().default(""),
+    probation_months: z.number().min(0).max(60).optional().default(3),
+    offer_accept_by: z.string().trim().max(20).optional().default(""),
+    authorized_name: z.string().trim().max(120).optional().default(""),
+    authorized_position: z.string().trim().max(120).optional().default(""),
+  })
+  .optional()
+  .default({});
+
+export const saveEmployeeOffer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      id: z.string().optional(),
+      employee_id: z.string().trim().min(1, "Employee is required"),
+      offer_no: z.string().trim().max(40).optional().default(""),
+      letter_date: z.string().trim().max(20).optional().default(""),
+      designation: z.string().trim().max(120).optional().default(""),
+      offered_salary: z.number().min(0).optional().default(0),
+      joining_date: z.string().trim().max(20).optional().default(""),
+      status: z.enum(["draft", "issued"]).optional().default("draft"),
+      terms: offerTermsSchema,
+      details: offerDetailsSchema,
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const details = normalizeOfferDetails(data.details);
+    // कुल मासिक पारिश्रमिक is always basic + allowance so the letter never disagrees.
+    const offeredSalary =
+      data.offered_salary > 0 ? data.offered_salary : details.basic_salary + details.allowance;
+    const fy = offerFiscalYear(data.letter_date);
+    let offerNo = data.offer_no.trim();
+
+    if (!offerNo) {
+      // Allocate OFF/<FY>/<seq> from the owner's existing refs so numbers never collide.
+      const existingRes = await context.supabase
+        .from("employee_offer_letters")
+        .select("offer_no")
+        .eq("owner_id", context.userId);
+      const existing = (existingRes.error ? [] : (existingRes.data ?? [])).map(
+        (r) => (r as { offer_no: string }).offer_no,
+      );
+      offerNo = nextOfferNo(existing, fy);
+    }
+
+    const payload = {
+      employee_id: data.employee_id,
+      offer_no: offerNo,
+      letter_date: data.letter_date,
+      designation: data.designation,
+      offered_salary: offeredSalary,
+      joining_date: data.joining_date,
+      status: data.status,
+      terms: data.terms,
+      details,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (data.id && !data.id.startsWith("local-")) {
+      const res = await context.supabase
+        .from("employee_offer_letters")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("owner_id", context.userId)
+        .select("*")
+        .single();
+      if (res.error) throw new Error(res.error.message || "Could not save offer letter.");
+      return res.data as EmployeeOfferLetter;
+    }
+
+    const newId = `offer-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    let res = await context.supabase
+      .from("employee_offer_letters")
+      .insert({ id: newId, owner_id: context.userId, ...payload })
+      .select("*")
+      .single();
+    if (res.error && res.error.code === "23505") {
+      // Unique (owner_id, offer_no) race — allocate the next free number once.
+      const existingRes = await context.supabase
+        .from("employee_offer_letters")
+        .select("offer_no")
+        .eq("owner_id", context.userId);
+      const existing = (existingRes.error ? [] : (existingRes.data ?? [])).map(
+        (r) => (r as { offer_no: string }).offer_no,
+      );
+      res = await context.supabase
+        .from("employee_offer_letters")
+        .insert({
+          id: newId,
+          owner_id: context.userId,
+          ...payload,
+          offer_no: nextOfferNo(existing, fy),
+        })
+        .select("*")
+        .single();
+    }
+    if (res.error) throw new Error(res.error.message || "Could not save offer letter.");
+    return res.data as EmployeeOfferLetter;
+  });
+
+export const deleteEmployeeOffer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string() }))
+  .handler(async ({ data, context }) => {
+    const res = await context.supabase
+      .from("employee_offer_letters")
+      .delete()
+      .eq("id", data.id)
+      .eq("owner_id", context.userId);
+    if (res.error) throw new Error(res.error.message || "Could not delete offer letter.");
     return true;
   });
 

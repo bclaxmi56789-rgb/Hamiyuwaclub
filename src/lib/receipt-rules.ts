@@ -725,6 +725,146 @@ export type Employee = {
   updated_at?: string;
 };
 
+/** One extra line appended to section ९ (अन्य सर्तहरू) of an offer letter */
+export type OfferTerm = { np: string; en: string };
+
+/**
+ * Structured fields of the official नियुक्ति प्रस्तावपत्र template.
+ * Everything not covered by the letter's fixed boilerplate lives here.
+ */
+export type OfferDetails = {
+  /** स्थायी ठेगाना of the candidate */
+  employee_address: string;
+  /** सम्पर्क नं. printed under the addressee (falls back to employee.phone) */
+  employee_contact: string;
+  /** चलानी नं. — optional reference shown in the letter meta */
+  challan_no: string;
+  /** विभाग/शाखा */
+  department: string;
+  /** कार्यस्थल */
+  work_location: string;
+  /** प्रत्यक्ष रिपोर्टिङ गर्ने अधिकारी */
+  reporting_officer: string;
+  /** कार्यको प्रकृति: पूर्णकालीन | अंशकालीन | करार */
+  work_nature: string;
+  /** मासिक आधारभूत पारिश्रमिक */
+  basic_salary: number;
+  /** भत्ता तथा अन्य सुविधा */
+  allowance: number;
+  /** भुक्तानी विधि — default बैंक खातामार्फत */
+  payment_method: string;
+  /** भुक्तानी अवधि — e.g. ७ गते */
+  payment_day: string;
+  /** परीक्षणकाल (महिना) */
+  probation_months: number;
+  /** प्रस्ताव स्वीकृति गर्ने अन्तिम मिति */
+  offer_accept_by: string;
+  /** भवदीय — अधिकृत व्यक्तिको नाम */
+  authorized_name: string;
+  /** अधिकृत व्यक्तिको पद/अधिकार */
+  authorized_position: string;
+};
+
+export const EMPTY_OFFER_DETAILS: OfferDetails = {
+  employee_address: "",
+  employee_contact: "",
+  challan_no: "",
+  department: "",
+  work_location: "",
+  reporting_officer: "",
+  work_nature: "पूर्णकालीन",
+  basic_salary: 0,
+  allowance: 0,
+  payment_method: "बैंक खातामार्फत",
+  payment_day: "",
+  probation_months: 3,
+  offer_accept_by: "",
+  authorized_name: "",
+  authorized_position: "",
+};
+
+/** Fill any missing keys on a stored `details` jsonb object. */
+export function normalizeOfferDetails(raw: unknown): OfferDetails {
+  const src = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+  const num = (v: unknown, fallback: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+  return {
+    employee_address: str(src.employee_address),
+    employee_contact: str(src.employee_contact),
+    challan_no: str(src.challan_no),
+    department: str(src.department),
+    work_location: str(src.work_location),
+    reporting_officer: str(src.reporting_officer),
+    work_nature: str(src.work_nature) || EMPTY_OFFER_DETAILS.work_nature,
+    basic_salary: num(src.basic_salary, 0),
+    allowance: num(src.allowance, 0),
+    payment_method: str(src.payment_method) || EMPTY_OFFER_DETAILS.payment_method,
+    payment_day: str(src.payment_day),
+    probation_months: num(src.probation_months, EMPTY_OFFER_DETAILS.probation_months),
+    offer_accept_by: str(src.offer_accept_by),
+    authorized_name: str(src.authorized_name),
+    authorized_position: str(src.authorized_position),
+  };
+}
+
+/** Employee offer / appointment letter, stored per employee and owner */
+export type EmployeeOfferLetter = {
+  id?: string;
+  employee_id: string;
+  /** Full reference, e.g. OFF/2082/001 */
+  offer_no: string;
+  letter_date: string;
+  designation: string;
+  /** कुल मासिक पारिश्रमिक = basic_salary + allowance */
+  offered_salary: number;
+  joining_date: string;
+  status: "draft" | "issued";
+  /** Extra free-form clauses appended to section ९ */
+  terms: OfferTerm[];
+  details: OfferDetails;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** Default extra clauses seeded into a new offer letter (section ९ is fixed boilerplate). */
+export function defaultOfferTerms(): OfferTerm[] {
+  return [];
+}
+
+/** Build the canonical offer reference from a fiscal year and sequence number. */
+export function buildOfferRef(fiscalYearStart: number, seq: number): string {
+  return `OFF/${fiscalYearStart}/${String(Math.max(1, Math.floor(seq) || 1)).padStart(3, "0")}`;
+}
+
+/**
+ * Next offer reference for a fiscal year from already-used refs.
+ * Same rule is used by the server allocator and the form preview so both agree.
+ */
+export function nextOfferNo(existing: string[], fiscalYearStart: number): string {
+  const prefix = `OFF/${fiscalYearStart}/`;
+  let max = 0;
+  for (const raw of existing) {
+    const ref = String(raw || "").trim();
+    if (!ref.startsWith(prefix)) continue;
+    const seq = Number(ref.slice(prefix.length));
+    if (Number.isFinite(seq) && seq > max) max = seq;
+  }
+  return buildOfferRef(fiscalYearStart, max + 1);
+}
+
+/** Fiscal year used for a new offer letter number (letter date, else today). */
+export function offerFiscalYear(letterDate?: string): number {
+  return fiscalYear(letterDate || "") ?? fiscalYear(todayBS()) ?? new Date().getFullYear();
+}
+
+/** Human readable money for offer letters: रु. १८,००० */
+export function offerMoney(n: number): string {
+  return "रु. " + np(Math.max(0, Number(n) || 0).toLocaleString("en-IN"));
+}
+
 /** Monthly Payroll record for an employee */
 export type PayrollRecord = {
   id?: string;

@@ -10,6 +10,8 @@ import {
   deleteMember,
   saveEmployee,
   deleteEmployee,
+  saveEmployeeOffer,
+  deleteEmployeeOffer,
   savePayrollRecords,
   payPayrollRecords,
   bookPayrollRecords,
@@ -24,8 +26,11 @@ import {
   buildEmployeeLedger,
   employeeAdvanceTransactions,
   employeeOutstandingDr,
+  nextOfferNo,
+  offerFiscalYear,
   type Member,
   type Employee,
+  type EmployeeOfferLetter,
   type PayrollRecord,
   type ExpenseRecord,
 } from "@/lib/receipt-rules";
@@ -34,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/search-select";
 import { PaySlipVoucher } from "@/components/pay-slip-voucher";
+import { EmployeeOfferLetterModal, type OfferDraft } from "@/components/employee-offer-letter";
 import {
   UserCheck,
   Users,
@@ -101,6 +107,8 @@ function MembersPage() {
   const payPayrollFn = useServerFn(payPayrollRecords);
   const bookPayrollFn = useServerFn(bookPayrollRecords);
   const unbookPayrollFn = useServerFn(unbookPayrollRecords);
+  const saveOfferFn = useServerFn(saveEmployeeOffer);
+  const deleteOfferFn = useServerFn(deleteEmployeeOffer);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("members");
 
@@ -140,6 +148,25 @@ function MembersPage() {
     } catch {}
     return [];
   });
+
+  // Offer letters for each employee
+  const [offerList, setOfferList] = useState<EmployeeOfferLetter[]>(() => {
+    try {
+      const stored = localStorage.getItem(hamiCacheKey("hami_offers_cache"));
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [];
+  });
+
+  const [offerEmployee, setOfferEmployee] = useState<Employee | null>(null);
+  const [savingOffer, setSavingOffer] = useState(false);
+
+  const persistOffers = (list: EmployeeOfferLetter[]) => {
+    setOfferList(list);
+    try {
+      localStorage.setItem(hamiCacheKey("hami_offers_cache"), JSON.stringify(list));
+    } catch {}
+  };
 
   // Sync server data into state when loaded
   useEffect(() => {
@@ -203,6 +230,9 @@ function MembersPage() {
             JSON.stringify((query.data as any).employeeReimbursements),
           );
         } catch {}
+      }
+      if ((query.data as any).employeeOffers) {
+        persistOffers((query.data as any).employeeOffers);
       }
     }
   }, [query.data]);
@@ -930,6 +960,60 @@ function MembersPage() {
     } catch {}
   };
 
+  // Employee offer letter handlers
+  const handleOpenOffer = (item: Employee) => setOfferEmployee(item);
+
+  const handleSaveOffer = async (draft: OfferDraft) => {
+    setSavingOffer(true);
+    try {
+      const res = await saveOfferFn({
+        data: {
+          id: draft.id,
+          employee_id: draft.employee_id,
+          offer_no: draft.id && !draft.id.startsWith("local-") ? draft.offer_no : "",
+          letter_date: draft.letter_date,
+          designation: draft.designation,
+          offered_salary: Number(draft.offered_salary) || 0,
+          joining_date: draft.joining_date,
+          status: draft.status,
+          terms: draft.terms,
+          details: draft.details,
+        },
+      });
+      const updated = draft.id
+        ? offerList.map((o) => (o.id === draft.id ? res : o))
+        : [res, ...offerList];
+      persistOffers(updated);
+      void queryClient.invalidateQueries({ queryKey: ["members_data"] });
+    } catch {
+      // Offline/local fallback — same pattern as employee & member saves
+      const localItem: EmployeeOfferLetter = {
+        ...draft,
+        id: draft.id || `local-offer-${Date.now()}`,
+        offer_no:
+          draft.offer_no ||
+          nextOfferNo(
+            offerList.map((o) => o.offer_no),
+            offerFiscalYear(draft.letter_date),
+          ),
+      };
+      const updated = draft.id
+        ? offerList.map((o) => (o.id === draft.id ? localItem : o))
+        : [localItem, ...offerList];
+      persistOffers(updated);
+    } finally {
+      setSavingOffer(false);
+    }
+  };
+
+  const handleDeleteOffer = async (id: string) => {
+    try {
+      await deleteOfferFn({ data: { id } });
+    } catch {}
+    persistOffers(offerList.filter((o) => o.id !== id));
+    void queryClient.invalidateQueries({ queryKey: ["members_data"] });
+  };
+
   // Filtered lists
   const filteredMembers = useMemo(() => {
     const q = searchMember.trim().toLowerCase();
@@ -1512,6 +1596,16 @@ function MembersPage() {
                           >
                             <BookOpen className="mr-1 size-3.5 text-success" />
                             <span>लेजर</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2.5 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                            title="प्रस्ताव पत्र हेर्नुहोस् / तयार गर्नुहोस्"
+                            onClick={() => handleOpenOffer(item)}
+                          >
+                            <FileText className="mr-1 size-3.5 text-primary" />
+                            <span>पत्र</span>
                           </Button>
                           <Button
                             variant="ghost"
@@ -3844,6 +3938,32 @@ function MembersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* EMPLOYEE OFFER LETTER MODAL (Form + A4 Print) */}
+      {/* ========================================================================= */}
+      {offerEmployee && (
+        <EmployeeOfferLetterModal
+          key={offerEmployee.id || "new"}
+          employee={offerEmployee}
+          letter={
+            offerList.find(
+              (o) => o.employee_id === offerEmployee.id && !String(o.id || "").startsWith("local-"),
+            ) ||
+            offerList.find((o) => o.employee_id === offerEmployee.id) ||
+            null
+          }
+          previewOfferNo={nextOfferNo(
+            offerList.map((o) => o.offer_no),
+            offerFiscalYear(todayBS()),
+          )}
+          canEdit={app.canEditOnPage("/members")}
+          saving={savingOffer}
+          onSave={handleSaveOffer}
+          onDelete={handleDeleteOffer}
+          onClose={() => setOfferEmployee(null)}
+        />
       )}
     </main>
   );
