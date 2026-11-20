@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import {
   DEFAULT_EMPLOYEE_RESPONSIBILITIES,
   DEFAULT_INSURANCE_CLAUSE,
+  DEFAULT_KHAJA_CLAUSE,
   EMPTY_OFFER_DETAILS,
   fiscalLabel,
   fiscalYear,
@@ -19,7 +20,7 @@ import {
   type OfferTerm,
 } from "@/lib/receipt-rules";
 import { useAppConfig } from "@/lib/app-config";
-import { FileText, Pencil, Plus, Printer, RotateCcw, Save, ShieldCheck, Trash2, X } from "lucide-react";
+import { Coffee, FileText, Pencil, Plus, Printer, RotateCcw, Save, ShieldCheck, Trash2, X } from "lucide-react";
 
 export type OfferDraft = {
   id?: string | undefined;
@@ -37,12 +38,10 @@ export type OfferDraft = {
 function draftFromLetter(letter: EmployeeOfferLetter, employee: Employee): OfferDraft {
   const details = normalizeOfferDetails(letter.details);
   const basic = Number(details.basic_salary) || Number(employee.basic_salary) || 0;
-  const allowance =
-    Number(details.allowance) ||
-    (employee.allowance_type === "fixed"
-      ? Number(employee.allowance_rate) || 0
-      : Number(employee.other_allowance) || 0);
-  const offeredSalary = Number(letter.offered_salary) || basic + allowance;
+  const allowanceType = details.allowance_type || employee.allowance_type || "none";
+  const allowanceRate = Number(details.allowance_rate) || Number(employee.allowance_rate) || 0;
+  const fixedAllowance = allowanceType === "fixed" ? allowanceRate : Number(details.allowance) || Number(employee.other_allowance) || 0;
+  const offeredSalary = Number(letter.offered_salary) || basic + fixedAllowance;
 
   return {
     id: letter.id,
@@ -59,7 +58,10 @@ function draftFromLetter(letter: EmployeeOfferLetter, employee: Employee): Offer
       employee_address: details.employee_address || employee.address || "",
       employee_contact: details.employee_contact || employee.phone || "",
       basic_salary: basic,
-      allowance: allowance,
+      allowance: fixedAllowance,
+      allowance_type: allowanceType,
+      allowance_rate: allowanceRate,
+      khaja_allowance: details.khaja_allowance || DEFAULT_KHAJA_CLAUSE,
       responsibilities:
         Array.isArray(details.responsibilities) && details.responsibilities.length > 0
           ? details.responsibilities
@@ -71,11 +73,11 @@ function draftFromLetter(letter: EmployeeOfferLetter, employee: Employee): Offer
 
 function draftForNew(employee: Employee, offerNo: string, configAddress: string): OfferDraft {
   const basic = Number(employee.basic_salary) || 0;
-  const allowance =
-    employee.allowance_type === "fixed"
-      ? Number(employee.allowance_rate) || 0
-      : Number(employee.other_allowance) || 0;
-  const total = basic + allowance;
+  const allowanceType = employee.allowance_type || "none";
+  const allowanceRate = Number(employee.allowance_rate) || 0;
+  const otherAllowance = Number(employee.other_allowance) || 0;
+  const fixedAllowance = allowanceType === "fixed" ? allowanceRate : otherAllowance;
+  const total = basic + fixedAllowance;
 
   return {
     employee_id: employee.id || "",
@@ -94,7 +96,10 @@ function draftForNew(employee: Employee, offerNo: string, configAddress: string)
       department: "प्रशासन तथा संकलन शाखा",
       reporting_officer: "शाखा प्रमुख / प्रबन्ध निर्देशक",
       basic_salary: basic,
-      allowance: allowance,
+      allowance: fixedAllowance,
+      allowance_type: allowanceType,
+      allowance_rate: allowanceRate,
+      khaja_allowance: DEFAULT_KHAJA_CLAUSE,
       payment_method: "बैंक खातामार्फत",
       payment_day: "७",
       probation_months: 3,
@@ -149,8 +154,18 @@ export function EmployeeOfferLetterModal({
     setDraft((d) => {
       const nextDetails = { ...d.details, [key]: value };
       let offeredSalary = d.offered_salary;
-      if (key === "basic_salary" || key === "allowance") {
-        offeredSalary = (Number(nextDetails.basic_salary) || 0) + (Number(nextDetails.allowance) || 0);
+      if (
+        key === "basic_salary" ||
+        key === "allowance" ||
+        key === "allowance_type" ||
+        key === "allowance_rate"
+      ) {
+        const basic = Number(nextDetails.basic_salary) || 0;
+        const fixed =
+          nextDetails.allowance_type === "fixed"
+            ? Number(nextDetails.allowance_rate) || 0
+            : Number(nextDetails.allowance) || 0;
+        offeredSalary = basic + fixed;
       }
       return {
         ...d,
@@ -223,8 +238,12 @@ export function EmployeeOfferLetterModal({
   const extraTerms = draft.terms.filter((t) => t.np.trim() || t.en.trim());
 
   const basicSalaryVal = Number(draft.details.basic_salary) || 0;
-  const allowanceVal = Number(draft.details.allowance) || 0;
-  const totalMonthlyVal = draft.offered_salary || (basicSalaryVal + allowanceVal);
+  const allowanceRateVal = Number(draft.details.allowance_rate) || 0;
+  const otherAllowanceVal = Number(draft.details.allowance) || 0;
+  const totalMonthlyVal =
+    draft.offered_salary ||
+    (basicSalaryVal + (draft.details.allowance_type === "fixed" ? allowanceRateVal : otherAllowanceVal));
+
   const responsibilitiesList =
     draft.details.responsibilities && draft.details.responsibilities.length > 0
       ? draft.details.responsibilities
@@ -420,10 +439,10 @@ export function EmployeeOfferLetterModal({
               </div>
             </div>
 
-            {/* Section 3 & 4: Remuneration & Probation */}
+            {/* Section 3: Remuneration, Bhatta & Khaja Kharcha */}
             <div className="rounded-lg border bg-muted/20 p-4">
               <h3 className="font-bold text-foreground text-sm">
-                ३. पारिश्रमिक, सुविधा तथा परीक्षणकाल (Remuneration & Probation)
+                ३. पारिश्रमिक, भत्ता, खाजा खर्च तथा भुक्तानी सुविधा (Remuneration & Allowances)
               </h3>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
@@ -438,43 +457,73 @@ export function EmployeeOfferLetterModal({
                     className="mt-1 text-xs font-mono font-bold"
                   />
                 </div>
+
                 <div>
-                  <Label className="text-xs font-semibold">भत्ता तथा अन्य सुविधा (रु.)</Label>
+                  <Label className="text-xs font-semibold">भत्ताको प्रकार (Allowance Nature)</Label>
+                  <select
+                    value={draft.details.allowance_type}
+                    onChange={(e) =>
+                      setDetail("allowance_type", e.target.value as "day" | "trip" | "fixed" | "none")
+                    }
+                    className="mt-1 h-9 w-full rounded-md border bg-background px-3 text-xs font-medium"
+                  >
+                    <option value="none">भत्ता नभएको (None)</option>
+                    <option value="day">दैनिक भत्ता (Daily — प्रति कार्य दिन)</option>
+                    <option value="trip">ट्रिप भत्ता (Trip — प्रति सम्पन्न ट्रिप)</option>
+                    <option value="fixed">निश्चित मासिक भत्ता (Fixed Monthly)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">
+                    {draft.details.allowance_type === "day"
+                      ? "दैनिक भत्ता दर (रु. प्रति दिन)"
+                      : draft.details.allowance_type === "trip"
+                      ? "ट्रिप भत्ता दर (रु. प्रति ट्रिप)"
+                      : draft.details.allowance_type === "fixed"
+                      ? "मासिक निश्चित भत्ता (रु.)"
+                      : "भत्ता रकम (रु.)"}
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="50"
+                    disabled={draft.details.allowance_type === "none"}
+                    value={allowanceRateVal}
+                    onChange={(e) => setDetail("allowance_rate", Number(e.target.value) || 0)}
+                    placeholder="०"
+                    className="mt-1 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">अन्य मासिक भत्ता (रु.)</Label>
                   <Input
                     type="number"
                     min="0"
                     step="100"
-                    value={allowanceVal}
+                    value={otherAllowanceVal}
                     onChange={(e) => setDetail("allowance", Number(e.target.value) || 0)}
                     className="mt-1 text-xs font-mono"
                   />
                 </div>
+
                 <div>
-                  <Label className="text-xs font-semibold">कुल मासिक पारिश्रमिक (रु.)</Label>
+                  <Label className="text-xs font-semibold">कुल मासिक पारिश्रमिक (निश्चित रु.)</Label>
                   <Input
                     readOnly
                     value={totalMonthlyVal}
                     className="mt-1 text-xs font-mono font-bold bg-muted/40 text-success"
                   />
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {draft.details.allowance_type === "day"
+                      ? "+ उपस्थिति अनुसार दैनिक भत्ता थपिनेछ"
+                      : draft.details.allowance_type === "trip"
+                      ? "+ सम्पन्न ट्रिप अनुसार ट्रिप भत्ता थपिनेछ"
+                      : "मासिक आधारभूत + निश्चित भत्ता"}
+                  </p>
                 </div>
-                <div>
-                  <Label className="text-xs font-semibold">भुक्तानी विधि</Label>
-                  <Input
-                    placeholder="बैंक खातामार्फत"
-                    value={draft.details.payment_method}
-                    onChange={(e) => setDetail("payment_method", e.target.value)}
-                    className="mt-1 text-xs"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs font-semibold">भुक्तानी अवधि (प्रत्येक महिनाको ... गतेभित्र)</Label>
-                  <Input
-                    placeholder="७"
-                    value={draft.details.payment_day}
-                    onChange={(e) => setDetail("payment_day", e.target.value)}
-                    className="mt-1 text-xs"
-                  />
-                </div>
+
                 <div>
                   <Label className="text-xs font-semibold">परीक्षणकाल (महिना)</Label>
                   <Input
@@ -486,10 +535,57 @@ export function EmployeeOfferLetterModal({
                     className="mt-1 text-xs font-mono"
                   />
                 </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">भुक्तानी विधि</Label>
+                  <Input
+                    placeholder="बैंक खातामार्फत"
+                    value={draft.details.payment_method}
+                    onChange={(e) => setDetail("payment_method", e.target.value)}
+                    className="mt-1 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold">भुक्तानी अवधि (महिनाको ... गतेभित्र)</Label>
+                  <Input
+                    placeholder="७"
+                    value={draft.details.payment_day}
+                    onChange={(e) => setDetail("payment_day", e.target.value)}
+                    className="mt-1 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Khaja Kharcha Clause in Editing */}
+              <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-foreground text-xs">
+                    <Coffee className="size-3.5 text-primary" />
+                    <span>खाजा खर्च सुविधा व्यहोरा (Khaja Kharcha Clause)</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[11px] text-primary hover:bg-primary/10"
+                    onClick={() => setDetail("khaja_allowance", DEFAULT_KHAJA_CLAUSE)}
+                    title="पूर्वनिर्धारित व्यहोरा लोड गर्नुहोस्"
+                  >
+                    <RotateCcw className="mr-1 size-3" />
+                    पूर्वनिर्धारित
+                  </Button>
+                </div>
+                <Input
+                  value={draft.details.khaja_allowance}
+                  onChange={(e) => setDetail("khaja_allowance", e.target.value)}
+                  placeholder="कम्पनीको नीतिअनुसार कार्य दिनमा दैनिक खाजा खर्च उपलब्ध गराइनेछ।"
+                  className="mt-2 text-xs bg-background"
+                />
               </div>
             </div>
 
-            {/* Section 6: Employee Responsibilities (Editable) */}
+            {/* Section 4: Employee Responsibilities (Editable) */}
             <div className="rounded-lg border bg-muted/20 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -556,7 +652,7 @@ export function EmployeeOfferLetterModal({
               </div>
             </div>
 
-            {/* Insurance Clause (Editable) */}
+            {/* Section 5: Insurance Clause (Editable) */}
             <div className="rounded-lg border bg-muted/20 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -591,7 +687,7 @@ export function EmployeeOfferLetterModal({
               </div>
             </div>
 
-            {/* Section 10: Signatory & Acceptance deadline */}
+            {/* Section 6: Signatory & Acceptance deadline */}
             <div className="rounded-lg border bg-muted/20 p-4">
               <h3 className="font-bold text-foreground text-sm">
                 ६. प्रस्ताव स्वीकृति तथा अधिकृत विवरण (Signatory & Authorization)
@@ -830,18 +926,54 @@ export function EmployeeOfferLetterModal({
 
               {/* Clause 3 */}
               <div>
-                <h3 className="font-bold text-foreground print:text-black">३. पारिश्रमिक तथा सुविधा</h3>
+                <h3 className="font-bold text-foreground print:text-black">३. पारिश्रमिक, भत्ता तथा सुविधा</h3>
                 <p className="mt-1 text-xs sm:text-sm">तपाईंलाई देहायबमोजिम पारिश्रमिक तथा सुविधा उपलब्ध गराइनेछ।</p>
                 <ul className="mt-1 list-disc space-y-1 pl-6 text-xs sm:text-sm">
                   <li>
                     <b>मासिक आधारभूत पारिश्रमिक:</b> {basicSalaryVal > 0 ? offerMoney(basicSalaryVal) : "रु. [........]"}
                   </li>
+                  {draft.details.allowance_type === "day" && (
+                    <li>
+                      <b>दैनिक कार्य भत्ता (Daily Allowance):</b>{" "}
+                      <span className="font-bold">
+                        {allowanceRateVal > 0 ? `${offerMoney(allowanceRateVal)} प्रति कार्य दिन` : "कम्पनीको नीतिअनुसार"}
+                      </span>{" "}
+                      (उपस्थिति तथा कार्यसम्पादनका आधारमा)
+                    </li>
+                  )}
+                  {draft.details.allowance_type === "trip" && (
+                    <li>
+                      <b>ट्रिप भत्ता (Trip Allowance):</b>{" "}
+                      <span className="font-bold">
+                        {allowanceRateVal > 0 ? `${offerMoney(allowanceRateVal)} प्रति सम्पन्न ट्रिप` : "कम्पनीको नीतिअनुसार"}
+                      </span>{" "}
+                      (सवारी / फोहोर संकलन ट्रिप अनुसार)
+                    </li>
+                  )}
+                  {draft.details.allowance_type === "fixed" && (
+                    <li>
+                      <b>मासिक निश्चित भत्ता:</b>{" "}
+                      <span className="font-bold">{allowanceRateVal > 0 ? offerMoney(allowanceRateVal) : "रु. [........]"}</span>
+                    </li>
+                  )}
+                  {otherAllowanceVal > 0 && draft.details.allowance_type !== "fixed" && (
+                    <li>
+                      <b>अन्य भत्ता तथा सुविधा:</b> {offerMoney(otherAllowanceVal)} / कम्पनीको नीतिअनुसार
+                    </li>
+                  )}
                   <li>
-                    <b>भत्ता तथा अन्य सुविधा:</b> {allowanceVal > 0 ? offerMoney(allowanceVal) : "रु. [........] / कम्पनीको नीतिअनुसार"}
+                    <b>कुल मासिक पारिश्रमिक (निश्चित):</b> <span className="font-bold">{totalMonthlyVal > 0 ? offerMoney(totalMonthlyVal) : "रु. [........]"}</span>
+                    {draft.details.allowance_type === "day"
+                      ? " (+ दैनिक उपस्थिति भत्ता थप)"
+                      : draft.details.allowance_type === "trip"
+                      ? " (+ सम्पन्न ट्रिप भत्ता थप)"
+                      : ""}
                   </li>
-                  <li>
-                    <b>कुल मासिक पारिश्रमिक:</b> <span className="font-bold">{totalMonthlyVal > 0 ? offerMoney(totalMonthlyVal) : "रु. [........]"}</span>
-                  </li>
+                  {draft.details.khaja_allowance && (
+                    <li>
+                      <b>खाजा खर्च सुविधा (Khaja Kharcha):</b> {draft.details.khaja_allowance}
+                    </li>
+                  )}
                   <li>
                     <b>भुक्तानी विधि:</b> {draft.details.payment_method || "बैंक खातामार्फत"}
                   </li>

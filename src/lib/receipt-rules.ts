@@ -762,6 +762,12 @@ export type OfferDetails = {
   basic_salary: number;
   /** भत्ता तथा अन्य सुविधा */
   allowance: number;
+  /** भत्ताको प्रकार: day (दैनिक) | trip (प्रति ट्रिप) | fixed (मासिक निश्चित) | none (छैन) */
+  allowance_type: "day" | "trip" | "fixed" | "none";
+  /** भत्ता दर (प्रति दिन वा प्रति ट्रिप वा मासिक) */
+  allowance_rate: number;
+  /** खाजा खर्च सुविधा (Khaja Kharcha clause) */
+  khaja_allowance: string;
   /** भुक्तानी विधि — default बैंक खातामार्फत */
   payment_method: string;
   /** भुक्तानी अवधि — e.g. ७ गते */
@@ -780,6 +786,9 @@ export type OfferDetails = {
   authorized_position: string;
 };
 
+export const DEFAULT_KHAJA_CLAUSE =
+  "कम्पनीको नीतिअनुसार कार्य दिनमा दैनिक खाजा खर्च (वा कार्यस्थलमा खाजाको प्रबन्ध) उपलब्ध गराइनेछ।";
+
 export const EMPTY_OFFER_DETAILS: OfferDetails = {
   employee_address: "",
   employee_contact: "",
@@ -790,6 +799,9 @@ export const EMPTY_OFFER_DETAILS: OfferDetails = {
   work_nature: "पूर्णकालीन",
   basic_salary: 0,
   allowance: 0,
+  allowance_type: "none",
+  allowance_rate: 0,
+  khaja_allowance: DEFAULT_KHAJA_CLAUSE,
   payment_method: "बैंक खातामार्फत",
   payment_day: "",
   probation_months: 3,
@@ -813,6 +825,9 @@ export function normalizeOfferDetails(raw: unknown): OfferDetails {
         .map((item) => (typeof item === "string" ? item.trim() : ""))
         .filter(Boolean)
     : [];
+  const atRaw = str(src.allowance_type);
+  const allowanceType =
+    atRaw === "day" || atRaw === "trip" || atRaw === "fixed" ? atRaw : "none";
 
   return {
     employee_address: str(src.employee_address),
@@ -824,6 +839,9 @@ export function normalizeOfferDetails(raw: unknown): OfferDetails {
     work_nature: str(src.work_nature) || EMPTY_OFFER_DETAILS.work_nature,
     basic_salary: num(src.basic_salary, 0),
     allowance: num(src.allowance, 0),
+    allowance_type: allowanceType,
+    allowance_rate: num(src.allowance_rate, 0),
+    khaja_allowance: str(src.khaja_allowance) || DEFAULT_KHAJA_CLAUSE,
     payment_method: str(src.payment_method) || EMPTY_OFFER_DETAILS.payment_method,
     payment_day: str(src.payment_day),
     probation_months: num(src.probation_months, EMPTY_OFFER_DETAILS.probation_months),
