@@ -272,8 +272,9 @@ function TripDriverPage() {
     };
   }, [trackingLocation]);
 
-  // Local ward filter (allows viewing all wards or specific ward independently)
+  // Local ward & tole filter (allows viewing all wards or specific ward independently)
   const [selectedWard, setSelectedWard] = useState<string>("all");
+  const [selectedTole, setSelectedTole] = useState<string>("all");
 
   // Trips month: current BS month by default
   const today = todayBS();
@@ -404,8 +405,19 @@ function TripDriverPage() {
       });
   }, [allPeople, selectedWard, tripCount, lastTrip, plans, driverLocation]);
 
+  // Distinct toles for selected ward
+  const toleOptions = useMemo(() => {
+    const src =
+      selectedWard === "all"
+        ? allPeople
+        : allPeople.filter((p) => p.ward === selectedWard);
+    const toles = new Set(src.map((p) => p.tole?.trim()).filter(Boolean));
+    return Array.from(toles).sort();
+  }, [allPeople, selectedWard]);
+
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
+      if (selectedTole !== "all" && c.tole?.trim() !== selectedTole) return false;
       if (filterComplete && c.complete) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -419,7 +431,7 @@ function TripDriverPage() {
       }
       return true;
     });
-  }, [customers, filterComplete, searchQuery]);
+  }, [customers, selectedTole, filterComplete, searchQuery]);
 
   const stats = useMemo(() => {
     const red = customers.filter((c) => c.done === 0).length;
@@ -1160,15 +1172,45 @@ function TripDriverPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Ward filter dropdown */}
           <SearchSelect
-            className="w-40"
+            className="w-36"
             value={selectedWard}
-            onChange={(v) => setSelectedWard(v)}
+            onChange={(v) => {
+              setSelectedWard(v);
+              setSelectedTole("all");
+            }}
             placeholder="सबै वडा (All Wards)"
             options={[
               { value: "all", label: "सबै वडा (All Wards)" },
               ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
             ]}
           />
+
+          {/* Tole filter dropdown */}
+          <SearchSelect
+            className="w-36"
+            value={selectedTole}
+            onChange={(v) => setSelectedTole(v)}
+            placeholder="सबै टोल (All Toles)"
+            options={[
+              { value: "all", label: "सबै टोल (All Toles)" },
+              ...toleOptions.map((t) => ({ value: t, label: t })),
+            ]}
+          />
+
+          {/* Hide/Show Map Overlays Button */}
+          <Button
+            type="button"
+            size="sm"
+            variant={hideBoxes ? "secondary" : "outline"}
+            onClick={() => setHideBoxes((v) => !v)}
+            className={`h-8 px-2.5 text-xs font-bold gap-1.5 ${
+              hideBoxes ? "border-primary/50 bg-primary/10 text-primary" : "text-muted-foreground"
+            }`}
+            title={hideBoxes ? "नक्सामा बक्सहरू देखाउनुहोस् (Show Boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide Boxes)"}
+          >
+            {hideBoxes ? <Eye className="size-3.5 text-primary" /> : <EyeOff className="size-3.5" />}
+            <span>{hideBoxes ? "बक्स देखाउनुहोस्" : "लुकाउनुहोस्"}</span>
+          </Button>
 
           {/* Refresh Button */}
           <Button

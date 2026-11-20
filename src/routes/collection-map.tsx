@@ -839,6 +839,7 @@ function CollectionMapPage() {
 
   // Filter states; the section drawer (बक्यौता/थेली tabs) starts open on desktop
   const [selectedWard, setSelectedWard] = useState<string>("all");
+  const [selectedTole, setSelectedTole] = useState<string>("all");
   const [filterOnlyDues, setFilterOnlyDues] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(
@@ -848,6 +849,16 @@ function CollectionMapPage() {
   const plans: PlanItem[] = query.data?.plans ?? [];
   const allPeople: Person[] = query.data?.people ?? [];
   const allReceipts = query.data?.receipts ?? [];
+
+  // Distinct toles for selected ward
+  const toleOptions = useMemo(() => {
+    const src =
+      selectedWard === "all"
+        ? allPeople
+        : allPeople.filter((p) => p.ward === selectedWard);
+    const toles = new Set(src.map((p) => p.tole?.trim()).filter(Boolean));
+    return Array.from(toles).sort();
+  }, [allPeople, selectedWard]);
 
   // Compute customers with their calculated dues and GPS coordinates
   const customersWithDues: CustomerWithDue[] = useMemo(() => {
@@ -898,6 +909,7 @@ function CollectionMapPage() {
   const filteredCustomers = useMemo(() => {
     return customersWithDues.filter((c) => {
       if (selectedWard !== "all" && c.ward !== selectedWard) return false;
+      if (selectedTole !== "all" && c.tole.trim() !== selectedTole) return false;
       if (filterOnlyDues && c.dueAmount <= 0) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -911,7 +923,7 @@ function CollectionMapPage() {
       }
       return true;
     });
-  }, [customersWithDues, selectedWard, filterOnlyDues, searchQuery]);
+  }, [customersWithDues, selectedWard, selectedTole, filterOnlyDues, searchQuery]);
 
   // Count exact GPS vs approximate Ward area
   const exactGpsCount = useMemo(() => {
@@ -1625,15 +1637,45 @@ function CollectionMapPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Ward filter dropdown */}
           <SearchSelect
-            className="w-40"
+            className="w-36"
             value={selectedWard}
-            onChange={(v) => setSelectedWard(v)}
+            onChange={(v) => {
+              setSelectedWard(v);
+              setSelectedTole("all");
+            }}
             placeholder="सबै वडा (All Wards)"
             options={[
               { value: "all", label: "सबै वडा (All Wards)" },
               ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: `वडा नं. ${i + 1}` })),
             ]}
           />
+
+          {/* Tole filter dropdown */}
+          <SearchSelect
+            className="w-36"
+            value={selectedTole}
+            onChange={(v) => setSelectedTole(v)}
+            placeholder="सबै टोल (All Toles)"
+            options={[
+              { value: "all", label: "सबै टोल (All Toles)" },
+              ...toleOptions.map((t) => ({ value: t, label: t })),
+            ]}
+          />
+
+          {/* Hide/Show Map Overlays Button */}
+          <Button
+            type="button"
+            size="sm"
+            variant={hideBoxes ? "secondary" : "outline"}
+            onClick={() => setHideBoxes((v) => !v)}
+            className={`h-8 px-2.5 text-xs font-bold gap-1.5 ${
+              hideBoxes ? "border-primary/50 bg-primary/10 text-primary" : "text-muted-foreground"
+            }`}
+            title={hideBoxes ? "नक्सामा बक्सहरू देखाउनुहोस् (Show Boxes)" : "नक्सामा बक्सहरू लुकाउनुहोस् (Hide Boxes)"}
+          >
+            {hideBoxes ? <Eye className="size-3.5 text-primary" /> : <EyeOff className="size-3.5" />}
+            <span>{hideBoxes ? "बक्स देखाउनुहोस्" : "लुकाउनुहोस्"}</span>
+          </Button>
 
           {/* Refresh Button */}
           <Button
