@@ -1118,43 +1118,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               {authError}
             </p>
           )}
-          {/* Top bar opposite the navigation: desktop brand + access profile + theme + sign out */}
-          <div className="no-print sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-2 backdrop-blur sm:px-7">
-            {/* ─── Desktop Header Branding (Logo & Company Details) ─── */}
-            <Link
-              to="/dashboard"
-              className="hidden lg:flex items-center gap-2.5 min-w-0 max-w-[360px] truncate group py-0.5 mr-auto"
-              title={appConfig.entity_name || "ड्यासबोर्ड"}
-            >
-              {appConfig.logo_url ? (
-                <img
-                  src={appConfig.logo_url}
-                  alt={appConfig.entity_name || "Logo"}
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                  className="size-9 shrink-0 rounded-md bg-card object-contain p-0.5 border border-border shadow-2xs"
-                />
-              ) : null}
-              <div
-                className={`size-9 shrink-0 rounded-md bg-primary/10 text-primary items-center justify-center font-black text-xs border border-primary/20 shadow-2xs ${
-                  appConfig.logo_url ? "hidden" : "flex"
-                }`}
-              >
-                {appConfig.entity_name ? appConfig.entity_name.slice(0, 2) : "हा"}
-              </div>
-              <div className="min-w-0 leading-tight">
-                <div className="text-xs font-black text-foreground truncate group-hover:text-primary transition-colors">
-                  {appConfig.entity_name || "हामी युवा क्लब"}
-                </div>
-                {appConfig.entity_sub_name && (
-                  <div className="text-[10px] font-bold text-muted-foreground truncate">
-                    {appConfig.entity_sub_name}
-                  </div>
-                )}
-              </div>
-            </Link>
-
+          {/* Top bar opposite the navigation: access profile + theme + sign out */}
+          <div className="no-print sticky top-0 z-20 flex items-center justify-end gap-3 border-b border-border bg-background/90 px-4 py-2 backdrop-blur sm:px-7">
             {/* Right side controls: Profile / Theme / Sign out */}
             <div className="flex items-center gap-3 ml-auto">
               {/* ─── Access Profile Indicator ─── */}
