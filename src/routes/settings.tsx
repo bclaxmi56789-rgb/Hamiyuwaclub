@@ -187,7 +187,7 @@ function SettingsPage() {
     const map: Record<string, AccessLevel> = {};
     for (const page of APP_NAV_PAGES) {
       const match = currentEmpPerms.find((p) => p.page_path === page.path);
-      map[page.path] = match ? match.access_level : "full_access";
+      map[page.path] = page.path === "/settings" ? "no_access" : (match ? match.access_level : "no_access");
     }
     setEmpPermMap(map);
 
@@ -297,7 +297,7 @@ function SettingsPage() {
   function handleSetAllPermissions(level: AccessLevel) {
     const nextMap: Record<string, AccessLevel> = {};
     for (const page of APP_NAV_PAGES) {
-      nextMap[page.path] = level;
+      nextMap[page.path] = page.path === "/settings" ? "no_access" : level;
     }
     setEmpPermMap(nextMap);
   }
@@ -1088,7 +1088,8 @@ function SettingsPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {APP_NAV_PAGES.map((page, idx) => {
-                      const currentLevel = empPermMap[page.path] || "full_access";
+                      const isSettingsPage = page.path === "/settings";
+                      const currentLevel = isSettingsPage ? "no_access" : (empPermMap[page.path] || "no_access");
                       return (
                         <tr key={page.path} className="hover:bg-muted/30 transition-colors">
                           <td className="px-3.5 py-2.5 text-center font-mono text-muted-foreground font-semibold">
@@ -1112,44 +1113,50 @@ function SettingsPage() {
                             </Badge>
                           </td>
                           <td className="px-3.5 py-2.5 text-center">
-                            <div className="inline-flex rounded-lg border p-1 bg-background shadow-xs gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handlePermissionChange(page.path, "full_access")}
-                                className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
-                                  currentLevel === "full_access"
-                                    ? "bg-success text-success-foreground shadow-xs font-bold"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                }`}
-                              >
-                                {currentLevel === "full_access" && <Check className="size-3" />}
-                                पूर्ण पहुँच (Edit)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handlePermissionChange(page.path, "read_only")}
-                                className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
-                                  currentLevel === "read_only"
-                                    ? "bg-info text-info-foreground shadow-xs font-bold"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                }`}
-                              >
-                                {currentLevel === "read_only" && <Check className="size-3" />}
-                                हेर्न मात्र (Read)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handlePermissionChange(page.path, "no_access")}
-                                className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
-                                  currentLevel === "no_access"
-                                    ? "bg-destructive text-destructive-foreground shadow-xs font-bold"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                                }`}
-                              >
-                                {currentLevel === "no_access" && <Check className="size-3" />}
-                                निषेध (None)
-                              </button>
-                            </div>
+                            {isSettingsPage ? (
+                              <Badge variant="destructive" className="text-[11px] font-bold px-3 py-1 gap-1">
+                                <Lock className="size-3" /> Admin मात्र (Staff निषेध)
+                              </Badge>
+                            ) : (
+                              <div className="inline-flex rounded-lg border p-1 bg-background shadow-xs gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handlePermissionChange(page.path, "full_access")}
+                                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                    currentLevel === "full_access"
+                                      ? "bg-success text-success-foreground shadow-xs font-bold"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                  }`}
+                                >
+                                  {currentLevel === "full_access" && <Check className="size-3" />}
+                                  पूर्ण पहुँच (Edit)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePermissionChange(page.path, "read_only")}
+                                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                    currentLevel === "read_only"
+                                      ? "bg-info text-info-foreground shadow-xs font-bold"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                  }`}
+                                >
+                                  {currentLevel === "read_only" && <Check className="size-3" />}
+                                  हेर्न मात्र (Read)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePermissionChange(page.path, "no_access")}
+                                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-all flex items-center gap-1 ${
+                                    currentLevel === "no_access"
+                                      ? "bg-destructive text-destructive-foreground shadow-xs font-bold"
+                                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                  }`}
+                                >
+                                  {currentLevel === "no_access" && <Check className="size-3" />}
+                                  निषेध (None)
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

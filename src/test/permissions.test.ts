@@ -55,10 +55,16 @@ describe("Employee Page Permissions (Access Control)", () => {
     expect(canEditPage(samplePermissions, "emp-1", "/settings")).toBe(false);
   });
 
-  it("defaults unconfigured pages to full_access", () => {
-    expect(getPageAccessLevel(samplePermissions, "emp-1", "/dashboard")).toBe("full_access");
-    expect(canViewPage(samplePermissions, "emp-1", "/dashboard")).toBe(true);
-    expect(canEditPage(samplePermissions, "emp-1", "/dashboard")).toBe(true);
+  it("defaults unconfigured pages to no_access (strict mode for employees)", () => {
+    expect(getPageAccessLevel(samplePermissions, "emp-1", "/dashboard")).toBe("no_access");
+    expect(canViewPage(samplePermissions, "emp-1", "/dashboard")).toBe(false);
+    expect(canEditPage(samplePermissions, "emp-1", "/dashboard")).toBe(false);
+  });
+
+  it("always enforces no_access for /settings for employees even if not explicitly listed", () => {
+    expect(getPageAccessLevel(samplePermissions, "emp-2", "/settings")).toBe("no_access");
+    expect(canViewPage(samplePermissions, "emp-2", "/settings")).toBe(false);
+    expect(canEditPage(samplePermissions, "emp-2", "/settings")).toBe(false);
   });
 
   it("has a comprehensive list of app nav pages with Nepali labels", () => {

@@ -69,7 +69,7 @@ export function LandingPage() {
             <span className="hidden sm:inline font-medium">युवा सोच, सशक्त राष्ट्र!</span>
             {/* Prasanik Portal Header Link */}
             <Link
-              to="/"
+              to="/dashboard"
               className="group inline-flex items-center gap-1.5 font-bold text-primary hover:text-primary/80 transition-colors"
             >
               <ShieldCheck className="h-3.5 w-3.5 text-primary group-hover:scale-110 transition-transform" />
@@ -147,7 +147,7 @@ export function LandingPage() {
               size="sm"
               className="hidden sm:inline-flex rounded-xl px-4 h-10 gap-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_4px_14px_rgba(0,0,0,0.18)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.25)] hover:-translate-y-0.5 active:translate-y-0.5 border-b-2 border-black/25 transition-all"
             >
-              <Link to="/">
+              <Link to="/dashboard">
                 <ShieldCheck className="h-4 w-4" />
                 <span>प्रशासनिक पोर्टल</span>
               </Link>
@@ -201,7 +201,7 @@ export function LandingPage() {
             </a>
             <div className="pt-3 border-t flex flex-col gap-2.5">
               <Button asChild className="w-full justify-center h-11 font-bold shadow-md rounded-xl">
-                <Link to="/">
+                <Link to="/dashboard">
                   <ShieldCheck className="h-4 w-4 mr-2" />
                   प्रशासनिक पोर्टल (Staff Login)
                 </Link>
@@ -272,7 +272,7 @@ export function LandingPage() {
               size="lg"
               className="rounded-2xl px-7 h-14 text-base font-bold bg-card/80 backdrop-blur-md border-2 border-primary/30 shadow-[0_6px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.16)] hover:-translate-y-1 active:translate-y-0.5 transition-all gap-2.5 text-foreground hover:bg-card hover:border-primary"
             >
-              <Link to="/">
+              <Link to="/dashboard">
                 <ShieldCheck className="h-5 w-5 text-primary" />
                 <span>प्रशासनिक पोर्टल (प्रवेश)</span>
               </Link>
@@ -537,7 +537,7 @@ export function LandingPage() {
                 size="lg"
                 className="rounded-2xl px-8 h-14 font-extrabold shadow-lg hover:shadow-xl hover:-translate-y-1 active:translate-y-0.5 border-b-4 border-black/30 gap-2"
               >
-                <Link to="/">
+                <Link to="/dashboard">
                   <Lock className="h-4 w-4" />
                   <span>प्रशासनिक पोर्टल प्रवेश</span>
                   <ArrowRight className="h-4 w-4" />
@@ -691,7 +691,7 @@ export function LandingPage() {
               size="lg"
               className="rounded-2xl px-7 h-14 text-base font-bold text-primary hover:bg-primary/10"
             >
-              <Link to="/">
+              <Link to="/dashboard">
                 <ShieldCheck className="h-4 w-4 mr-2" />
                 प्रशासनिक पोर्टल
               </Link>
@@ -761,7 +761,7 @@ export function LandingPage() {
               </a>
               {/* Prasanik Portal Link in Footer */}
               <Link
-                to="/"
+                to="/dashboard"
                 className="text-primary hover:underline underline-offset-4 font-black flex items-center gap-1.5"
               >
                 <ShieldCheck className="h-4 w-4" />

@@ -175,7 +175,8 @@ export const APP_NAV_PAGES: AppNavPage[] = [
 
 /**
  * Returns access level for a given employee and path.
- * If employee has no permission record for this path, defaults to 'full_access'.
+ * Strict RBAC: If employee has no permission record for this path, defaults to 'no_access' (least-privilege).
+ * Admin/owner defaults to 'full_access'. Path '/settings' is always strictly 'no_access' for staff.
  */
 export function getPageAccessLevel(
   permissions: EmployeePermission[] | undefined,
@@ -183,12 +184,13 @@ export function getPageAccessLevel(
   path: string,
 ): AccessLevel {
   if (!employeeId) return "full_access"; // Admin/owner without employee constraint
+  if (path === "/settings") return "no_access"; // Settings is strictly forbidden for staff
   const perm = permissions?.find(
     (p) =>
       p.employee_id === employeeId &&
       (p.page_path === path || (path === "" && p.page_path === "/")),
   );
-  return perm ? perm.access_level : "full_access";
+  return perm ? perm.access_level : "no_access"; // Strict mode: unconfigured pages default to no_access
 }
 
 /**
