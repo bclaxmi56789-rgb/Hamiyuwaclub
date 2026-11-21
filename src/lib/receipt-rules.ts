@@ -608,7 +608,7 @@ export function tripStatus(completed: number, planned: number): { color: string;
   return { color: "#dc2626", label: "सुरु हुन बाँकी" };
 }
 
-/** Club Member (Designation, Name, Occupation, DOB, Membership Fee) */
+/** Club Member (Designation, Name, Occupation, DOB, Membership Fee, Category) */
 export type Member = {
   id?: string;
   name: string;
@@ -619,6 +619,7 @@ export type Member = {
   phone?: string;
   address?: string;
   status?: "active" | "inactive";
+  category?: "main" | "other";
   created_at?: string;
   updated_at?: string;
 };

@@ -845,6 +845,7 @@ export const saveMember = createServerFn({ method: "POST" })
       phone: z.string().trim().optional().default(""),
       address: z.string().trim().optional().default(""),
       status: z.enum(["active", "inactive"]).optional().default("active"),
+      category: z.enum(["main", "other"]).optional().default("main"),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -857,73 +858,84 @@ export const saveMember = createServerFn({ method: "POST" })
       phone: data.phone,
       address: data.address,
       status: data.status,
+      category: data.category || "main",
       updated_at: new Date().toISOString(),
     };
 
-    if (data.id && !data.id.startsWith("local-")) {
-      let res = await context.supabase
-        .from("members")
-        .update(payload)
-        .eq("id", data.id)
-        .eq("owner_id", context.userId)
-        .select("*")
-        .single();
-      if (res.error) {
-        res = await context.supabase
-          .from("club_members")
-          .update(payload)
+    const trySave = async (dataPayload: Record<string, any>) => {
+      if (data.id && !data.id.startsWith("local-")) {
+        let res = await context.supabase
+          .from("members")
+          .update(dataPayload)
           .eq("id", data.id)
           .eq("owner_id", context.userId)
           .select("*")
           .single();
-      }
-      if (res.error) {
-        res = await context.supabase
-          .from("bod_members")
-          .update(payload)
-          .eq("id", data.id)
-          .eq("owner_id", context.userId)
-          .select("*")
-          .single();
-      }
-      if (res.error) throw new Error(res.error.message);
-      return res.data as Member;
-    } else {
-      const newId = `mem-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
-      let res = await context.supabase
-        .from("members")
-        .insert({
-          id: newId,
-          owner_id: context.userId,
-          ...payload,
-        })
-        .select("*")
-        .single();
-      if (res.error) {
-        res = await context.supabase
-          .from("club_members")
+        if (res.error) {
+          res = await context.supabase
+            .from("club_members")
+            .update(dataPayload)
+            .eq("id", data.id)
+            .eq("owner_id", context.userId)
+            .select("*")
+            .single();
+        }
+        if (res.error) {
+          res = await context.supabase
+            .from("bod_members")
+            .update(dataPayload)
+            .eq("id", data.id)
+            .eq("owner_id", context.userId)
+            .select("*")
+            .single();
+        }
+        return res;
+      } else {
+        const newId = `mem-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+        let res = await context.supabase
+          .from("members")
           .insert({
             id: newId,
             owner_id: context.userId,
-            ...payload,
+            ...dataPayload,
           })
           .select("*")
           .single();
+        if (res.error) {
+          res = await context.supabase
+            .from("club_members")
+            .insert({
+              id: newId,
+              owner_id: context.userId,
+              ...dataPayload,
+            })
+            .select("*")
+            .single();
+        }
+        if (res.error) {
+          res = await context.supabase
+            .from("bod_members")
+            .insert({
+              id: newId,
+              owner_id: context.userId,
+              ...dataPayload,
+            })
+            .select("*")
+            .single();
+        }
+        return res;
       }
-      if (res.error) {
-        res = await context.supabase
-          .from("bod_members")
-          .insert({
-            id: newId,
-            owner_id: context.userId,
-            ...payload,
-          })
-          .select("*")
-          .single();
-      }
-      if (res.error) throw new Error(res.error.message);
-      return res.data as Member;
+    };
+
+    let res = await trySave(payload);
+    // If table does not yet have 'category' column, fallback without category
+    if (res.error && res.error.message?.toLowerCase().includes("category")) {
+      const { category: _omit, ...legacyPayload } = payload;
+      res = await trySave(legacyPayload);
     }
+
+    if (res.error) throw new Error(res.error.message);
+    return { ...(res.data as Member), category: data.category || "main" };
   });
 
 export const deleteMember = createServerFn({ method: "POST" })

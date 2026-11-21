@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/search-select";
 import { PaySlipVoucher } from "@/components/pay-slip-voucher";
 import { EmployeeOfferLetterModal, type OfferDraft } from "@/components/employee-offer-letter";
+import { MemberEmployeeCard, type MemberEmployeeCardTarget } from "@/components/member-employee-card";
 import {
   UserCheck,
   Users,
@@ -286,6 +287,9 @@ function MembersPage() {
   // Modals state
   const [memberModalOpen, setMemberModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [memberCategoryFilter, setMemberCategoryFilter] = useState<"all" | "main" | "other">("all");
+  const [viewingCardTarget, setViewingCardTarget] = useState<MemberEmployeeCardTarget | null>(null);
+
   const [memberForm, setMemberForm] = useState<Member>({
     name: "",
     designation: "सदस्य",
@@ -295,6 +299,7 @@ function MembersPage() {
     phone: "",
     address: "",
     status: "active",
+    category: "main",
   });
 
   const [empModalOpen, setEmpModalOpen] = useState(false);
@@ -797,13 +802,17 @@ function MembersPage() {
       phone: "",
       address: "",
       status: "active",
+      category: "main",
     });
     setMemberModalOpen(true);
   };
 
   const handleOpenEditMember = (item: Member) => {
     setEditingMember(item);
-    setMemberForm({ ...item });
+    setMemberForm({
+      ...item,
+      category: item.category || "main",
+    });
     setMemberModalOpen(true);
   };
 
@@ -823,6 +832,7 @@ function MembersPage() {
           phone: memberForm.phone,
           address: memberForm.address,
           status: memberForm.status,
+          category: memberForm.category || "main",
         },
       });
 
@@ -838,6 +848,7 @@ function MembersPage() {
       // Local fallback
       const localItem: Member = {
         ...memberForm,
+        category: memberForm.category || "main",
         id: editingMember?.id || `local-mem-${Date.now()}`,
       };
       const updated = editingMember
@@ -1016,15 +1027,21 @@ function MembersPage() {
 
   // Filtered lists
   const filteredMembers = useMemo(() => {
+    let list = memberList;
+    if (memberCategoryFilter !== "all") {
+      list = list.filter((b) => (b.category || "main") === memberCategoryFilter);
+    }
     const q = searchMember.trim().toLowerCase();
-    if (!q) return memberList;
-    return memberList.filter(
+    if (!q) return list;
+    return list.filter(
       (b) =>
         b.name.toLowerCase().includes(q) ||
         b.designation.toLowerCase().includes(q) ||
-        (b.occupation && b.occupation.toLowerCase().includes(q)),
+        (b.occupation && b.occupation.toLowerCase().includes(q)) ||
+        (b.phone && b.phone.includes(q)) ||
+        (b.address && b.address.toLowerCase().includes(q)),
     );
-  }, [memberList, searchMember]);
+  }, [memberList, searchMember, memberCategoryFilter]);
 
   const filteredEmp = useMemo(() => {
     const q = searchEmp.trim().toLowerCase();
@@ -1321,22 +1338,28 @@ function MembersPage() {
       {activeTab === "members" && (
         <section className="space-y-5">
           {/* Members Stats Cards */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border bg-card p-4 shadow-xs">
-              <div className="text-sm text-muted-foreground font-medium">कुल सदस्य संख्या (Total Members)</div>
+              <div className="text-xs text-muted-foreground font-medium">कुल सदस्य संख्या</div>
               <div className="mt-1 text-2xl font-extrabold text-foreground">
                 {memberList.length} जना
               </div>
             </div>
             <div className="rounded-xl border bg-card p-4 shadow-xs">
-              <div className="text-sm text-muted-foreground font-medium">सक्रिय सदस्यहरू (Active Members)</div>
-              <div className="mt-1 text-2xl font-extrabold text-success">
-                {memberList.filter((b) => b.status === "active").length} जना
+              <div className="text-xs text-muted-foreground font-medium">★ मुख्य सदस्य (Main)</div>
+              <div className="mt-1 text-2xl font-extrabold text-primary">
+                {memberList.filter((b) => (b.category || "main") === "main").length} जना
               </div>
             </div>
             <div className="rounded-xl border bg-card p-4 shadow-xs">
-              <div className="text-sm text-muted-foreground font-medium">वार्षिक सदस्यता शुल्क प्रतिबद्धता</div>
-              <div className="mt-1 text-2xl font-extrabold text-primary">
+              <div className="text-xs text-muted-foreground font-medium">👥 अन्य सदस्य (Others)</div>
+              <div className="mt-1 text-2xl font-extrabold text-muted-foreground">
+                {memberList.filter((b) => b.category === "other").length} जना
+              </div>
+            </div>
+            <div className="rounded-xl border bg-card p-4 shadow-xs">
+              <div className="text-xs text-muted-foreground font-medium">वार्षिक सदस्यता शुल्क</div>
+              <div className="mt-1 text-2xl font-extrabold text-success">
                 {money(memberList.reduce((acc, b) => acc + (b.membership_fee || 0), 0))}
               </div>
             </div>
@@ -1344,15 +1367,57 @@ function MembersPage() {
 
           {/* Members Action & Filter Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-              <Input
-                placeholder="नाम, पद वा पेशा खोज्नुहोस्…"
-                value={searchMember}
-                onChange={(e) => setSearchMember(e.target.value)}
-                className="pl-9 text-sm"
-              />
+            <div className="flex flex-wrap items-center gap-2 flex-1 max-w-xl">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="नाम, पद वा पेशा खोज्नुहोस्…"
+                  value={searchMember}
+                  onChange={(e) => setSearchMember(e.target.value)}
+                  className="pl-9 text-sm"
+                />
+              </div>
+
+              {/* Category Segmented Filter */}
+              <div className="flex items-center rounded-lg border bg-muted/40 p-1 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setMemberCategoryFilter("all")}
+                  className={`rounded-md px-2.5 py-1 transition-colors ${
+                    memberCategoryFilter === "all"
+                      ? "bg-card text-foreground shadow-2xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  सबै ({memberList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMemberCategoryFilter("main")}
+                  className={`rounded-md px-2.5 py-1 transition-colors flex items-center gap-1 ${
+                    memberCategoryFilter === "main"
+                      ? "bg-primary text-primary-foreground shadow-2xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="size-3" />
+                  <span>मुख्य ({memberList.filter((b) => (b.category || "main") === "main").length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMemberCategoryFilter("other")}
+                  className={`rounded-md px-2.5 py-1 transition-colors flex items-center gap-1 ${
+                    memberCategoryFilter === "other"
+                      ? "bg-primary text-primary-foreground shadow-2xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Users className="size-3" />
+                  <span>अन्य ({memberList.filter((b) => b.category === "other").length})</span>
+                </button>
+              </div>
             </div>
+
             <Button
               onClick={handleOpenAddMember}
               size="sm"
@@ -1369,6 +1434,7 @@ function MembersPage() {
               <thead className="border-b bg-muted/40 font-semibold text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3.5">सि.नं.</th>
+                  <th className="px-4 py-3.5">वर्ग (Category)</th>
                   <th className="px-4 py-3.5">पद (Designation)</th>
                   <th className="px-4 py-3.5">पूरा नाम (Name)</th>
                   <th className="px-4 py-3.5">पेशा (Occupation)</th>
@@ -1382,7 +1448,7 @@ function MembersPage() {
               <tbody className="divide-y">
                 {filteredMembers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-10 text-center text-muted-foreground">
+                    <td colSpan={10} className="py-10 text-center text-muted-foreground">
                       कुनै सदस्य फेला परेन।
                     </td>
                   </tr>
@@ -1391,7 +1457,20 @@ function MembersPage() {
                     <tr key={item.id || idx} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3.5 font-mono">{idx + 1}</td>
                       <td className="px-4 py-3.5">
-                        <span className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+                        {(item.category || "main") === "main" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-[11px] font-extrabold text-primary shadow-2xs">
+                            <Sparkles className="size-3" />
+                            <span>मुख्य सदस्य</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted border border-border px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            <Users className="size-3" />
+                            <span>अन्य सदस्य</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="rounded-md bg-secondary/80 border border-border px-2.5 py-1 text-xs font-bold text-foreground">
                           {item.designation}
                         </span>
                       </td>
@@ -1418,6 +1497,16 @@ function MembersPage() {
                       </td>
                       <td className="no-print px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1 border-primary/30 bg-primary/5 px-2.5 text-xs font-semibold text-primary hover:bg-primary/10"
+                            title="सदस्य डिजिटल परिचय पत्र (Member ID Card)"
+                            onClick={() => setViewingCardTarget({ type: "member", item })}
+                          >
+                            <CreditCard className="size-3.5" />
+                            <span className="hidden sm:inline">कार्ड</span>
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1587,6 +1676,16 @@ function MembersPage() {
                       </td>
                       <td className="no-print px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-2 text-xs font-semibold text-sky-600 border-sky-500/30 hover:bg-sky-500/10 gap-1"
+                            title="कर्मचारी डिजिटल परिचय पत्र (Employee Digital ID Card)"
+                            onClick={() => setViewingCardTarget({ type: "employee", item })}
+                          >
+                            <CreditCard className="size-3.5 text-sky-600" />
+                            <span className="hidden sm:inline">कार्ड</span>
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -3445,6 +3544,47 @@ function MembersPage() {
             </div>
 
             <form onSubmit={handleSaveMember} className="mt-4 space-y-3.5 text-xs">
+              {/* Member Category: Main Member vs Others */}
+              <div>
+                <Label className="text-xs font-semibold">सदस्यता वर्ग (Member Category) *</Label>
+                <div className="mt-1.5 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMemberForm({ ...memberForm, category: "main" })}
+                    className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-all ${
+                      (memberForm.category || "main") === "main"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs ring-1 ring-primary/30"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold">
+                      <Sparkles className="size-3.5 text-primary" />
+                      <span>मुख्य सदस्य (Main Member)</span>
+                    </div>
+                    <span className="text-[10px] opacity-75 font-normal mt-0.5">
+                      कार्यसमिति, संस्थापक वा मुख्य सदस्य
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemberForm({ ...memberForm, category: "other" })}
+                    className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-all ${
+                      memberForm.category === "other"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs ring-1 ring-primary/30"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold">
+                      <Users className="size-3.5" />
+                      <span>अन्य सदस्य (Others)</span>
+                    </div>
+                    <span className="text-[10px] opacity-75 font-normal mt-0.5">
+                      साधारण, सहयोगी वा अन्य सदस्य
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <Label className="text-xs font-semibold">पद (Designation) *</Label>
                 <div className="mt-1 flex gap-2">
@@ -3963,6 +4103,16 @@ function MembersPage() {
           onSave={handleSaveOffer}
           onDelete={handleDeleteOffer}
           onClose={() => setOfferEmployee(null)}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* MEMBER & EMPLOYEE DIGITAL ID CARD MODAL */}
+      {/* ========================================================================= */}
+      {viewingCardTarget && (
+        <MemberEmployeeCard
+          target={viewingCardTarget}
+          onClose={() => setViewingCardTarget(null)}
         />
       )}
     </main>
