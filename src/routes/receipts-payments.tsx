@@ -69,11 +69,19 @@ type AccForm = {
   remarks: string;
 };
 
+type RpMemberOpt = {
+  id: string;
+  name: string;
+  designation?: string;
+  membership_fee?: number;
+  status?: string;
+};
+
 type TxnForm = {
   txn_date: string;
   account_id: string;
   to_account_id: string;
-  party_type: "" | "customer" | "donation" | "vendor" | "employee" | "tax";
+  party_type: "" | "customer" | "member" | "donation" | "vendor" | "employee" | "tax";
   party_id: string;
   party_name: string;
   amount: string;
@@ -104,6 +112,10 @@ function RPPage() {
   const accounts: RPAccount[] = useMemo(() => dataQuery.data?.accounts || [], [dataQuery.data]);
   const transactions = useMemo(() => dataQuery.data?.transactions || [], [dataQuery.data]);
   const customers = useMemo(() => dataQuery.data?.customers || [], [dataQuery.data]);
+  const members = useMemo(() => {
+    const d = dataQuery.data as { members?: RpMemberOpt[] } | undefined;
+    return (d?.members || []).filter((m) => m.id && m.status !== "inactive");
+  }, [dataQuery.data]);
   const vendors = useMemo(() => dataQuery.data?.vendors || [], [dataQuery.data]);
   const employees = useMemo(() => dataQuery.data?.employees || [], [dataQuery.data]);
   const events = useMemo(
@@ -315,7 +327,7 @@ function RPPage() {
           tab === "receipt"
             ? txnForm.party_type === "donation"
               ? "कम्पनी वा दाताको नाम भर्नुहोस्।"
-              : "जना थिचेर ग्राहक छान्नुहोस्।"
+              : "ग्राहक वा सदस्य छान्नुहोस्।"
             : "जना थिचेर विक्रेता वा कर्मचारी छान्नुहोस्।",
         );
         return;
@@ -334,7 +346,14 @@ function RPPage() {
           txn_date: txnForm.txn_date,
           account_id: txnForm.account_id,
           to_account_id: tab === "transfer" ? txnForm.to_account_id : "",
-          party_type: tab === "receipt" ? (txnForm.party_type === "donation" ? "donation" : "customer") : txnForm.party_type,
+          party_type:
+            tab === "receipt"
+              ? txnForm.party_type === "donation"
+                ? "donation"
+                : txnForm.party_type === "member"
+                  ? "member"
+                  : "customer"
+              : txnForm.party_type,
           party_id: txnForm.party_id,
           party_name: txnForm.party_name.trim(),
           amount: amt,
@@ -349,6 +368,7 @@ function RPPage() {
       setOkMsg(`${saved.party_name || saved.account_name} — ${saved.ref_no} सुरक्षित भयो।`);
       setTxnForm((prev) => ({
         ...prev,
+        party_type: "customer",
         party_id: "",
         party_name: "",
         company_name: "",
@@ -713,7 +733,7 @@ function RPPage() {
                     <span className="text-[10px] text-muted-foreground">
                       {txnForm.party_type === "donation"
                         ? "🎁 संस्था/कम्पनीबाट प्राप्त हुने दान तथा कार्यक्रम सहयोग"
-                        : "👤 नियमित ग्राहकको मासिक शुल्क तथा संकलन"}
+                        : "👤 नियमित ग्राहक तथा सदस्यको शुल्क र संकलन"}
                     </span>
                   </div>
                   <div className="mt-1.5 inline-flex rounded-lg border bg-muted/40 p-1 gap-1 text-xs font-bold">
@@ -765,19 +785,43 @@ function RPPage() {
 
                 {txnForm.party_type !== "donation" ? (
                   <div>
-                    <Label className="text-xs font-semibold">जना (ग्राहक) *</Label>
+                    <Label className="text-xs font-semibold">जना (ग्राहक / सदस्य) *</Label>
                     <SearchSelect
                       value={txnForm.party_id}
                       onChange={(v) => {
+                        const mem = members.find((m) => m.id === v);
+                        if (mem) {
+                          setTxnForm((p) => ({
+                            ...p,
+                            party_id: v,
+                            party_name: mem.name,
+                            party_type: "member",
+                            amount:
+                              (mem.membership_fee || 0) > 0 ? String(mem.membership_fee) : p.amount,
+                          }));
+                          return;
+                        }
                         const sel = customers.find((c) => c.id === v);
                         setTxnForm((p) => ({
                           ...p,
                           party_id: v,
                           party_name: sel?.name || "",
+                          party_type: "customer",
                         }));
                       }}
-                      options={customers.map((c) => ({ value: c.id || "", label: c.name }))}
-                      placeholder="ग्राहक छान्नुहोस्…"
+                      options={[
+                        ...customers.map((c) => ({
+                          value: c.id || "",
+                          label: c.name,
+                          group: "ग्राहक (Customer)",
+                        })),
+                        ...members.map((m) => ({
+                          value: m.id,
+                          label: `${m.name}${m.designation ? ` — ${m.designation}` : ""}`,
+                          group: "सदस्य (Member)",
+                        })),
+                      ]}
+                      placeholder="ग्राहक वा सदस्य छान्नुहोस्…"
                       className="mt-1 text-xs font-semibold"
                     />
                   </div>
@@ -1099,6 +1143,11 @@ function RPPage() {
                     {t.party_type === "donation" && (
                       <span className="ml-1.5 inline-flex items-center rounded bg-success/15 border border-success/30 px-1.5 py-0.2 text-[10px] font-extrabold text-success">
                         🎁 दान / सहयोग
+                      </span>
+                    )}
+                    {t.party_type === "member" && (
+                      <span className="ml-1.5 inline-flex items-center rounded bg-primary/15 border border-primary/30 px-1.5 py-0.2 text-[10px] font-extrabold text-primary">
+                        👤 सदस्य
                       </span>
                     )}
                     {t.linked_event_title && (

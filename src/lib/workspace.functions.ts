@@ -2755,6 +2755,55 @@ export const getRpData = createServerFn({ method: "GET" })
       ]);
       const errors = [accRes, custRes, vendRes, empRes, txRes].filter((r) => r.error);
       if (errors.length) throw new Error(errors[0].error?.message || "Load failed");
+
+      // Club members (same table fallback as getMembersData) for member receipts
+      type MemberOpt = {
+        id?: string;
+        name?: string;
+        designation?: string;
+        membership_fee?: number;
+        status?: string;
+      };
+      let members: Array<{
+        id: string;
+        name: string;
+        designation?: string;
+        membership_fee?: number;
+        status?: string;
+      }> = [];
+      try {
+        let memRes = await context.supabase
+          .from("members")
+          .select("*")
+          .eq("owner_id", context.userId)
+          .order("name");
+        if (memRes.error || !memRes.data || memRes.data.length === 0) {
+          memRes = await context.supabase
+            .from("club_members")
+            .select("*")
+            .eq("owner_id", context.userId)
+            .order("name");
+        }
+        if (memRes.error || !memRes.data || memRes.data.length === 0) {
+          memRes = await context.supabase
+            .from("bod_members")
+            .select("*")
+            .eq("owner_id", context.userId)
+            .order("name");
+        }
+        if (!memRes.error && memRes.data) {
+          members = (memRes.data as unknown as MemberOpt[]).map((m) => ({
+            id: String(m.id ?? ""),
+            name: String(m.name ?? ""),
+            designation: String(m.designation ?? ""),
+            membership_fee: Number(m.membership_fee) || 0,
+            status: String(m.status ?? "active"),
+          }));
+        }
+      } catch {
+        // Table may not be migrated yet
+      }
+
       const accounts = (accRes.data ?? []).map((a) => ({
         ...a,
         opening_balance: Number(a.opening_balance) || 0,
@@ -2831,6 +2880,7 @@ export const getRpData = createServerFn({ method: "GET" })
         customers: custRes.data ?? [],
         vendors: vendRes.data ?? [],
         employees: empRes.data ?? [],
+        members,
         events,
         tds_sst,
       };
@@ -2841,6 +2891,7 @@ export const getRpData = createServerFn({ method: "GET" })
         customers: [] as unknown[],
         vendors: [] as unknown[],
         employees: [] as unknown[],
+        members: [] as unknown[],
         events: [] as unknown[],
         tds_sst: { accrued: 0, paid: 0, balance: 0 },
       };
