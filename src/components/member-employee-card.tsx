@@ -234,7 +234,7 @@ export function MemberEmployeeCard({ target, onClose }: MemberEmployeeCardProps)
               margin: 0 auto;
               background: #fff;
               color: #0f172a;
-              font-family: 'Noto Sans', 'Segoe UI', Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }

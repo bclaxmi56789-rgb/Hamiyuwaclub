@@ -115,7 +115,7 @@ const PRINT_STYLE = (size: PrintSize, receipt: boolean) => `
     margin: 0 auto;
     background: #fff;
     color: #000;
-    font-family: 'Noto Sans', 'Segoe UI', Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
   .qr { display: block; image-rendering: pixelated; }
